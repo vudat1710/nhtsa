@@ -22,58 +22,99 @@ OUT = EVAL / "adjudication"
 def disagreements(run: str) -> list[dict]:
     """Set A: the AI's answer differs from the owner's cited recall. Set B: the AI claimed a known recall although
     none existed on the owner's chosen component (it may have found one filed under another component)."""
-    rows = [json.loads(x) for x in (EVAL / "runs" / f"{run}.jsonl").read_text(encoding="utf-8").splitlines() if x]
-    truth = {c["id"]: c for c in json.loads((EVAL / "set_a.json").read_text(encoding="utf-8"))["cases"]}
-    ai = ("ai_verified", "ai_repaired")
-    a = [r | {"truth_campno": truth[r["id"]]["truth_campno"]} for r in rows
-         if r["set"] == "A" and not r["right"] and r["source"] in ai]
-    b = [r | {"truth_campno": None} for r in rows if r["set"] == "B" and r["wrong_known"] and r["source"] in ai]
-    return a, b
+    run_lines = (EVAL / "runs" / f"{run}.jsonl").read_text(encoding="utf-8").splitlines()
+    rows = [json.loads(line) for line in run_lines if line]
+    set_a_cases = json.loads((EVAL / "set_a.json").read_text(encoding="utf-8"))["cases"]
+    truth = {case["id"]: case for case in set_a_cases}
+    ai_sources = ("ai_verified", "ai_repaired")
+    set_a = []
+    set_b = []
+    for row in rows:
+        if row["set"] == "A" and not row["right"] and row["source"] in ai_sources:
+            disagreement = dict(row)
+            disagreement["truth_campno"] = truth[row["id"]]["truth_campno"]
+            set_a.append(disagreement)
+    for row in rows:
+        if row["set"] == "B" and row["wrong_known"] and row["source"] in ai_sources:
+            disagreement = dict(row)
+            disagreement["truth_campno"] = None
+            set_b.append(disagreement)
+    return set_a, set_b
 
 
-def case_md(store: Store, r: dict, group: str, later: dict) -> tuple[list[str], dict]:
-    res = store.get(r["result_id"])
-    c, d = res.complaint, res.decision
-    shown = r["truth_campno"] if group == "A" else d.campno
-    rec = res.evidence.recall(shown) if shown else None
-    check = next((x for x in res.judgment.checks if x.campno == shown), None) if res.judgment and shown else None
-    head = (f"**AI:** {d.outcome} {d.campno or ''} ({d.confidence}) · **owner cited:** {r['truth_campno']}"
-            if group == "A" else f"**AI:** {d.outcome} {d.campno} ({d.confidence}) · **later recall on the owner's "
-                                 f"component:** {later.get('later_campno')} (+{later.get('lead_days')} days)")
-    on_it = (f"{check.verdict}: {check.reason} · owner «{check.complaint_quote}» ~ recall «{check.recall_quote}»"
-             if check else "(not judged relevant)")
-    md = [f"\n## {r['id']} · {c.year} {c.make} {c.model} · complaint {c.odino} · owner chose "
-          f"{', '.join(c.comps) or '-'}", head,
-          f"\n**Complaint (as the AI saw it):** {textwrap.shorten(res.intake.text, 1500)}",
-          f"\n**{'Cited' if group == 'A' else 'Matched'} recall {shown} ({', '.join(rec.comps) if rec else '-'}):** "
-          f"{rec.defect if rec else '(not a candidate)'}",
+def case_md(store: Store, row: dict, group: str, later: dict) -> tuple[list[str], dict]:
+    """One disagreement as markdown lines for the reader, plus its entry (verdict still empty) for the .json file.
+    Set A shows the recall the owner cited; set B shows the recall the AI matched and the later recall."""
+    result = store.get(row["result_id"])
+    complaint = result.complaint
+    decision = result.decision
+    judgment = result.judgment
+    shown = row["truth_campno"] if group == "A" else decision.campno
+    recall = result.evidence.recall(shown) if shown else None
+    check = None
+    if judgment and shown:
+        check = next((x for x in judgment.checks if x.campno == shown), None)
+
+    if group == "A":
+        head = (f"**AI:** {decision.outcome} {decision.campno or ''} ({decision.confidence}) · "
+                f"**owner cited:** {row['truth_campno']}")
+    else:
+        head = (f"**AI:** {decision.outcome} {decision.campno} ({decision.confidence}) · "
+                f"**later recall on the owner's component:** {later.get('later_campno')} "
+                f"(+{later.get('lead_days')} days)")
+    if check:
+        on_it = (f"{check.verdict}: {check.reason} · owner «{check.complaint_quote}» ~ "
+                 f"recall «{check.recall_quote}»")
+    else:
+        on_it = "(not judged relevant)"
+    if recall:
+        recall_comps = ", ".join(recall.comps)
+        recall_defect = recall.defect
+    else:
+        recall_comps = "-"
+        recall_defect = "(not a candidate)"
+    recall_label = "Cited" if group == "A" else "Matched"
+    owner_comps = ", ".join(complaint.comps) or "-"
+    ai_summary = judgment.summary if judgment else ""
+
+    md = [f"\n## {row['id']} · {complaint.year} {complaint.make} {complaint.model} · complaint {complaint.odino} · "
+          f"owner chose {owner_comps}",
+          head,
+          f"\n**Complaint (as the AI saw it):** {textwrap.shorten(result.intake.text, 1500)}",
+          f"\n**{recall_label} recall {shown} ({recall_comps}):** {recall_defect}",
           f"\n**AI on it:** {on_it}",
-          f"\n**AI summary:** {res.judgment.summary if res.judgment else ''}"]
-    entry = {"id": r["id"], "odino": c.odino, "ai": d.outcome, "ai_campno": d.campno,
-             "owner_campno": r["truth_campno"], "verdict": "", "note": ""}
+          f"\n**AI summary:** {ai_summary}"]
+    entry = {"id": row["id"], "odino": complaint.odino, "ai": decision.outcome, "ai_campno": decision.campno,
+             "owner_campno": row["truth_campno"], "verdict": "", "note": ""}
     return md, entry
 
 
 def export(run: str) -> None:
     store = Store(get_settings().app_db_path)
     dis_a, dis_b = disagreements(run)
-    sample_a = sorted(random.Random(SEED).sample(dis_a, min(N, len(dis_a))), key=lambda r: r["id"])
-    later = {c["id"]: c for c in json.loads((EVAL / "set_b.json").read_text(encoding="utf-8"))["cases"]}
+    sample_a = random.Random(SEED).sample(dis_a, min(N, len(dis_a)))
+    sample_a = sorted(sample_a, key=lambda row: row["id"])
+    set_b_cases = json.loads((EVAL / "set_b.json").read_text(encoding="utf-8"))["cases"]
+    later = {case["id"]: case for case in set_b_cases}
     md = [f"# Adjudication: {run}\n",
           f"**Set A:** {len(dis_a)} answers differ from the owner's cited recall; {len(sample_a)} sampled (seed "
           f"{SEED}). Verdict: ai_right | owner_right | unclear.\n",
           f"**Set B:** all {len(dis_b)} cases where the AI claimed a known recall although none existed on the owner's "
           "chosen component. Verdict: ai_right (an existing recall really fits) | owner_right (it does not) | "
           "unclear.\n"]
+
+    cases_by_group = {"A": sample_a, "B": sorted(dis_b, key=lambda row: row["id"])}
+    disagreement_counts = {"A": len(dis_a), "B": len(dis_b)}
     groups = {}
-    for group, rows in (("A", sample_a), ("B", sorted(dis_b, key=lambda r: r["id"]))):
+    for group, rows in cases_by_group.items():
         md.append(f"\n# Set {group}\n")
         entries = []
-        for r in rows:
-            lines, entry = case_md(store, r, group, later.get(r["id"], {}))
+        for row in rows:
+            lines, entry = case_md(store, row, group, later.get(row["id"], {}))
             md += lines
             entries.append(entry)
-        groups[group] = {"disagreements": len(dis_a if group == "A" else dis_b), "cases": entries}
+        groups[group] = {"disagreements": disagreement_counts[group], "cases": entries}
+
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / f"{run}.md").write_text("\n".join(md) + "\n", encoding="utf-8")
     path = OUT / f"{run}.json"
@@ -85,19 +126,24 @@ def export(run: str) -> None:
 def summary(run: str) -> dict:
     data = json.loads((OUT / f"{run}.json").read_text(encoding="utf-8"))
     out = {}
-    for group, g in data["groups"].items():
-        done = [c for c in g["cases"] if c["verdict"]]
-        out[group] = {"disagreements": g["disagreements"], "adjudicated": len(done),
-                      **{v: sum(c["verdict"] == v for c in done) for v in ("ai_right", "owner_right", "unclear")}}
+    for group, group_data in data["groups"].items():
+        done = [case for case in group_data["cases"] if case["verdict"]]
+        counts = {"disagreements": group_data["disagreements"], "adjudicated": len(done)}
+        for verdict in ("ai_right", "owner_right", "unclear"):
+            counts[verdict] = sum(1 for case in done if case["verdict"] == verdict)
+        out[group] = counts
     return out
 
 
 def main() -> None:
-    p = argparse.ArgumentParser()
-    p.add_argument("--run", required=True)
-    p.add_argument("--summary", action="store_true")
-    a = p.parse_args()
-    print(json.dumps(summary(a.run), indent=1)) if a.summary else export(a.run)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--run", required=True)
+    parser.add_argument("--summary", action="store_true")
+    args = parser.parse_args()
+    if args.summary:
+        print(json.dumps(summary(args.run), indent=1))
+    else:
+        export(args.run)
 
 
 if __name__ == "__main__":

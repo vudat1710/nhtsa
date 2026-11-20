@@ -15,20 +15,24 @@ class SearchArgs(BaseModel):
     query: str = Field(description="a short description of the failure, in your own words")
 
 
-def search_tool(con: sqlite3.Connection, c: Complaint, found: dict[int, str]) -> af.FunctionTool:
+def search_tool(con: sqlite3.Connection, complaint: Complaint, found: dict[int, str]) -> af.FunctionTool:
     """Earlier complaints about the same vehicle, received before this one. Full texts go into `found` so the verifier
     can check quotes; the model sees the first PREVIEW_CHARS characters of each."""
-    v = queries.Vehicle(c.make, c.model, c.year)
+    vehicle = queries.Vehicle(complaint.make, complaint.model, complaint.year)
 
     async def search_complaints(query: str) -> str:
         # async on purpose: MAF runs sync tools in worker threads, and the sqlite connection is shared by concurrent
         # cases on the event loop thread (a sync tool here failed with InterfaceError under concurrency)
-        out = []
-        for h in queries.search_complaints(con, v, query, c.received, exclude=c.odino):
-            text = con.execute("SELECT text FROM complaints WHERE odino = ?", (h["odino"],)).fetchone()[0]
-            found[h["odino"]] = text
-            out.append({"odino": h["odino"], "received": h["received"], "text": text[:PREVIEW_CHARS]})
-        return json.dumps(out or {"result": "no earlier complaints matched"}, ensure_ascii=False)
+        hits = queries.search_complaints(con, vehicle, query, complaint.received, exclude=complaint.odino)
+        results = []
+        for hit in hits:
+            odino = hit["odino"]
+            text = con.execute("SELECT text FROM complaints WHERE odino = ?", (odino,)).fetchone()[0]
+            found[odino] = text
+            results.append({"odino": odino, "received": hit["received"], "text": text[:PREVIEW_CHARS]})
+        if not results:
+            return json.dumps({"result": "no earlier complaints matched"}, ensure_ascii=False)
+        return json.dumps(results, ensure_ascii=False)
 
     return af.tool(search_complaints, name="search_complaints", schema=SearchArgs,
                    description="Search earlier complaints about this same vehicle for a failure description.")

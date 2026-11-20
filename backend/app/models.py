@@ -23,7 +23,9 @@ class Complaint(BaseModel):
 
     @property
     def comps(self) -> list[str]:
-        return sorted({c.split(":")[0].strip() for c in self.components})
+        """Top-level components, unique and sorted: 'AIR BAGS:FRONTAL' -> 'AIR BAGS'."""
+        top_level = {component.split(":")[0].strip() for component in self.components}
+        return sorted(top_level)
 
 
 class Intake(BaseModel):
@@ -74,7 +76,10 @@ class Evidence(BaseModel):
     stats: Stats
 
     def recall(self, campno: str) -> RecallItem | None:
-        return next((r for r in self.recalls if r.campno == campno), None)
+        for recall in self.recalls:
+            if recall.campno == campno:
+                return recall
+        return None
 
 
 class RecallCheck(BaseModel):

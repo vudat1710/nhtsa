@@ -38,29 +38,40 @@ Answer with ONLY a JSON object matching this schema:
 {json.dumps(Judgment.model_json_schema(), sort_keys=True)}"""
 
 
-def case_message(c: Complaint, it: Intake, ev: Evidence) -> str:
+def case_message(complaint: Complaint, intake: Intake, evidence: Evidence) -> str:
+    candidate_recalls = []
+    for recall in evidence.recalls:
+        entry = {"campno": recall.campno, "filed": recall.filed, "components": recall.components,
+                 "defect": recall.defect, "consequence": recall.consequence, "remedy": recall.remedy}
+        if recall.replaced_by:
+            entry["replaced_by"] = recall.replaced_by
+        candidate_recalls.append(entry)
+    investigations = [{"action": inv.action, "opened": inv.opened, "subject": inv.subject}
+                      for inv in evidence.investigations]
     case = {
-        "vehicle": f"{c.year} {c.make} {c.model}", "received": c.received,
-        "components_chosen_by_owner": c.components or ["(none)"],
-        "crash": bool(c.crash), "fire": bool(c.fire), "injured": c.injured,
-        "complaint": it.text,
-        "candidate_recalls": [
-            {"campno": r.campno, "filed": r.filed, "components": r.components, "defect": r.defect,
-             "consequence": r.consequence, "remedy": r.remedy,
-             **({"replaced_by": r.replaced_by} if r.replaced_by else {})} for r in ev.recalls],
-        "candidate_recalls_not_shown": ev.recalls_total - len(ev.recalls),
-        "investigations_on_this_vehicle": [{"action": i.action, "opened": i.opened, "subject": i.subject}
-                                           for i in ev.investigations],
+        "vehicle": f"{complaint.year} {complaint.make} {complaint.model}",
+        "received": complaint.received,
+        "components_chosen_by_owner": complaint.components or ["(none)"],
+        "crash": bool(complaint.crash),
+        "fire": bool(complaint.fire),
+        "injured": complaint.injured,
+        "complaint": intake.text,
+        "candidate_recalls": candidate_recalls,
+        "candidate_recalls_not_shown": evidence.recalls_total - len(evidence.recalls),
+        "investigations_on_this_vehicle": investigations,
     }
     return "Case:\n" + json.dumps(case, ensure_ascii=False, indent=1)
 
 
 def repair_message(issues: list[Issue]) -> str:
-    return ("Your answer failed verification:\n" + "\n".join(f"- [{i.code}] {i.message}" for i in issues)
-            + "\nReturn the corrected JSON object only.")
+    issue_lines = [f"- [{issue.code}] {issue.message}" for issue in issues]
+    return "Your answer failed verification:\n" + "\n".join(issue_lines) + "\nReturn the corrected JSON object only."
 
 
 def parse_judgment(text: str) -> Judgment:
     """Tolerates prose around the JSON; raises if the JSON itself is invalid."""
-    start, end = text.find("{"), text.rfind("}")
-    return Judgment.model_validate_json(text[start:end + 1] if start >= 0 and end > start else text)
+    start = text.find("{")
+    end = text.rfind("}")
+    # Keep from the first "{" to the last "}"; without such a pair, validate the whole text (and let it fail)
+    json_text = text[start:end + 1] if start >= 0 and end > start else text
+    return Judgment.model_validate_json(json_text)

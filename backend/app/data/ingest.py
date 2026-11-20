@@ -44,8 +44,9 @@ CREATE VIRTUAL TABLE complaints_fts USING fts5(text, content='complaints', conte
 
 
 def read_flat(zip_name: str, names: list[str]) -> pd.DataFrame:
-    """Tab-delimited, no header, no quoting. Read as latin-1 (never fails), repair UTF-8 later per field."""
-    with zipfile.ZipFile(RAW / zip_name) as z, z.open(z.namelist()[0]) as fh:
+    """Read the single tab-delimited file inside a zip: no header, no quoting, every value kept as a string.
+    Read as latin-1 (which never fails); fix_text() later repairs the UTF-8 per field."""
+    with zipfile.ZipFile(RAW / zip_name) as archive, archive.open(archive.namelist()[0]) as fh:
         return pd.read_csv(fh, sep="\t", header=None, names=names, usecols=range(len(names)), dtype=str,
                            quoting=3, encoding="latin-1", on_bad_lines="skip", keep_default_na=False)
 
@@ -59,11 +60,13 @@ def fix_text(s: str) -> str:
 
 
 def iso(s: pd.Series) -> pd.Series:
-    d = pd.to_datetime(s, format="%Y%m%d", errors="coerce")
-    return d.dt.strftime("%Y-%m-%d").where(d.notna(), None)
+    """'20240318' -> '2024-03-18'; unparseable dates become None."""
+    dates = pd.to_datetime(s, format="%Y%m%d", errors="coerce")
+    return dates.dt.strftime("%Y-%m-%d").where(dates.notna(), None)
 
 
 def top(component: pd.Series) -> pd.Series:
+    """'AIR BAGS:FRONTAL' -> 'AIR BAGS'."""
     return component.str.split(":").str[0].str.strip()
 
 
@@ -72,59 +75,103 @@ def save(con: sqlite3.Connection, table: str, df: pd.DataFrame) -> None:
 
 
 def num(s: pd.Series) -> pd.Series:
+    """Text to int; blank or invalid values become 0."""
     return pd.to_numeric(s, errors="coerce").fillna(0).astype(int)
 
 
 def build_complaints(con: sqlite3.Connection) -> None:
-    c = read_flat("FLAT_CMPL.zip", CMPL)
-    c["received"] = iso(c.LDATE)
-    c = c[c.received >= COMPLAINTS_FROM]
-    one = c.drop_duplicates("ODINO")
-    text = one.CDESCR.map(fix_text)
-    save(con, "complaints", pd.DataFrame({
-        "odino": one.ODINO.astype(int), "make": one.MAKETXT, "model": one.MODELTXT, "year": one.YEARTXT,
-        "received": one.received, "failed": iso(one.FAILDATE), "crash": (one.CRASH == "Y").astype(int),
-        "fire": (one.FIRE == "Y").astype(int), "injured": num(one.INJURED), "deaths": num(one.DEATHS),
-        "miles": pd.to_numeric(one.MILES, errors="coerce"), "state": one.STATE,
-        "source": one.CDESCR.str.startswith("TL*").map({True: "hotline", False: "owner"}), "text": text,
-    }))
-    save(con, "complaint_components", pd.DataFrame({
-        "odino": c.ODINO.astype(int), "component": c.COMPDESC, "comp": top(c.COMPDESC),
-    }).drop_duplicates())
-    print(f"complaints {len(one):,} (since {COMPLAINTS_FROM}), component rows {len(c):,}, "
-          f"text repaired {(text != one.CDESCR).sum():,}")
+    rows = read_flat("FLAT_CMPL.zip", CMPL)  # one row per complaint x component
+    rows["received"] = iso(rows.LDATE)
+    rows = rows[rows.received >= COMPLAINTS_FROM]
+    first = rows.drop_duplicates("ODINO")  # one row per complaint
+    text = first.CDESCR.map(fix_text)
+    is_hotline = first.CDESCR.str.startswith("TL*")  # hotline call transcripts start with "TL*"
+
+    complaints = pd.DataFrame({
+        "odino": first.ODINO.astype(int),
+        "make": first.MAKETXT,
+        "model": first.MODELTXT,
+        "year": first.YEARTXT,
+        "received": first.received,
+        "failed": iso(first.FAILDATE),
+        "crash": (first.CRASH == "Y").astype(int),
+        "fire": (first.FIRE == "Y").astype(int),
+        "injured": num(first.INJURED),
+        "deaths": num(first.DEATHS),
+        "miles": pd.to_numeric(first.MILES, errors="coerce"),
+        "state": first.STATE,
+        "source": is_hotline.map({True: "hotline", False: "owner"}),
+        "text": text,
+    })
+    save(con, "complaints", complaints)
+
+    components = pd.DataFrame({
+        "odino": rows.ODINO.astype(int),
+        "component": rows.COMPDESC,
+        "comp": top(rows.COMPDESC),
+    })
+    save(con, "complaint_components", components.drop_duplicates())
+
+    repaired = (text != first.CDESCR).sum()
+    print(f"complaints {len(first):,} (since {COMPLAINTS_FROM}), component rows {len(rows):,}, "
+          f"text repaired {repaired:,}")
 
 
 def build_recalls(con: sqlite3.Connection) -> None:
-    r = read_flat("FLAT_RCL_POST_2010.zip", RCL)
-    one = r.drop_duplicates("CAMPNO")
-    save(con, "recalls", pd.DataFrame({
-        "campno": one.CAMPNO, "filed": iso(one.RCDATE), "influenced_by": one.INFLUENCED_BY,
-        "manufacturer": one.MFGNAME, "units": pd.to_numeric(one.POTAFF, errors="coerce"),
-        "defect": one.DESC_DEFECT.map(fix_text), "consequence": one.CONEQUENCE_DEFECT.map(fix_text),
-        "remedy": one.CORRECTIVE_ACTION.map(fix_text),
-    }))
-    save(con, "recall_vehicles", pd.DataFrame({
-        "campno": r.CAMPNO, "make": r.MAKETXT, "model": r.MODELTXT, "year": r.YEARTXT,
-        "component": r.COMPNAME, "comp": top(r.COMPNAME),
-    }).drop_duplicates())
-    print(f"recalls {len(one):,}, vehicle rows {len(r):,}")
+    rows = read_flat("FLAT_RCL_POST_2010.zip", RCL)  # one row per recall x vehicle x component
+    first = rows.drop_duplicates("CAMPNO")  # one row per recall
+
+    recalls = pd.DataFrame({
+        "campno": first.CAMPNO,
+        "filed": iso(first.RCDATE),
+        "influenced_by": first.INFLUENCED_BY,
+        "manufacturer": first.MFGNAME,
+        "units": pd.to_numeric(first.POTAFF, errors="coerce"),
+        "defect": first.DESC_DEFECT.map(fix_text),
+        "consequence": first.CONEQUENCE_DEFECT.map(fix_text),
+        "remedy": first.CORRECTIVE_ACTION.map(fix_text),
+    })
+    save(con, "recalls", recalls)
+
+    vehicles = pd.DataFrame({
+        "campno": rows.CAMPNO,
+        "make": rows.MAKETXT,
+        "model": rows.MODELTXT,
+        "year": rows.YEARTXT,
+        "component": rows.COMPNAME,
+        "comp": top(rows.COMPNAME),
+    })
+    save(con, "recall_vehicles", vehicles.drop_duplicates())
+
+    print(f"recalls {len(first):,}, vehicle rows {len(rows):,}")
 
 
 def build_investigations(con: sqlite3.Connection) -> None:
-    i = read_flat("FLAT_INV.zip", INV)
-    i = i[i.MAKE != ""]  # a few administrative rows have no vehicle, date or subject
-    one = i.drop_duplicates("ACTION")
-    save(con, "investigations", pd.DataFrame({
-        "action": one.ACTION, "opened": iso(one.ODATE), "closed": iso(one.CDATE),
-        "campno": one.CAMPNO.replace("", None), "subject": one.SUBJECT.map(fix_text),
-        "summary": one.SUMMARY.map(fix_text),
-    }))
-    save(con, "investigation_vehicles", pd.DataFrame({
-        "action": i.ACTION, "make": i.MAKE, "model": i.MODEL, "year": i.YEAR,
-        "component": i.COMPNAME, "comp": top(i.COMPNAME),
-    }).drop_duplicates())
-    print(f"investigations {len(one):,}, vehicle rows {len(i):,}")
+    rows = read_flat("FLAT_INV.zip", INV)  # one row per investigation x vehicle
+    rows = rows[rows.MAKE != ""]  # a few administrative rows have no vehicle, date or subject
+    first = rows.drop_duplicates("ACTION")  # one row per investigation
+
+    investigations = pd.DataFrame({
+        "action": first.ACTION,
+        "opened": iso(first.ODATE),
+        "closed": iso(first.CDATE),
+        "campno": first.CAMPNO.replace("", None),
+        "subject": first.SUBJECT.map(fix_text),
+        "summary": first.SUMMARY.map(fix_text),
+    })
+    save(con, "investigations", investigations)
+
+    vehicles = pd.DataFrame({
+        "action": rows.ACTION,
+        "make": rows.MAKE,
+        "model": rows.MODEL,
+        "year": rows.YEAR,
+        "component": rows.COMPNAME,
+        "comp": top(rows.COMPNAME),
+    })
+    save(con, "investigation_vehicles", vehicles.drop_duplicates())
+
+    print(f"investigations {len(first):,}, vehicle rows {len(rows):,}")
 
 
 INDEXES = """
@@ -138,7 +185,8 @@ INSERT INTO complaints_fts(rowid, text) SELECT odino, text FROM complaints;
 
 
 def main() -> None:
-    t = time.time()
+    started = time.time()
+    # Build into a temporary file and swap it in at the end, so a failed build never leaves a half-built database.
     tmp = DB.with_suffix(".building.db")
     tmp.unlink(missing_ok=True)
     con = sqlite3.connect(tmp)
@@ -151,7 +199,7 @@ def main() -> None:
     con.execute("VACUUM")
     con.close()
     tmp.replace(DB)
-    print(f"built {DB.name} ({DB.stat().st_size / 1e6:,.0f} MB) in {time.time() - t:.0f}s")
+    print(f"built {DB.name} ({DB.stat().st_size / 1e6:,.0f} MB) in {time.time() - started:.0f}s")
 
 
 if __name__ == "__main__":

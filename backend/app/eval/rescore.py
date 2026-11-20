@@ -16,31 +16,48 @@ from app.pipeline.decide import decide
 
 def stored_results(run: str) -> dict[str, Result]:
     """Every result of a run, as committed in data/eval/results/<run>.jsonl.gz (no database or model needed)."""
+    results = {}
     with gzip.open(EVAL / "results" / f"{run}.jsonl.gz", "rt", encoding="utf-8") as f:
-        return {r.id: r for r in (Result.model_validate_json(line) for line in f if line.strip())}
+        for line in f:
+            if line.strip():
+                result = Result.model_validate_json(line)
+                results[result.id] = result
+    return results
 
 
 def main() -> None:
-    p = argparse.ArgumentParser()
-    p.add_argument("--run", required=True)
-    p.add_argument("--note", default="", help="what changed in the rules, recorded in the report")
-    a = p.parse_args()
-    results = stored_results(a.run)
-    report = json.loads((EVAL / "reports" / f"{a.run}.json").read_text(encoding="utf-8"))
-    cases = [c for name in report["set"].split(",") for c in load(name.strip(), report["split"])]
-    old_rows = [json.loads(x) for x in (EVAL / "runs" / f"{a.run}.jsonl").read_text(encoding="utf-8").splitlines() if x]
-    rows, changed = [], 0
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--run", required=True)
+    parser.add_argument("--note", default="", help="what changed in the rules, recorded in the report")
+    args = parser.parse_args()
+    results = stored_results(args.run)
+    report = json.loads((EVAL / "reports" / f"{args.run}.json").read_text(encoding="utf-8"))
+    cases = []
+    for set_name in report["set"].split(","):
+        cases += load(set_name.strip(), report["split"])
+    run_lines = (EVAL / "runs" / f"{args.run}.jsonl").read_text(encoding="utf-8").splitlines()
+    old_rows = [json.loads(line) for line in run_lines if line]
+
+    rows = []
+    changed = 0
     for old in old_rows:
-        r = results[old["result_id"]]
-        case = next(c for c in cases if c["id"] == old["id"])
-        new_decision = decide(r.complaint, r.intake, r.evidence, r.judgment, r.decision.source)
-        changed += new_decision.outcome != r.decision.outcome or new_decision.campno != r.decision.campno
-        rows.append(score(case, r.model_copy(update={"decision": new_decision})))
+        result = results[old["result_id"]]
+        case = next(case for case in cases if case["id"] == old["id"])
+        new_decision = decide(result.complaint, result.intake, result.evidence, result.judgment,
+                              result.decision.source)
+        if new_decision.outcome != result.decision.outcome or new_decision.campno != result.decision.campno:
+            changed += 1
+        redecided = result.model_copy(update={"decision": new_decision})
+        rows.append(score(case, redecided))
     check_injections(rows)
-    name = f"{a.run}-rescored"
-    report |= {"name": name, "rescored_from": a.run, "rescore_note": a.note, "decisions_changed": changed,
-               "metrics": metrics(rows)}
-    (EVAL / "runs" / f"{name}.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+
+    name = f"{args.run}-rescored"
+    report["name"] = name
+    report["rescored_from"] = args.run
+    report["rescore_note"] = args.note
+    report["decisions_changed"] = changed
+    report["metrics"] = metrics(rows)
+    (EVAL / "runs" / f"{name}.jsonl").write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
     (EVAL / "reports" / f"{name}.json").write_text(json.dumps(report, indent=1) + "\n", encoding="utf-8")
     print(f"{name}: {changed} decisions changed")
 

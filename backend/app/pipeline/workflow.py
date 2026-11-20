@@ -77,27 +77,31 @@ class EvidenceStep(Step):
         res = self.res
         res.emit({"type": "step", "step": self.id})
         case.evidence = gather(res.con, case.complaint, case.intake)
-        res.emit({"type": "evidence", "recalls": [r.campno for r in case.evidence.recalls],
+        res.emit({"type": "evidence", "recalls": [recall.campno for recall in case.evidence.recalls],
                   "recalls_total": case.evidence.recalls_total, "stats": case.evidence.stats.model_dump()})
         if "unknown_year" in case.intake.flags:
             case.use_llm = False  # no candidate recalls to compare against: the rules answer needs_info
         if case.use_llm:
-            res.judge = build_judge(res.con, case.complaint, res.llm, res.fault,
-                                    lambda call: res.emit({"type": "tool_call", **call}))
+            def emit_tool_call(call: dict) -> None:
+                res.emit({"type": "tool_call", **call})
+
+            res.judge = build_judge(res.con, case.complaint, res.llm, res.fault, emit_tool_call)
         await ctx.send_message(case)
 
 
 class JudgeStep(Step):
     @handler
     async def run(self, case: Case, ctx: WorkflowContext[Case]) -> None:
-        n = len(case.attempts) + 1
-        self.res.emit({"type": "step", "step": self.id, "attempt": n})
-        text = case_message(case.complaint, case.intake, case.evidence) if n == 1 else \
-            repair_message(case.attempts[-1].issues)
-        att, case.reply, case.model = await ask(self.res.judge, n, text, self.res.llm.model_name)
-        case.attempts.append(att)
-        self.res.emit({"type": "agent", "attempt": n, "error": att.error, "input_tokens": att.input_tokens,
-                       "output_tokens": att.output_tokens})
+        attempt_no = len(case.attempts) + 1
+        self.res.emit({"type": "step", "step": self.id, "attempt": attempt_no})
+        if attempt_no == 1:
+            text = case_message(case.complaint, case.intake, case.evidence)
+        else:
+            text = repair_message(case.attempts[-1].issues)
+        attempt, case.reply, case.model = await ask(self.res.judge, attempt_no, text, self.res.llm.model_name)
+        case.attempts.append(attempt)
+        self.res.emit({"type": "agent", "attempt": attempt_no, "error": attempt.error,
+                       "input_tokens": attempt.input_tokens, "output_tokens": attempt.output_tokens})
         await ctx.send_message(case)
 
 
@@ -105,25 +109,33 @@ class VerifyStep(Step):
     @handler
     async def run(self, case: Case, ctx: WorkflowContext[Case]) -> None:
         """ok -> keep the judgment; issues on the first answer -> repair; otherwise -> fallback."""
-        att, j = case.attempts[-1], None
-        self.res.emit({"type": "step", "step": self.id, "attempt": att.n})
-        if att.error is None:
+        attempt = case.attempts[-1]
+        judgment = None
+        self.res.emit({"type": "step", "step": self.id, "attempt": attempt.n})
+
+        # Parse and verify the reply (a failed model call has no reply to check)
+        if attempt.error is None:
             try:
-                j = parse_judgment(case.reply)
-                att.issues = verify(j, case.complaint, case.intake, case.evidence, self.res.judge.found)
+                judgment = parse_judgment(case.reply)
+                attempt.issues = verify(judgment, case.complaint, case.intake, case.evidence, self.res.judge.found)
             except (ValidationError, ValueError) as exc:
-                att.issues = [Issue(code="malformed_output", message=str(exc).splitlines()[0][:300])]
-        if j is not None and not att.issues:
-            case.judgment, case.status = j, ("ok" if att.n == 1 else "repaired")
-        elif att.error is None and att.n < MAX_ATTEMPTS:
+                first_line = str(exc).splitlines()[0]
+                attempt.issues = [Issue(code="malformed_output", message=first_line[:300])]
+
+        # Where to go next
+        if judgment is not None and not attempt.issues:
+            case.judgment = judgment
+            case.status = "ok" if attempt.n == 1 else "repaired"
+        elif attempt.error is None and attempt.n < MAX_ATTEMPTS:
             case.status = "repair"
         else:
             case.status = "fallback"
-        self.res.emit({"type": "verify", "attempt": att.n, "result": case.status,
-                       "issues": [i.model_dump() for i in att.issues]})
+
+        self.res.emit({"type": "verify", "attempt": attempt.n, "result": case.status,
+                       "issues": [issue.model_dump() for issue in attempt.issues]})
         if case.judgment:  # what the agent concluded per recall, now that every quote is verified
-            self.res.emit({"type": "judgment", "checks": [ch.model_dump() for ch in case.judgment.checks],
-                           "similar": [s.model_dump() for s in case.judgment.similar]})
+            self.res.emit({"type": "judgment", "checks": [check.model_dump() for check in case.judgment.checks],
+                           "similar": [similar.model_dump() for similar in case.judgment.similar]})
         await ctx.send_message(case)
 
 
@@ -131,21 +143,24 @@ class DecideStep(Step):
     @handler
     async def run(self, case: Case, ctx: WorkflowContext[Case, Case]) -> None:
         self.res.emit({"type": "step", "step": self.id})
-        case.decision = decide(case.complaint, case.intake, case.evidence, case.judgment,
-                               SOURCE.get(case.status, "rules"))
+        source = SOURCE.get(case.status, "rules")
+        case.decision = decide(case.complaint, case.intake, case.evidence, case.judgment, source)
         await ctx.yield_output(case)
 
 
 def build_workflow(res: Resources):
-    i, e, j, v, d = (IntakeStep("intake", res), EvidenceStep("evidence", res), JudgeStep("judge", res),
-                     VerifyStep("verify", res), DecideStep("decide", res))
-    return (WorkflowBuilder(start_executor=i, name="recall_match")
-            .add_edge(i, e)
-            .add_edge(e, j, condition=lambda c: c.use_llm)
-            .add_edge(e, d, condition=lambda c: not c.use_llm)
-            .add_edge(j, v)
-            .add_edge(v, j, condition=lambda c: c.status == "repair")
-            .add_edge(v, d, condition=lambda c: c.status != "repair")
+    intake_step = IntakeStep("intake", res)
+    evidence_step = EvidenceStep("evidence", res)
+    judge_step = JudgeStep("judge", res)
+    verify_step = VerifyStep("verify", res)
+    decide_step = DecideStep("decide", res)
+    return (WorkflowBuilder(start_executor=intake_step, name="recall_match")
+            .add_edge(intake_step, evidence_step)
+            .add_edge(evidence_step, judge_step, condition=lambda case: case.use_llm)
+            .add_edge(evidence_step, decide_step, condition=lambda case: not case.use_llm)
+            .add_edge(judge_step, verify_step)
+            .add_edge(verify_step, judge_step, condition=lambda case: case.status == "repair")
+            .add_edge(verify_step, decide_step, condition=lambda case: case.status != "repair")
             .build())
 
 
@@ -153,14 +168,19 @@ async def run(con, complaint: Complaint, llm: LlmSetup | None, use_llm: bool = T
               emit: Callable[[dict], None] | None = None) -> Result:
     started = time.perf_counter()
     use_llm = use_llm and llm is not None
-    res = Resources(con, llm if use_llm else None, fault, emit or (lambda event: None))
+    llm_for_run = llm if use_llm else None
+    on_event = emit or (lambda event: None)  # nobody listening: drop progress events
+    res = Resources(con, llm_for_run, fault, on_event)
     case = Case(complaint, use_llm)
+
     steps: list[str] = []
-    async for ev in build_workflow(res).run(case, stream=True):  # the workflow's own events: which steps ran
-        if ev.type == "executor_invoked":
-            steps.append(ev.executor_id)
+    async for event in build_workflow(res).run(case, stream=True):  # the workflow's own events: which steps ran
+        if event.type == "executor_invoked":
+            steps.append(event.executor_id)
+
+    tool_calls = res.judge.trace.calls if res.judge else []
     return Result(
         id=uuid.uuid4().hex[:12], complaint=complaint, intake=case.intake, evidence=case.evidence,
-        judgment=case.judgment, decision=case.decision, attempts=case.attempts,
-        tool_calls=res.judge.trace.calls if res.judge else [], steps=steps, model=case.model, fault=fault,
-        latency_ms=round((time.perf_counter() - started) * 1000), created_at=datetime.now(UTC).isoformat())
+        judgment=case.judgment, decision=case.decision, attempts=case.attempts, tool_calls=tool_calls, steps=steps,
+        model=case.model, fault=fault, latency_ms=round((time.perf_counter() - started) * 1000),
+        created_at=datetime.now(UTC).isoformat())

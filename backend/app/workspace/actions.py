@@ -24,53 +24,61 @@ class ActionError(ValueError):
     pass
 
 
-def apply(tickets: Tickets, r: Result, req: ActionRequest) -> dict:
-    c = r.complaint
-    odino = c.odino
+def apply(tickets: Tickets, result: Result, req: ActionRequest) -> dict:
+    complaint = result.complaint
+    odino = complaint.odino
     if req.disagrees:
         if not req.reason.strip():
             raise ActionError("say briefly why you disagree with the suggestion (it is how the system learns)")
-        tickets.log(odino, "disagreed", f"{req.action}: {req.reason.strip()}", r.id)
+        tickets.log(odino, "disagreed", f"{req.action}: {req.reason.strip()}", result.id)
 
-    def issue(kind: IssueKind) -> int:
+    def chosen_or_new_issue(kind: IssueKind) -> int:
+        """The emerging issue the analyst picked, or a new one opened from the request's title."""
         if req.issue_id is not None:
             if tickets.issue(req.issue_id) is None:
                 raise ActionError(f"emerging issue {req.issue_id} does not exist")
             return req.issue_id
         if not (req.issue_title or "").strip():
             raise ActionError("a new emerging issue needs a title")
-        comp = req.issue_comp or (c.comps[0] if c.comps else "")
-        return tickets.create_issue(req.issue_title.strip(), kind, c.make, c.model, comp, req.campno)
+        comp = req.issue_comp
+        if not comp:
+            comp = complaint.comps[0] if complaint.comps else ""
+        return tickets.create_issue(req.issue_title.strip(), kind, complaint.make, complaint.model, comp, req.campno)
 
     if req.action == "link_close":
-        if not req.campno or r.evidence.recall(req.campno) is None:
+        if not req.campno or result.evidence.recall(req.campno) is None:
             raise ActionError("choose a recall that covered this vehicle when the complaint arrived")
-        issue_id = issue("remedy_concern") if req.issue_kind == "remedy_concern" else None
+        issue_id = None
+        if req.issue_kind == "remedy_concern":  # also flag the recall's remedy to engineering
+            issue_id = chosen_or_new_issue("remedy_concern")
         if issue_id:
             tickets.add_to_issue(issue_id, odino)
         tickets.set(odino, "resolved", campno=req.campno, issue_id=issue_id)
-        tickets.log(odino, "linked_recall", display_campno(req.campno) + (f"; flagged to issue {issue_id}"
-                                                                          if issue_id else ""), r.id)
+        detail = display_campno(req.campno)
+        if issue_id:
+            detail += f"; flagged to issue {issue_id}"
+        tickets.log(odino, "linked_recall", detail, result.id)
         if req.message:
-            tickets.log(odino, "replied_to_owner", req.message, r.id)
+            tickets.log(odino, "replied_to_owner", req.message, result.id)
     elif req.action == "request_info":
         if not (req.message or "").strip():
             raise ActionError("the message to the owner is empty")
         tickets.set(odino, "waiting")
-        tickets.log(odino, "asked_owner", req.message.strip(), r.id)
+        tickets.log(odino, "asked_owner", req.message.strip(), result.id)
     elif req.action in ("add_to_issue", "new_issue"):
         if req.action == "add_to_issue" and req.issue_id is None:
             raise ActionError("choose an emerging issue")
-        issue_id = issue(req.issue_kind or "new_defect")
+        issue_id = chosen_or_new_issue(req.issue_kind or "new_defect")
         tickets.add_to_issue(issue_id, odino)
         tickets.set(odino, "escalated", issue_id=issue_id)
-        tickets.log(odino, "escalated", tickets.issue(issue_id).title, r.id)
+        tickets.log(odino, "escalated", tickets.issue(issue_id).title, result.id)
     elif req.action == "monitor":
         tickets.set(odino, "monitoring")
-        tickets.log(odino, "monitoring", req.reason.strip() or "recorded; escalate if more owners report it", r.id)
+        detail = req.reason.strip() or "recorded; escalate if more owners report it"
+        tickets.log(odino, "monitoring", detail, result.id)
     else:  # close_no_action
         if not req.reason.strip():
             raise ActionError("say briefly why this is not a safety defect")
         tickets.set(odino, "resolved")
-        tickets.log(odino, "closed", req.reason.strip(), r.id)
+        tickets.log(odino, "closed", req.reason.strip(), result.id)
     return tickets.status(odino)

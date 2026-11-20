@@ -9,10 +9,11 @@ FILES = ["cmpl/FLAT_CMPL.zip", "rcl/FLAT_RCL_POST_2010.zip", "inv/FLAT_INV.zip"]
 
 def main() -> None:
     RAW.mkdir(parents=True, exist_ok=True)
-    for f in FILES:
-        target = RAW / f.split("/")[1]
-        print(f"downloading {BASE + f} -> {target}")
-        urllib.request.urlretrieve(BASE + f, target)
+    for path in FILES:
+        url = BASE + path
+        target = RAW / path.split("/")[1]  # "cmpl/FLAT_CMPL.zip" -> data/raw/FLAT_CMPL.zip
+        print(f"downloading {url} -> {target}")
+        urllib.request.urlretrieve(url, target)
 
 
 if __name__ == "__main__":

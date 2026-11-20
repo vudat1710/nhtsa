@@ -82,61 +82,90 @@ def part(comp: str) -> str:
 
 def gist(text: str, limit: int = 75) -> str:
     """The first clause of a recall's problem sentence, short enough for an inbox line."""
-    first = text.split(". ")[0].split(", which")[0].rstrip(".")
-    return first if len(first) <= limit else first[:limit].rsplit(" ", 1)[0] + "…"
+    first_sentence = text.split(". ")[0]
+    first_clause = first_sentence.split(", which")[0].rstrip(".")
+    if len(first_clause) <= limit:
+        return first_clause
+    # Too long: cut at the last whole word that fits.
+    return first_clause[:limit].rsplit(" ", 1)[0] + "…"
 
 
-def checks_for(r: Result, campno: str | None, verdict: str | None = None) -> list[RecallCheck]:
-    if not r.judgment or not campno:
+def checks_for(result: Result, campno: str | None, verdict: str | None = None) -> list[RecallCheck]:
+    """The AI's checks of one recall, optionally only those with the given verdict."""
+    if not result.judgment or not campno:
         return []
-    return [c for c in r.judgment.checks if c.campno == campno and (verdict is None or c.verdict == verdict)]
+    matching = []
+    for check in result.judgment.checks:
+        if check.campno != campno:
+            continue
+        if verdict is None or check.verdict == verdict:
+            matching.append(check)
+    return matching
 
 
 def pairs(checks: list[RecallCheck]) -> list[QuotePair]:
-    return [QuotePair(owner=c.complaint_quote, recall=c.recall_quote) for c in checks]
+    return [QuotePair(owner=check.complaint_quote, recall=check.recall_quote) for check in checks]
 
 
-def recall_card(r: RecallItem, c: Complaint, replaced: list[str]) -> RecallCard:
-    return RecallCard(campno=r.campno, display=display_campno(r.campno), filed=r.filed, covers=covers(r, c),
-                      problem=plain_defect(r.defect), consequence=r.consequence, remedy=r.remedy, units=r.units,
-                      replaced=[display_campno(x) for x in replaced])
+def recall_card(recall: RecallItem, complaint: Complaint, replaced: list[str]) -> RecallCard:
+    return RecallCard(campno=recall.campno,
+                      display=display_campno(recall.campno),
+                      filed=recall.filed,
+                      covers=covers(recall, complaint),
+                      problem=plain_defect(recall.defect),
+                      consequence=recall.consequence,
+                      remedy=recall.remedy,
+                      units=recall.units,
+                      replaced=[display_campno(campno) for campno in replaced])
 
 
-def main_comp(c: Complaint, fallback: str = "") -> str:
-    comps = [x for x in c.comps if x != "UNKNOWN OR OTHER"]
+def main_comp(complaint: Complaint, fallback: str = "") -> str:
+    comps = [comp for comp in complaint.comps if comp != "UNKNOWN OR OTHER"]
     return comps[0] if comps else fallback
 
 
-def issue_option(tickets: Tickets, kind: IssueKind, c: Complaint, comp: str, campno: str | None,
+def issue_option(tickets: Tickets, kind: IssueKind, complaint: Complaint, comp: str, campno: str | None,
                  primary: bool) -> ActionOption:
-    existing = tickets.matching_issue(kind, c.make, c.model, comp, campno)
+    """Escalate to the open emerging issue this complaint belongs to, or propose opening a new one."""
+    vehicle = f"{complaint.make.title()} {complaint.model.title()}"
+    existing = tickets.matching_issue(kind, complaint.make, complaint.model, comp, campno)
     if existing:
+        label = f"Escalate: add to “{existing.title}” ({len(existing.complaints)} complaints)"
         return ActionOption(id="add_to_issue", primary=primary, issue_id=existing.id, issue_title=existing.title,
-                            issue_kind=kind, label=f"Escalate: add to “{existing.title}” "
-                                                   f"({len(existing.complaints)} complaints)")
-    title = (f"Recall {display_campno(campno)}: complaints after the remedy ({c.make.title()} {c.model.title()})"
-             if kind == "remedy_concern" else f"{c.make.title()} {c.model.title()} {part(comp)}: possible new defect")
+                            issue_kind=kind, label=label)
+
+    if kind == "remedy_concern":
+        title = f"Recall {display_campno(campno)}: complaints after the remedy ({vehicle})"
+    else:
+        title = f"{vehicle} {part(comp)}: possible new defect"
     return ActionOption(id="new_issue", primary=primary, issue_title=title, issue_kind=kind, issue_comp=comp,
                         campno=campno, label=f"Escalate: open emerging issue “{title}”")
 
 
-def pattern_of(r: Result, recall: RecallItem | None, comp: str) -> Pattern | None:
-    c, d, s = r.complaint, r.decision, r.evidence.stats
-    if not s.total:
+def pattern_of(result: Result, recall: RecallItem | None, comp: str) -> Pattern | None:
+    complaint = result.complaint
+    decision = result.decision
+    stats = result.evidence.stats
+    if not stats.total:
         return None
-    before = after = None
-    if recall and recall.same_component and d.outcome == "known_recall":
-        before, after = s.total - recall.complaints_since, recall.complaints_since
-        sentence = (f"{s.total} earlier complaints on the {c.make.title()} {c.model.title()} about the "
-                    f"{part(comp)}: {before} before recall {display_campno(recall.campno)}, {after} after it.")
-        if "after_remedy" in d.flags:
+
+    before = None
+    after = None
+    if recall and recall.same_component and decision.outcome == "known_recall":
+        # Same part as the recall: split the earlier complaints into before and after it was filed.
+        after = recall.complaints_since
+        before = stats.total - after
+        vehicle = f"{complaint.make.title()} {complaint.model.title()}"
+        sentence = (f"{stats.total} earlier complaints on the {vehicle} about the {part(comp)}: "
+                    f"{before} before recall {display_campno(recall.campno)}, {after} after it.")
+        if "after_remedy" in decision.flags:
             sentence += (" Complaints keep coming after the fix was released: it may not be holding, or cars are not "
                          "being repaired (the data can't tell which).")
     else:
-        sentence = (f"{s.total} earlier complaints on this model year about the {part(comp)}, "
-                    f"{s.last_12_months} in the 12 months before this one.")
-    return Pattern(sentence=sentence, total=s.total, before_recall=before, after_recall=after,
-                   last_12_months=s.last_12_months, crash=s.crash, fire=s.fire, injury=s.injury)
+        sentence = (f"{stats.total} earlier complaints on this model year about the {part(comp)}, "
+                    f"{stats.last_12_months} in the 12 months before this one.")
+    return Pattern(sentence=sentence, total=stats.total, before_recall=before, after_recall=after,
+                   last_12_months=stats.last_12_months, crash=stats.crash, fire=stats.fire, injury=stats.injury)
 
 
 PATTERN_MIN = 3        # similar complaints on this model year in 12 months before an unmatched complaint is escalated
@@ -151,155 +180,230 @@ GENERIC_ACRONYMS = {"VIN", "NHTSA", "MPH", "USA", "LLC", "DTC", "FMVSS", "OEM", 
 
 
 def shares_failure_words(complaint: str, defect: str, vehicle_words: set[str] = frozenset()) -> bool:
-    """Cheap code check that an other-year recall is about the same thing: a shared acronym (e.g. 'ICCU') or two
-    shared uncommon long words. Only gates 'possibly related' context; the analyst decides."""
-    def shouting(t: str) -> bool:  # older NHTSA texts are ALL CAPS: every word would look like an acronym
-        letters = [ch for ch in t if ch.isalpha()]
-        return bool(letters) and sum(ch.isupper() for ch in letters) / len(letters) > 0.5
+    """Cheap code check that an other-year recall is about the same thing: a shared acronym (e.g. 'ICCU') or at least
+    SHARED_WORDS_MIN shared uncommon long words. Only gates 'possibly related' context; the analyst decides.
+    vehicle_words (the make and model, e.g. 'ioniq') never count as shared failure words."""
+    def shouting(text: str) -> bool:
+        letters = [ch for ch in text if ch.isalpha()]
+        if not letters:
+            return False
+        uppercase = [ch for ch in letters if ch.isupper()]
+        return len(uppercase) / len(letters) > 0.5
 
-    def acronyms(t: str) -> set[str]:
-        if shouting(t):
+    def acronyms(text: str) -> set[str]:
+        # Older NHTSA texts are ALL CAPS: every word would look like an acronym.
+        if shouting(text):
             return set()
-        return {w for w in re.findall(r"\b[A-Z][A-Z0-9]{2,}\b", t)
-                if w not in GENERIC_ACRONYMS and w.lower() not in vehicle_words}
+        found = set()
+        for word in re.findall(r"\b[A-Z][A-Z0-9]{2,}\b", text):
+            if word in GENERIC_ACRONYMS or word.lower() in vehicle_words:
+                continue
+            found.add(word)
+        return found
 
-    def long_words(t: str) -> set[str]:
-        return {w for w in re.findall(r"[a-z]{7,}", t.lower()) if w not in GENERIC and w not in vehicle_words}
-    return (bool(acronyms(complaint) & acronyms(defect))
-            or len(long_words(complaint) & long_words(defect)) >= SHARED_WORDS_MIN)
+    def long_words(text: str) -> set[str]:
+        found = set()
+        for word in re.findall(r"[a-z]{7,}", text.lower()):
+            if word in GENERIC or word in vehicle_words:
+                continue
+            found.add(word)
+        return found
+
+    if acronyms(complaint) & acronyms(defect):
+        return True
+    shared_long_words = long_words(complaint) & long_words(defect)
+    return len(shared_long_words) >= SHARED_WORDS_MIN
 
 
-def related_other_years(r: Result, candidates: list[dict], keep: int = 3) -> list[dict]:
+def related_other_years(result: Result, candidates: list[dict], keep: int = 3) -> list[dict]:
     """Filter first, then keep the newest few: a popular model has many unrelated recalls on a broad component
     (the 2022-2024 ICCU recall was crowded out of a top-5 list before this filter ran)."""
-    c = r.complaint
-    vehicle_words = {w.lower() for w in re.findall(r"[A-Za-z0-9]+", f"{c.make} {c.model}")}
-    return [x for x in candidates if shares_failure_words(c.text, x["defect"], vehicle_words)][:keep]
+    complaint = result.complaint
+    vehicle_name = f"{complaint.make} {complaint.model}"
+    vehicle_words = {word.lower() for word in re.findall(r"[A-Za-z0-9]+", vehicle_name)}
+    related = []
+    for candidate in candidates:
+        if shares_failure_words(complaint.text, candidate["defect"], vehicle_words):
+            related.append(candidate)
+    return related[:keep]
 
 
-def escalation_reasons(r: Result, related: list[dict]) -> list[str]:
+def escalation_reasons(result: Result, related: list[dict]) -> list[str]:
     """Why an unmatched complaint deserves engineering's time. None of these -> record and watch instead.
     Escalating every unmatched complaint would drown engineers (most single reports are isolated)."""
-    c, s = r.complaint, r.evidence.stats
+    complaint = result.complaint
+    stats = result.evidence.stats
     reasons = []
-    if c.crash or c.fire or c.injured:
+    if complaint.crash or complaint.fire or complaint.injured:
         reasons.append("the owner reports a crash, fire or injury")
-    if s.last_12_months >= PATTERN_MIN:
-        reasons.append(f"{s.last_12_months} similar complaints on this model year in the last 12 months")
-    if r.judgment and len(r.judgment.similar) >= SIMILAR_MIN:
-        reasons.append(f"{len(r.judgment.similar)} earlier owners described the same failure")
+    if stats.last_12_months >= PATTERN_MIN:
+        reasons.append(f"{stats.last_12_months} similar complaints on this model year in the last 12 months")
+    if result.judgment and len(result.judgment.similar) >= SIMILAR_MIN:
+        reasons.append(f"{len(result.judgment.similar)} earlier owners described the same failure")
     if related:
         reasons.append("the same part is recalled on other model years (the recall may need to be extended)")
     return reasons
 
 
-def suggest(r: Result, tickets: Tickets, related: list[dict] = ()) -> Suggestion:
+def suggest(result: Result, tickets: Tickets, related: list[dict] = ()) -> Suggestion:
     """related: recalls on the same make/model/part but other model years (queries.recalls_other_years)."""
-    c, d, ev, j = r.complaint, r.decision, r.evidence, r.judgment
-    severity = [x for x, on in (("crash", c.crash), ("fire", c.fire), ("injury", c.injured)) if on]
+    complaint = result.complaint
+    decision = result.decision
+    evidence = result.evidence
+    judgment = result.judgment
+    questions = judgment.questions if judgment else []
+    after_remedy = "after_remedy" in decision.flags
+
+    severity = []
+    if complaint.crash:
+        severity.append("crash")
+    if complaint.fire:
+        severity.append("fire")
+    if complaint.injured:
+        severity.append("injury")
+
+    # The recall the rules settled on (for needs_info: the recall that may fit), if any.
+    recall = evidence.recall(decision.campno) if decision.campno else None
+    replaced = []
+    if recall:
+        replaced = [older.campno for older in evidence.recalls if older.replaced_by == recall.campno]
+    card = recall_card(recall, complaint, replaced) if recall else None
+    recall_comp = recall.comps[0] if recall else ""
+    comp = main_comp(complaint, recall_comp)
+
     why: list[Why] = []
     actions: list[ActionOption] = []
-    recall = ev.recall(d.campno) if d.campno else None
-    replaced = [x.campno for x in ev.recalls if recall and x.replaced_by == recall.campno]
-    card = recall_card(recall, c, replaced) if recall else None
-    comp = main_comp(c, recall.comps[0] if recall else "")
-
-    if d.outcome == "known_recall" and recall:
-        disp = display_campno(recall.campno)
-        headline = f"Covered by recall {disp}: {gist(plain_defect(recall.defect))}"
-        why.append(Why(text=f"This vehicle is covered: the {c.year} {c.model.title()} is in recall {disp} "
-                            f"({card.covers})."))
+    if decision.outcome == "known_recall" and recall:
+        # Covered by a recall: link it and reply to the owner with the recall's own remedy.
+        display = display_campno(recall.campno)
+        headline = f"Covered by recall {display}: {gist(plain_defect(recall.defect))}"
+        why.append(Why(text=f"This vehicle is covered: the {complaint.year} {complaint.model.title()} is in recall "
+                            f"{display} ({card.covers})."))
         why.append(Why(text="Same problem: what the owner describes is what the recall says can happen.",
-                       quotes=pairs(checks_for(r, recall.campno, "same"))))
+                       quotes=pairs(checks_for(result, recall.campno, "same"))))
         if replaced:
-            why.append(Why(text=f"Recall {', '.join(card.replaced)} was replaced by {disp}: use {disp}'s remedy."))
+            why.append(Why(text=f"Recall {', '.join(card.replaced)} was replaced by {display}: use {display}'s "
+                                "remedy."))
         if not recall.same_component:
-            why.append(Why(text=f"The owner filed it under {', '.join(c.comps) or 'no component'}; the recall lists "
+            owner_comps = ", ".join(complaint.comps) or "no component"
+            why.append(Why(text=f"The owner filed it under {owner_comps}; the recall lists "
                                 f"{', '.join(recall.comps)}. Owners often pick a different part."))
+
         link = ActionOption(id="link_close", primary=True, campno=recall.campno,
-                            label=f"Link to recall {disp} and reply to the owner",
-                            message=owner_recall_reply(c, recall, "after_remedy" in d.flags))
-        if "after_remedy" in d.flags:
-            flag = issue_option(tickets, "remedy_concern", c, comp, recall.campno, primary=False)
-            link.issue_id, link.issue_title, link.issue_kind, link.issue_comp = (flag.issue_id, flag.issue_title,
-                                                                                  "remedy_concern", comp)
+                            label=f"Link to recall {display} and reply to the owner",
+                            message=owner_recall_reply(complaint, recall, after_remedy))
+        if after_remedy:
+            # Complaints keep arriving after the fix: the same click also flags the remedy to engineering.
+            flag = issue_option(tickets, "remedy_concern", complaint, comp, recall.campno, primary=False)
+            link.issue_id = flag.issue_id
+            link.issue_title = flag.issue_title
+            link.issue_kind = "remedy_concern"
+            link.issue_comp = comp
             link.label += " + flag the remedy to engineering"
         actions.append(link)
-        actions.append(issue_option(tickets, "new_defect", c, comp, None, primary=False))
-    elif d.outcome in ("related_different", "possible_new"):
-        if d.outcome == "related_different":
-            diff = next((ch for ch in (j.checks if j else []) if ch.verdict == "different"), None)
-            other = ev.recall(diff.campno) if diff else None
-            disp = display_campno(other.campno) if other else "?"
-            comp = other.comps[0] if other else comp
-            what = f"Not covered: recall {disp} is a different {part(comp)} failure"
-            why.append(Why(text=f"Recall {disp} covers the {part(comp)} on this vehicle, but describes a different "
-                                "failure than the owner reports.", quotes=pairs([diff] if diff else [])))
+        actions.append(issue_option(tickets, "new_defect", complaint, comp, None, primary=False))
+
+    elif decision.outcome in ("related_different", "possible_new"):
+        # Not covered: a recall on this part describes a different failure, or no recall matches at all.
+        if decision.outcome == "related_different":
+            checks = judgment.checks if judgment else []
+            different = None
+            for check in checks:
+                if check.verdict == "different":
+                    different = check
+                    break
+            other = evidence.recall(different.campno) if different else None
+            if other:
+                display = display_campno(other.campno)
+                comp = other.comps[0]  # talk about the part that recall covers
+            else:
+                display = "?"
+            what = f"Not covered: recall {display} is a different {part(comp)} failure"
+            why.append(Why(text=f"Recall {display} covers the {part(comp)} on this vehicle, but describes a different "
+                                "failure than the owner reports.", quotes=pairs([different] if different else [])))
             why.append(Why(text="No other recall on this vehicle describes what the owner reports."))
         else:
             what = "No recall covers this"
-            n = len(ev.recalls)
-            why.append(Why(text=f"None of the {n} recalls on the {c.year} {c.model.title()} describes this failure."
-                           if n else f"No recall covered the {c.year} {c.model.title()} when this complaint arrived."))
-        if j and j.similar:
+            vehicle = f"{complaint.year} {complaint.model.title()}"
+            recall_count = len(evidence.recalls)
+            if recall_count:
+                why.append(Why(text=f"None of the {recall_count} recalls on the {vehicle} describes this failure."))
+            else:
+                why.append(Why(text=f"No recall covered the {vehicle} when this complaint arrived."))
+
+        if judgment and judgment.similar:
+            earlier = [{"odino": owner.odino, "quote": owner.quote} for owner in judgment.similar]
             why.append(Why(text="Other owners described the same failure before this complaint:",
-                           owner_quotes=[{"odino": x.odino, "quote": x.quote} for x in j.similar]))
-        for rel in related:
-            years = rel["years"][0] if len(rel["years"]) == 1 else f"{rel['years'][0]}–{rel['years'][-1]}"
-            why.append(Why(text=f"Possibly related: recall {display_campno(rel['campno'])} covers the {part(comp)} on "
-                                f"{years} {c.model.title()}, not the {c.year}. Its problem: "
-                                f"{gist(plain_defect(rel['defect']), 140)}. Check whether it is the same failure."))
-        reasons = escalation_reasons(r, related)
+                           owner_quotes=earlier))
+        for other_year in related:
+            years = other_year["years"]
+            span = years[0] if len(years) == 1 else f"{years[0]}–{years[-1]}"
+            why.append(Why(text=f"Possibly related: recall {display_campno(other_year['campno'])} covers the "
+                                f"{part(comp)} on {span} {complaint.model.title()}, not the {complaint.year}. "
+                                f"Its problem: {gist(plain_defect(other_year['defect']), 140)}. "
+                                "Check whether it is the same failure."))
+
+        reasons = escalation_reasons(result, related)
         if reasons:
-            headline = f"{what}: possible new defect" + ("" if d.outcome == "related_different" else f" ({part(comp)})")
+            headline = f"{what}: possible new defect"
+            if decision.outcome != "related_different":
+                headline += f" ({part(comp)})"
             why.append(Why(text="Worth engineering's time: " + "; ".join(reasons) + "."))
-            actions.append(issue_option(tickets, "new_defect", c, comp, None, primary=True))
+            actions.append(issue_option(tickets, "new_defect", complaint, comp, None, primary=True))
             actions.append(ActionOption(id="monitor", label="Record and watch instead (no escalation yet)"))
         else:
             headline = f"{what}: single report, record and watch"
-            n12, ns = ev.stats.last_12_months, len(j.similar) if j else 0
-            why.append(Why(text=f"Not enough yet to involve engineering: no crash, fire or injury; {n12} similar "
-                                f"complaint{'' if n12 == 1 else 's'} on this model year in 12 months (escalate at "
-                                f"{PATTERN_MIN}); {ns} earlier owner{'' if ns == 1 else 's'} describing the same "
-                                f"failure (escalate at {SIMILAR_MIN}). If more owners report it, it will be suggested "
-                                "for escalation."))
+            recent = evidence.stats.last_12_months
+            similar = len(judgment.similar) if judgment else 0
+            complaints_word = "complaint" if recent == 1 else "complaints"
+            owners_word = "owner" if similar == 1 else "owners"
+            why.append(Why(text=f"Not enough yet to involve engineering: no crash, fire or injury; {recent} similar "
+                                f"{complaints_word} on this model year in 12 months (escalate at {PATTERN_MIN}); "
+                                f"{similar} earlier {owners_word} describing the same failure (escalate at "
+                                f"{SIMILAR_MIN}). If more owners report it, it will be suggested for escalation."))
             actions.append(ActionOption(id="monitor", primary=True,
                                         label="Record and watch for more reports (no escalation yet)"))
-            actions.append(issue_option(tickets, "new_defect", c, comp, None, primary=False))
-    else:  # needs_info
-        probable = ev.recall(d.campno) if d.campno else None
-        headline = "Not enough detail to tell" + (f": possibly recall {display_campno(probable.campno)}"
-                                                  if probable else "")
-        if "unknown_year" in r.intake.flags:
+            actions.append(issue_option(tickets, "new_defect", complaint, comp, None, primary=False))
+
+    else:
+        # needs_info (also reached by a known_recall whose recall is missing from the evidence): ask the owner.
+        probable = recall
+        headline = "Not enough detail to tell"
+        if probable:
+            headline += f": possibly recall {display_campno(probable.campno)}"
+        if "unknown_year" in result.intake.flags:
             why.append(Why(text="The model year is missing, so we can't tell which recalls cover this vehicle."))
         else:
             why.append(Why(text="The owner's description is too short or too general to match it to a recall."))
         if probable:
             why.append(Why(text=f"It may be recall {display_campno(probable.campno)}:",
-                           quotes=pairs(checks_for(r, probable.campno))))
-            card = recall_card(probable, c, [])
+                           quotes=pairs(checks_for(result, probable.campno))))
+            card = recall_card(probable, complaint, [])
         actions.append(ActionOption(id="request_info", primary=True, label="Ask the owner for details",
-                                    message=owner_info_request(c, j.questions if j else [])))
+                                    message=owner_info_request(complaint, questions)))
         if probable:
             actions.append(ActionOption(id="link_close", campno=probable.campno,
                                         label=f"Link to recall {display_campno(probable.campno)} anyway",
-                                        message=owner_recall_reply(c, probable, False)))
+                                        message=owner_recall_reply(complaint, probable, False)))
 
-    if d.outcome != "needs_info":
+    # Always on offer, below the suggested action.
+    if decision.outcome != "needs_info":
         actions.append(ActionOption(id="request_info", label="Ask the owner for details",
-                                    message=owner_info_request(c, j.questions if j else [])))
+                                    message=owner_info_request(complaint, questions)))
     actions.append(ActionOption(id="close_no_action", label="Close: not a safety defect"))
 
-    if d.source == "fallback":
+    if decision.source == "fallback":
         check_note = ("The AI could not complete this check; this suggestion is based on simple rules only. "
                       "Please read the complaint and the recall before acting.")
-    elif d.source == "rules":
+    elif decision.source == "rules":
         check_note = "Suggestion based on simple rules only. Please check before acting."
-    elif d.confidence != "high":
-        check_note = f"{d.confidence.title()} confidence: please confirm before acting."
+    elif decision.confidence != "high":
+        check_note = f"{decision.confidence.title()} confidence: please confirm before acting."
     else:
         check_note = None
-    return Suggestion(result_id=r.id, outcome=d.outcome, headline=headline, confidence=d.confidence,
-                      check_note=check_note, severity=severity, summary=j.summary if j else " ".join(d.reasons),
-                      recall=card, why=why, pattern=pattern_of(r, recall, comp),
-                      questions=j.questions if j else [], actions=actions)
+
+    summary = judgment.summary if judgment else " ".join(decision.reasons)
+    return Suggestion(result_id=result.id, outcome=decision.outcome, headline=headline,
+                      confidence=decision.confidence, check_note=check_note, severity=severity, summary=summary,
+                      recall=card, why=why, pattern=pattern_of(result, recall, comp), questions=questions,
+                      actions=actions)

@@ -27,7 +27,8 @@ class FaultMiddleware(ChatMiddleware):
     def __init__(self, mode: str):
         if mode not in self.MODES:
             raise ValueError(f"unknown fault mode '{mode}'")
-        self.mode, self.done = mode, False
+        self.mode = mode
+        self.done = False  # True once the first final answer has been corrupted
 
     async def process(self, context: ChatContext, call_next) -> None:
         if self.mode == "llm_down":
@@ -48,14 +49,20 @@ class ToolTraceMiddleware(FunctionMiddleware):
         self.on_call = on_call
 
     async def process(self, context: FunctionInvocationContext, call_next) -> None:
-        args = context.arguments.model_dump() if hasattr(context.arguments, "model_dump") else dict(context.arguments)
-        t0 = time.perf_counter()
+        arguments = context.arguments
+        args = arguments.model_dump() if hasattr(arguments, "model_dump") else dict(arguments)
+        started = time.perf_counter()
         await call_next()
+
+        # The result is one item or a list of content items; their text holds the ids of the complaints returned
         parts = context.result if isinstance(context.result, list) else [context.result]
-        text = " ".join(str(getattr(p, "text", None) or p) for p in parts)
-        call = {"tool": context.function.name, "arguments": args,
-                "results": [int(x) for x in re.findall(r'"odino": (\d+)', text)],
-                "ms": round((time.perf_counter() - t0) * 1000)}
+        part_texts = []
+        for part in parts:
+            part_texts.append(str(getattr(part, "text", None) or part))
+        text = " ".join(part_texts)
+        odinos = [int(odino) for odino in re.findall(r'"odino": (\d+)', text)]
+        call = {"tool": context.function.name, "arguments": args, "results": odinos,
+                "ms": round((time.perf_counter() - started) * 1000)}
         self.calls.append(call)
         if self.on_call:
             self.on_call(call)

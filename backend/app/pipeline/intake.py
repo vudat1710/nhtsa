@@ -27,15 +27,15 @@ def mask_recall_numbers(text: str) -> str:
     return RECALL_NO.sub(MASK, text or "")
 
 
-def intake(c: Complaint) -> Intake:
-    text = mask_recall_numbers(c.text)
+def intake(complaint: Complaint) -> Intake:
+    text = mask_recall_numbers(complaint.text)
     flags = []
-    if c.year == "9999" or not c.year.isdigit():
+    if complaint.year == "9999" or not complaint.year.isdigit():
         flags.append("unknown_year")
-    if not c.comps or c.comps == ["UNKNOWN OR OTHER"]:
+    if not complaint.comps or complaint.comps == ["UNKNOWN OR OTHER"]:
         flags.append("unknown_component")
     if len(text.strip()) < SHORT_TEXT:
         flags.append("short_text")
-    if c.crash or c.fire or c.injured:
+    if complaint.crash or complaint.fire or complaint.injured:
         flags.append("severe")
     return Intake(text=text, masked=text.count(MASK), flags=flags)

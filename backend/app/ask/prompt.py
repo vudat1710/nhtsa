@@ -48,29 +48,41 @@ Answer with ONLY a JSON object matching this schema:
 
 def case_record(r: Result, earlier: dict[int, dict], related: list[dict] = ()) -> str:
     """The whole case as the follow-up agent sees it (the same facts the analyst sees on the ticket)."""
-    c, ev, d, j = r.complaint, r.evidence, r.decision, r.judgment
+    complaint = r.complaint
+    evidence = r.evidence
+    decision = r.decision
+    judgment = r.judgment
+    candidate_recalls = [{"recall": recall.campno, "filed": recall.filed, "components": recall.components,
+                          "model_years_of_this_model": recall.model_years, "defect": recall.defect,
+                          "consequence": recall.consequence, "remedy": recall.remedy,
+                          "replaced_by": recall.replaced_by, "earlier_complaints_since_filed": recall.complaints_since}
+                         for recall in evidence.recalls]
+    other_year_recalls = [{"recall": recall["campno"], "filed": recall["filed"], "model_years": recall["years"],
+                           "defect": recall["defect"]}
+                          for recall in related]
+    agent_findings = [check.model_dump() for check in judgment.checks] if judgment else []
     record = {
-        "complaint": {"id": str(c.odino), "vehicle": f"{c.year} {c.make} {c.model}", "received": c.received,
-                      "components_chosen_by_owner": c.components, "crash": bool(c.crash), "fire": bool(c.fire),
-                      "injured": c.injured, "text": c.text},
-        "records_end": c.received,
-        "decision": {"outcome": d.outcome, "confidence": d.confidence, "recall": d.campno, "reasons": d.reasons},
-        "agent_findings": [ch.model_dump() for ch in j.checks] if j else [],
-        "candidate_recalls": [{"recall": x.campno, "filed": x.filed, "components": x.components,
-                               "model_years_of_this_model": x.model_years, "defect": x.defect,
-                               "consequence": x.consequence, "remedy": x.remedy,
-                               "replaced_by": x.replaced_by, "earlier_complaints_since_filed": x.complaints_since}
-                              for x in ev.recalls],
-        "earlier_complaint_counts": ev.stats.model_dump(),
-        "investigations": [i.model_dump() for i in ev.investigations],
-        "earlier_complaints_already_found": [{"id": str(o), **e} for o, e in earlier.items()],
-        "possibly_related_recalls_on_other_model_years": [
-            {"recall": x["campno"], "filed": x["filed"], "model_years": x["years"], "defect": x["defect"]}
-            for x in related],
+        "complaint": {"id": str(complaint.odino), "vehicle": f"{complaint.year} {complaint.make} {complaint.model}",
+                      "received": complaint.received, "components_chosen_by_owner": complaint.components,
+                      "crash": bool(complaint.crash), "fire": bool(complaint.fire), "injured": complaint.injured,
+                      "text": complaint.text},
+        "records_end": complaint.received,
+        "decision": {"outcome": decision.outcome, "confidence": decision.confidence, "recall": decision.campno,
+                     "reasons": decision.reasons},
+        "agent_findings": agent_findings,
+        "candidate_recalls": candidate_recalls,
+        "earlier_complaint_counts": evidence.stats.model_dump(),
+        "investigations": [investigation.model_dump() for investigation in evidence.investigations],
+        "earlier_complaints_already_found": [{"id": str(odino), **found} for odino, found in earlier.items()],
+        "possibly_related_recalls_on_other_model_years": other_year_recalls,
     }
     return "Case record:\n" + json.dumps(record, ensure_ascii=False, indent=1)
 
 
 def parse(text: str) -> AskAnswer:
-    start, end = text.find("{"), text.rfind("}")
-    return AskAnswer.model_validate_json(text[start:end + 1] if start >= 0 and end > start else text)
+    """The JSON object in the model's reply, ignoring any text around it."""
+    start = text.find("{")
+    end = text.rfind("}")
+    if start >= 0 and end > start:
+        text = text[start:end + 1]
+    return AskAnswer.model_validate_json(text)

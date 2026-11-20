@@ -29,11 +29,12 @@ def complaint(con: sqlite3.Connection, odino: int) -> Complaint | None:
     row = con.execute("SELECT * FROM complaints WHERE odino = ?", (odino,)).fetchone()
     if row is None:
         return None
-    comps = con.execute("SELECT component FROM complaint_components WHERE odino = ? ORDER BY component",
-                        (odino,)).fetchall()
+    component_rows = con.execute("SELECT component FROM complaint_components WHERE odino = ? ORDER BY component",
+                                 (odino,)).fetchall()
+    components = [component_row[0] for component_row in component_rows]
     return Complaint(odino=row["odino"], make=row["make"], model=row["model"], year=row["year"],
                      received=row["received"], crash=row["crash"] or 0, fire=row["fire"] or 0,
-                     injured=row["injured"] or 0, text=row["text"] or "", components=[r[0] for r in comps])
+                     injured=row["injured"] or 0, text=row["text"] or "", components=components)
 
 
 def recalls_for(con: sqlite3.Connection, v: Vehicle, as_of: str, comps: list[str]) -> tuple[list[dict], int]:
@@ -70,12 +71,15 @@ def recall_model_years(con: sqlite3.Connection, campnos: list[str], make: str, m
     """Which model years of this make/model each recall covers (for 'your 2024 IONIQ 5 is covered: 2022-2024')."""
     if not campnos:
         return {}
+    placeholders = ",".join("?" * len(campnos))
     rows = con.execute(f"""SELECT DISTINCT campno, year FROM recall_vehicles WHERE make = ? AND model = ?
-                           AND campno IN ({",".join("?" * len(campnos))}) ORDER BY year""", (make, model, *campnos))
-    out: dict[str, list[str]] = {}
+                           AND campno IN ({placeholders}) ORDER BY year""", (make, model, *campnos))
+    years_by_campno: dict[str, list[str]] = {}
     for campno, year in rows:
-        out.setdefault(campno, []).append(year)
-    return out
+        if campno not in years_by_campno:
+            years_by_campno[campno] = []
+        years_by_campno[campno].append(year)
+    return years_by_campno
 
 
 def recalls_other_years(con: sqlite3.Connection, v: Vehicle, comps: list[str], as_of: str) -> list[dict]:
@@ -83,14 +87,21 @@ def recalls_other_years(con: sqlite3.Connection, v: Vehicle, comps: list[str], a
     possible recall-scope gap (e.g. the ICCU recall covers 2022-2024; this complaint is a 2027). Not shown to the AI."""
     if not comps:
         return []
+    placeholders = ",".join("?" * len(comps))
     rows = con.execute(
         f"""SELECT r.campno, r.filed, r.defect, group_concat(DISTINCT rv.year) AS years
             FROM recall_vehicles rv JOIN recalls r USING (campno)
-            WHERE rv.make = ? AND rv.model = ? AND rv.comp IN ({",".join("?" * len(comps))}) AND r.filed < ?
+            WHERE rv.make = ? AND rv.model = ? AND rv.comp IN ({placeholders}) AND r.filed < ?
               AND r.campno NOT IN (SELECT campno FROM recall_vehicles WHERE make = ? AND model = ? AND year = ?)
             GROUP BY r.campno ORDER BY r.filed DESC LIMIT 50""",
         (v.make, v.model, *comps, as_of, v.make, v.model, v.year)).fetchall()
-    return [{**dict(r), "years": sorted(r["years"].split(","))} for r in rows]
+    recalls = []
+    for row in rows:
+        recall = dict(row)
+        # group_concat returns one unordered string ("2024,2022"); turn it into a sorted list.
+        recall["years"] = sorted(row["years"].split(","))
+        recalls.append(recall)
+    return recalls
 
 
 def investigations_for(con: sqlite3.Connection, v: Vehicle, as_of: str) -> list[dict]:
@@ -98,20 +109,26 @@ def investigations_for(con: sqlite3.Connection, v: Vehicle, as_of: str) -> list[
         """SELECT DISTINCT i.* FROM investigation_vehicles iv JOIN investigations i USING (action)
            WHERE iv.make = ? AND iv.model = ? AND iv.year = ? AND i.opened < ? ORDER BY i.opened DESC""",
         (v.make, v.model, v.year, as_of)).fetchall()
-    return [dict(r) for r in rows]
+    return [dict(row) for row in rows]
 
 
 def complaint_counts(con: sqlite3.Connection, v: Vehicle, comps: list[str], as_of: str, since: str | None = None,
                      exclude: int | None = None) -> dict:
     """Earlier complaints on the same vehicle that share a top-level component (optionally only those since a date)."""
-    marks = ",".join("?" * len(comps)) or "''"
+    if comps:
+        placeholders = ",".join("?" * len(comps))
+    else:
+        placeholders = "''"  # no components: compare against '' rather than leave the IN list empty
+    # Neutral values when the optional filters are not given: every ISO date is >= "", and no complaint has odino -1.
+    received_from = since or ""
+    excluded_odino = exclude or -1
     row = con.execute(
         f"""SELECT count(*) AS total, coalesce(sum(crash), 0) AS crash, coalesce(sum(fire), 0) AS fire,
                    coalesce(sum(injured > 0), 0) AS injury, min(received) AS first, max(received) AS last
             FROM complaints c WHERE make = ? AND model = ? AND year = ? AND received < ? AND received >= ?
               AND odino != ? AND EXISTS (SELECT 1 FROM complaint_components cc
-                                         WHERE cc.odino = c.odino AND cc.comp IN ({marks}))""",
-        (v.make, v.model, v.year, as_of, since or "", exclude or -1, *comps)).fetchone()
+                                         WHERE cc.odino = c.odino AND cc.comp IN ({placeholders}))""",
+        (v.make, v.model, v.year, as_of, received_from, excluded_odino, *comps)).fetchone()
     return dict(row)
 
 
@@ -125,12 +142,13 @@ def search_complaints(con: sqlite3.Connection, v: Vehicle, query: str, as_of: st
     words = WORD.findall(query)[:12]
     if not words:
         return []
-    match = " OR ".join(f'"{w}"' for w in words)
+    match = " OR ".join(f'"{word}"' for word in words)
+    excluded_odino = exclude or -1  # -1: no complaint has that id, so nothing is excluded
     rows = con.execute(
         """SELECT c.odino, c.received, c.crash, c.fire, snippet(complaints_fts, 0, '[', ']', ' … ', 24) AS snippet
            FROM complaints_fts JOIN complaints c ON c.odino = complaints_fts.rowid
            WHERE complaints_fts MATCH ? AND c.make = ? AND c.model = ? AND c.year = ? AND c.received < ?
              AND c.odino != ?
            ORDER BY bm25(complaints_fts) LIMIT ?""",
-        (match, v.make, v.model, v.year, as_of, exclude or -1, limit)).fetchall()
-    return [dict(r) for r in rows]
+        (match, v.make, v.model, v.year, as_of, excluded_odino, limit)).fetchall()
+    return [dict(row) for row in rows]

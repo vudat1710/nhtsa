@@ -22,10 +22,10 @@ def main() -> None:
     con.commit()
     print("workspace reset: ticket statuses, actions, emerging issues and questions cleared; AI runs kept")
     if not store.latest("queue"):
-        with gzip.open(INBOX_RESULTS, "rt", encoding="utf-8") as f:
-            results = [Result.model_validate_json(line) for line in f if line.strip()]
-        for r in results:
-            store.save(r, "queue")
+        with gzip.open(INBOX_RESULTS, "rt", encoding="utf-8") as lines:
+            results = [Result.model_validate_json(line) for line in lines if line.strip()]
+        for result in results:
+            store.save(result, "queue")
         print(f"loaded {len(results)} stored inbox results from {INBOX_RESULTS.name}")
 
 

@@ -15,36 +15,44 @@ NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
 NEGATIONS = {"no", "not", "zero", "never", "without", "none", "nor", "neither", "cannot", "nothing"}
 
 
-def normalize(s: str) -> str:
-    s = s.lower().replace("’", "'").replace("‘", "'").replace("“", '"').replace("”", '"')
-    return re.sub(r"\s+", " ", s).strip()
+def normalize(text: str) -> str:
+    """Lowercase, straight quotes, single spaces: so a quote matches its source however the quote marks were typed."""
+    text = text.lower()
+    text = text.replace("’", "'").replace("‘", "'").replace("“", '"').replace("”", '"')
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def quote_problem(quote: str, source: str) -> str | None:
     """None if the quote is fine, else why not: too short, quotes the mask, not found, cuts a word, drops a negation."""
-    q = normalize(quote).strip(" .,;:!?\"'…")
-    if len(q.split()) < MIN_QUOTE_WORDS:
+    quoted = normalize(quote).strip(" .,;:!?\"'…")
+    if len(quoted.split()) < MIN_QUOTE_WORDS:
         return f"shorter than {MIN_QUOTE_WORDS} words"
-    if MASK.lower() in q:
+    if MASK.lower() in quoted:
         return "quotes the removed recall number"
-    src = normalize(source)
-    starts = [m.start() for m in re.finditer(re.escape(q), src)]
+    text = normalize(source)
+    starts = [match.start() for match in re.finditer(re.escape(quoted), text)]
     if not starts:
         return "not found word for word"
-    for s in starts:
-        e = s + len(q)
-        if (s > 0 and src[s - 1].isalnum()) or (e < len(src) and src[e].isalnum()):
+    for start in starts:
+        end = start + len(quoted)
+        cuts_word_at_start = start > 0 and text[start - 1].isalnum()
+        cuts_word_at_end = end < len(text) and text[end].isalnum()
+        if cuts_word_at_start or cuts_word_at_end:
             continue  # cuts a word in half here; try the next occurrence
-        before = src[:s].split()[-1:] if s else []
-        if before and (before[0].strip("\"'(,;:") in NEGATIONS or before[0].endswith("n't")):
-            return f"drops the word '{before[0]}' right before it, which changes the meaning"
+        words_before = text[:start].split()
+        if words_before:
+            word_before = words_before[-1]
+            if word_before.strip("\"'(,;:") in NEGATIONS or word_before.endswith("n't"):
+                return f"drops the word '{word_before}' right before it, which changes the meaning"
         return None
     return "starts or ends in the middle of a word"
 
 
-def recall_text(ev: Evidence, campno: str) -> str:
-    r = ev.recall(campno)
-    return f"{r.defect}\n{r.consequence}\n{r.remedy}" if r else ""
+def recall_text(evidence: Evidence, campno: str) -> str:
+    recall = evidence.recall(campno)
+    if not recall:
+        return ""
+    return f"{recall.defect}\n{recall.consequence}\n{recall.remedy}"
 
 
 def check_quote(issues: list[Issue], where: str, quote: str, source: str) -> None:
@@ -53,41 +61,51 @@ def check_quote(issues: list[Issue], where: str, quote: str, source: str) -> Non
         issues.append(Issue(code=code, message=f"{where}: quote {quote!r} {problem}"))
 
 
-def verify(j: Judgment, c: Complaint, it: Intake, ev: Evidence, found: dict[int, str]) -> list[Issue]:
+def verify(judgment: Judgment, complaint: Complaint, intake: Intake, evidence: Evidence,
+           found: dict[int, str]) -> list[Issue]:
     issues: list[Issue] = []
-    seen: set[str] = set()
-    for ch in j.checks:
-        if ev.recall(ch.campno) is None:
-            issues.append(Issue(code="unknown_recall", message=f"{ch.campno} is not one of the candidate recalls"))
-            continue
-        if ch.campno in seen:
-            issues.append(Issue(code="duplicate_check", message=f"{ch.campno} is checked twice"))
-        seen.add(ch.campno)
-        check_quote(issues, f"{ch.campno} complaint_quote (from the complaint)", ch.complaint_quote, it.text)
-        check_quote(issues, f"{ch.campno} recall_quote (from that recall)", ch.recall_quote,
-                    recall_text(ev, ch.campno))
-    for s in j.similar:
-        if s.odino not in found:
-            issues.append(Issue(code="unknown_complaint", message=f"complaint {s.odino} was not returned by "
-                                                                  "search_complaints"))
-        else:
-            check_quote(issues, f"similar complaint {s.odino}", s.quote, found[s.odino])
 
-    verdicts = {ch.verdict for ch in j.checks}
-    if j.proposed == "known_recall" and "same" not in verdicts:
+    # Each recall check: a candidate, checked once, both quotes word for word from their sources
+    checked: set[str] = set()
+    for check in judgment.checks:
+        if evidence.recall(check.campno) is None:
+            issues.append(Issue(code="unknown_recall", message=f"{check.campno} is not one of the candidate recalls"))
+            continue
+        if check.campno in checked:
+            issues.append(Issue(code="duplicate_check", message=f"{check.campno} is checked twice"))
+        checked.add(check.campno)
+        check_quote(issues, f"{check.campno} complaint_quote (from the complaint)", check.complaint_quote,
+                    intake.text)
+        check_quote(issues, f"{check.campno} recall_quote (from that recall)", check.recall_quote,
+                    recall_text(evidence, check.campno))
+
+    # Each similar complaint: returned by the search tool, quote word for word from it
+    for similar in judgment.similar:
+        if similar.odino not in found:
+            issues.append(Issue(code="unknown_complaint",
+                                message=f"complaint {similar.odino} was not returned by search_complaints"))
+        else:
+            check_quote(issues, f"similar complaint {similar.odino}", similar.quote, found[similar.odino])
+
+    # The proposed outcome agrees with the verdicts
+    verdicts = {check.verdict for check in judgment.checks}
+    proposed = judgment.proposed
+    if proposed == "known_recall" and "same" not in verdicts:
         issues.append(Issue(code="inconsistent", message="proposed known_recall but no check has verdict 'same'"))
-    if j.proposed in ("possible_new", "related_different") and "same" in verdicts:
-        issues.append(Issue(code="inconsistent", message=f"proposed {j.proposed} but a check has verdict 'same'"))
-    if j.proposed == "related_different" and "different" not in verdicts:
-        issues.append(Issue(code="inconsistent", message="proposed related_different but no check has verdict "
-                                                         "'different'"))
-    if j.proposed == "needs_info" and not j.questions:
+    if proposed in ("possible_new", "related_different") and "same" in verdicts:
+        issues.append(Issue(code="inconsistent", message=f"proposed {proposed} but a check has verdict 'same'"))
+    if proposed == "related_different" and "different" not in verdicts:
+        issues.append(Issue(code="inconsistent",
+                            message="proposed related_different but no check has verdict 'different'"))
+    if proposed == "needs_info" and not judgment.questions:
         issues.append(Issue(code="inconsistent", message="proposed needs_info but asked no questions"))
 
-    allowed = " ".join([it.text, c.year, c.received, json.dumps(ev.model_dump(), ensure_ascii=False),
-                        *found.values()])
-    allowed_numbers = set(NUMBER.findall(allowed))
-    for n in NUMBER.findall(j.summary):
-        if n not in allowed_numbers:
-            issues.append(Issue(code="unsupported_number", message=f"summary says {n}, which is not in the evidence"))
+    # Every number in the summary appears somewhere in what the AI was given or found
+    evidence_json = json.dumps(evidence.model_dump(), ensure_ascii=False)
+    allowed_text = " ".join([intake.text, complaint.year, complaint.received, evidence_json, *found.values()])
+    allowed_numbers = set(NUMBER.findall(allowed_text))
+    for number in NUMBER.findall(judgment.summary):
+        if number not in allowed_numbers:
+            issues.append(Issue(code="unsupported_number",
+                                message=f"summary says {number}, which is not in the evidence"))
     return issues

@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from app.models import Result
 from app.workspace.messages import display_campno, plain_defect
-from app.workspace.suggest import QuotePair, gist
+from app.workspace.suggest import QuotePair, gist, pairs
 
 Kind = Literal["read", "look", "search", "compare", "check", "decide"]
 
@@ -27,66 +27,97 @@ VERDICT = {"same": "same failure", "partial": "possibly (too vague to tell)",
            "different": "same part, different failure"}
 
 
-def trail(r: Result) -> list[Step]:
-    c, it, ev, j, d = r.complaint, r.intake, r.evidence, r.judgment, r.decision
+def trail(result: Result) -> list[Step]:
+    complaint = result.complaint
+    intake = result.intake
+    evidence = result.evidence
+    judgment = result.judgment
+    decision = result.decision
     steps: list[Step] = []
 
-    notes = [f"Owner chose: {', '.join(c.components) or 'no component'}."]
-    if it.masked:
-        notes.append(f"{it.masked} recall number(s) the owner cited were hidden from the agent, so it judges the "
+    # Read: what the owner chose, and what intake noticed about the complaint.
+    chosen = ", ".join(complaint.components) or "no component"
+    notes = [f"Owner chose: {chosen}."]
+    if intake.masked:
+        notes.append(f"{intake.masked} recall number(s) the owner cited were hidden from the agent, so it judges the "
                      "failure itself, not the owner's belief.")
     flag_text = {"unknown_year": "Model year is unknown.", "short_text": "The description is very short.",
                  "severe": "Crash, fire or injury reported.", "unknown_component": "No component chosen."}
-    notes += [flag_text[f] for f in it.flags if f in flag_text]
+    notes += [flag_text[flag] for flag in intake.flags if flag in flag_text]
     steps.append(Step(kind="read", title="Read the complaint", lines=notes))
 
-    look = [f"{len(ev.recalls)} recall(s) covered the {c.year} {c.make.title()} {c.model.title()} on {c.received}"
-            + (f" ({ev.recalls_total - len(ev.recalls)} more not shown)" if ev.recalls_total > len(ev.recalls) else "")
-            + ("." if ev.recalls else "; nothing to compare against.")]
-    look += [f"{display_campno(x.campno)} ({x.comps[0].lower() if x.comps else '?'}): "
-             f"{gist(plain_defect(x.defect), 90)}" for x in ev.recalls[:8]]
-    look.append(f"{ev.stats.total} earlier complaints on this model year about the same part, "
-                f"{ev.stats.last_12_months} in the last 12 months.")
-    if ev.investigations:
-        look.append("NHTSA investigations: " + "; ".join(f"{i.action} ({i.opened}) {i.subject}"
-                                                       for i in ev.investigations[:3]))
+    # Look: the evidence that existed on the day the complaint arrived.
+    shown = len(evidence.recalls)
+    vehicle = f"{complaint.year} {complaint.make.title()} {complaint.model.title()}"
+    found = f"{shown} recall(s) covered the {vehicle} on {complaint.received}"
+    if evidence.recalls_total > shown:
+        found += f" ({evidence.recalls_total - shown} more not shown)"
+    if evidence.recalls:
+        found += "."
+    else:
+        found += "; nothing to compare against."
+    look = [found]
+    for recall in evidence.recalls[:8]:
+        comp = recall.comps[0].lower() if recall.comps else "?"
+        look.append(f"{display_campno(recall.campno)} ({comp}): {gist(plain_defect(recall.defect), 90)}")
+    look.append(f"{evidence.stats.total} earlier complaints on this model year about the same part, "
+                f"{evidence.stats.last_12_months} in the last 12 months.")
+    if evidence.investigations:
+        investigations = [f"{inv.action} ({inv.opened}) {inv.subject}" for inv in evidence.investigations[:3]]
+        look.append("NHTSA investigations: " + "; ".join(investigations))
     steps.append(Step(kind="look", title="Looked up what was known on that date", lines=look))
 
-    cited = {s.odino: s.quote for s in (j.similar if j else [])}
-    for call in r.tool_calls:
+    # Search: each search the agent chose to run, with the results it later cited as the same failure.
+    cited = {}
+    if judgment:
+        cited = {earlier.odino: earlier.quote for earlier in judgment.similar}
+    for call in result.tool_calls:
         query = str(call.get("arguments", {}).get("query", ""))
-        used = [o for o in call.get("results", []) if o in cited]
-        lines = [f"{len(call.get('results', []))} found; {len(used)} describe the same failure:"
-                 if call.get("results") else "Nothing found."]
-        lines += [f"“{cited[o]}” (complaint {o})" for o in used]
+        results = call.get("results", [])
+        used = [odino for odino in results if odino in cited]
+        if results:
+            lines = [f"{len(results)} found; {len(used)} describe the same failure:"]
+        else:
+            lines = ["Nothing found."]
+        lines += [f"“{cited[odino]}” (complaint {odino})" for odino in used]
         steps.append(Step(kind="search", title=f"Decided to search earlier complaints for “{query}”", lines=lines))
 
-    if j:
-        judged = {ch.campno for ch in j.checks}
-        compare = [f"{display_campno(ch.campno)}: {VERDICT[ch.verdict]}. {ch.reason}" for ch in j.checks]
-        aside = [display_campno(x.campno) for x in ev.recalls if x.campno not in judged]
+    # Compare: the agent's verdict and reason for each recall it judged.
+    if judgment:
+        compare = [f"{display_campno(check.campno)}: {VERDICT[check.verdict]}. {check.reason}"
+                   for check in judgment.checks]
+        judged = {check.campno for check in judgment.checks}
+        aside = [display_campno(recall.campno) for recall in evidence.recalls if recall.campno not in judged]
         if aside:
             compare.append(f"Set aside as unrelated: {', '.join(aside)}.")
         steps.append(Step(kind="compare", title="Compared the complaint with each recall", lines=compare,
-                          quotes=[QuotePair(owner=ch.complaint_quote, recall=ch.recall_quote) for ch in j.checks]))
+                          quotes=pairs(judgment.checks)))
 
-    for a in r.attempts:
-        if a.error:
-            steps.append(Step(kind="check", status="warn", title=f"The AI did not answer (attempt {a.n})",
-                              lines=[a.error]))
-        elif a.issues:
-            steps.append(Step(kind="check", status="warn", title=f"Double-check failed (attempt {a.n})",
-                              lines=[i.message for i in a.issues][:4] + (["Sent back to the agent to correct."]
-                                                                          if a.n == 1 else [])))
+    # Check: the verifier's result for each attempt.
+    for attempt in result.attempts:
+        if attempt.error:
+            steps.append(Step(kind="check", status="warn", title=f"The AI did not answer (attempt {attempt.n})",
+                              lines=[attempt.error]))
+        elif attempt.issues:
+            lines = [issue.message for issue in attempt.issues][:4]
+            if attempt.n == 1:  # only the first attempt gets a second chance
+                lines.append("Sent back to the agent to correct.")
+            steps.append(Step(kind="check", status="warn", title=f"Double-check failed (attempt {attempt.n})",
+                              lines=lines))
         else:
-            n_quotes = 2 * len(j.checks) + len(j.similar) if j else 0
+            # Two quotes per recall check (owner and recall), one per earlier complaint cited.
+            quote_count = 0
+            if judgment:
+                quote_count = 2 * len(judgment.checks) + len(judgment.similar)
             steps.append(Step(kind="check", status="ok", title="Double-checked against the records",
-                              lines=[f"{n_quotes} quote(s) found word for word in their sources; every recall cited is "
-                                     "one that covered this vehicle; no number was invented."]))
-    if d.source == "fallback":
+                              lines=[f"{quote_count} quote(s) found word for word in their sources; every recall "
+                                     "cited is one that covered this vehicle; no number was invented."]))
+    if decision.source == "fallback":
         steps.append(Step(kind="check", status="warn", title="Fell back to simple rules",
                           lines=["The AI's answer could not be used; the suggestion below is rules-only."]))
 
-    steps.append(Step(kind="decide", title="Decided by the rules (the agent only proposes)", lines=d.reasons,
-                      status="ok" if d.source.startswith("ai") else "warn"))
+    # Decide: the rules, not the agent, set the outcome.
+    status = "ok" if decision.source.startswith("ai") else "warn"
+    steps.append(Step(kind="decide", title="Decided by the rules (the agent only proposes)", lines=decision.reasons,
+                      status=status))
     return steps

@@ -55,11 +55,13 @@ class Tickets:
 
     def status(self, odino: int) -> dict:
         row = self.con.execute("SELECT * FROM tickets WHERE odino = ?", (odino,)).fetchone()
-        return dict(row) if row else {"odino": odino, "status": "new", "campno": None, "issue_id": None,
-                                      "updated_at": None}
+        if row:
+            return dict(row)
+        # Nobody has acted on this ticket yet.
+        return {"odino": odino, "status": "new", "campno": None, "issue_id": None, "updated_at": None}
 
     def statuses(self) -> dict[int, dict]:
-        return {r["odino"]: dict(r) for r in self.con.execute("SELECT * FROM tickets")}
+        return {row["odino"]: dict(row) for row in self.con.execute("SELECT * FROM tickets")}
 
     def set(self, odino: int, status: TicketStatus, campno: str | None = None, issue_id: int | None = None) -> None:
         self.con.execute("INSERT OR REPLACE INTO tickets VALUES (?, ?, ?, ?, ?)",
@@ -73,7 +75,11 @@ class Tickets:
 
     def history(self, odino: int) -> list[Action]:
         rows = self.con.execute("SELECT * FROM actions WHERE odino = ? ORDER BY id", (odino,))
-        return [Action(**{k: r[k] for k in Action.model_fields}) for r in rows]
+        history = []
+        for row in rows:
+            fields = {name: row[name] for name in Action.model_fields}  # leaves out the table's own id column
+            history.append(Action(**fields))
+        return history
 
     # ---------- follow-up questions (ask/service.py Turn, stored as JSON) ----------
 
@@ -82,7 +88,8 @@ class Tickets:
         self.con.commit()
 
     def questions(self, odino: int) -> list[str]:
-        return [r[0] for r in self.con.execute("SELECT body FROM questions WHERE odino = ? ORDER BY id", (odino,))]
+        rows = self.con.execute("SELECT body FROM questions WHERE odino = ? ORDER BY id", (odino,))
+        return [row[0] for row in rows]
 
     # ---------- emerging issues ----------
 
@@ -101,12 +108,13 @@ class Tickets:
         row = self.con.execute("SELECT * FROM issues WHERE id = ?", (issue_id,)).fetchone()
         if row is None:
             return None
-        odinos = [r[0] for r in self.con.execute(
-            "SELECT odino FROM issue_complaints WHERE issue_id = ? ORDER BY added_at", (issue_id,))]
+        rows = self.con.execute("SELECT odino FROM issue_complaints WHERE issue_id = ? ORDER BY added_at", (issue_id,))
+        odinos = [row[0] for row in rows]
         return Issue(**dict(row), complaints=odinos)
 
     def issues(self) -> list[Issue]:
-        return [self.issue(r[0]) for r in self.con.execute("SELECT id FROM issues ORDER BY id DESC")]
+        rows = self.con.execute("SELECT id FROM issues ORDER BY id DESC")
+        return [self.issue(row[0]) for row in rows]
 
     def matching_issue(self, kind: IssueKind, make: str, model: str, comp: str, campno: str | None) -> Issue | None:
         """An open issue this complaint belongs to: same recall (remedy concern) or same model + part (new defect)."""

@@ -29,11 +29,13 @@ class Turn(BaseModel):
 def earlier_complaints(con: sqlite3.Connection, r: Result) -> dict[int, dict]:
     """Earlier complaints the main check cited, with their text (all received before this complaint)."""
     out = {}
-    for s in (r.judgment.similar if r.judgment else []):
+    if not r.judgment:
+        return out
+    for similar in r.judgment.similar:
         row = con.execute("SELECT received, text FROM complaints WHERE odino = ? AND received < ?",
-                          (s.odino, r.complaint.received)).fetchone()
+                          (similar.odino, r.complaint.received)).fetchone()
         if row:
-            out[s.odino] = {"received": row[0], "text": row[1][:PREVIEW_CHARS], "full": row[1]}
+            out[similar.odino] = {"received": row[0], "text": row[1][:PREVIEW_CHARS], "full": row[1]}
     return out
 
 
@@ -42,41 +44,51 @@ async def ask(con: sqlite3.Connection, llm: LlmSetup, r: Result, history: list[T
     """related: recalls of the same part on other model years (the same context the analyst sees on the ticket)."""
     turn = Turn(question=question, result_id=r.id, at=datetime.now(UTC).isoformat(timespec="seconds"))
     earlier = earlier_complaints(con, r)
-    found: dict[int, str] = {o: e["full"] for o, e in earlier.items()}
+    # Full texts of every complaint the answer may quote; search_complaints adds the ones it finds.
+    found: dict[int, str] = {odino: complaint["full"] for odino, complaint in earlier.items()}
     trace = ToolTraceMiddleware()
     agent = Agent(client=llm.client, name="case_assistant", instructions=INSTRUCTIONS,
                   tools=[search_tool(con, r.complaint, found)], middleware=[trace])
-    messages = [Message(role="user", contents=[case_record(r, {o: {k: v for k, v in e.items() if k != "full"}
-                                                                   for o, e in earlier.items()}, related)])]
+
+    # The case record shows the agent only a preview of each earlier complaint, not the full text.
+    earlier_previews = {}
+    for odino, complaint in earlier.items():
+        earlier_previews[odino] = {key: value for key, value in complaint.items() if key != "full"}
+    messages = [Message(role="user", contents=[case_record(r, earlier_previews, related)])]
     for past in history:  # earlier questions on this ticket, so follow-ups make sense
         messages.append(Message(role="user", contents=[past.question]))
         if past.answer:
             messages.append(Message(role="assistant", contents=[past.answer.answer]))
     messages.append(Message(role="user", contents=[question]))
+
     try:
-        for attempt in (1, 2):
+        for attempt in (1, 2):  # the first answer, and one repair if it fails verification
             resp = await agent.run(messages)
             try:
                 turn.answer = parse(resp.text or "")
                 turn.issues = check(turn.answer, r, found, question, related)
             except (ValidationError, ValueError) as exc:
-                turn.answer, turn.issues = None, [f"the answer was not valid JSON: {str(exc).splitlines()[0][:200]}"]
+                first_error_line = str(exc).splitlines()[0][:200]
+                turn.answer = None
+                turn.issues = [f"the answer was not valid JSON: {first_error_line}"]
             if not turn.issues:
                 turn.verified = True
                 break
             if attempt == 1:
-                messages += [Message(role="assistant", contents=[resp.text or ""]),
-                             Message(role="user", contents=["Your answer failed verification:\n- "
-                                                            + "\n- ".join(turn.issues)
-                                                            + "\nReturn the corrected JSON object only."])]
+                repair_request = ("Your answer failed verification:\n- " + "\n- ".join(turn.issues)
+                                  + "\nReturn the corrected JSON object only.")
+                messages.append(Message(role="assistant", contents=[resp.text or ""]))
+                messages.append(Message(role="user", contents=[repair_request]))
     except Exception as exc:  # outage, provider error: the analyst sees that the assistant is unavailable
         if "content management policy" in str(exc) or "content_filter" in str(exc):
             # the provider's safety filter blocked the question itself (e.g. an attempt to override the rules)
-            turn.blocked, turn.verified = True, True
+            turn.blocked = True
+            turn.verified = True
             turn.answer = AskAnswer(answer="This question was blocked by the AI provider's safety filter, so it was "
                                            "not answered. The case and its suggestion are unchanged.",
                                     scope="out_of_scope")
         else:
             turn.error = str(exc)[:300]
-    turn.searches = [{"query": c["arguments"].get("query", ""), "results": c["results"]} for c in trace.calls]
+    turn.searches = [{"query": call["arguments"].get("query", ""), "results": call["results"]}
+                     for call in trace.calls]
     return turn

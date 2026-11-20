@@ -14,11 +14,12 @@ class LlmSetup:
     model_name: str = ""
 
 
-def setup_from_settings(s: Settings) -> LlmSetup | None:
-    if not (s.azure_endpoint and s.deployment):
+def setup_from_settings(settings: Settings) -> LlmSetup | None:
+    if not (settings.azure_endpoint and settings.deployment):
         return None
-    return LlmSetup(client=live_client(s.azure_endpoint, s.deployment, s.azure_api_version, s.max_tool_calls),
-                    model_name=s.deployment)
+    client = live_client(settings.azure_endpoint, settings.deployment, settings.azure_api_version,
+                         settings.max_tool_calls)
+    return LlmSetup(client=client, model_name=settings.deployment)
 
 
 class LlmUnavailable(RuntimeError):
@@ -34,7 +35,8 @@ class ScriptedChatClient(FunctionInvocationLayer, ChatMiddlewareLayer, BaseChatC
 
     def __init__(self, turns: list, **kwargs):
         super().__init__(**kwargs)
-        self.turns, self.seen = list(turns), []
+        self.turns = list(turns)
+        self.seen = []  # the messages each call received, for assertions
 
     async def _inner_get_response(self, *, messages, stream, options, **kwargs):
         self.seen.append(list(messages))
@@ -51,7 +53,9 @@ def live_client(endpoint: str, deployment: str, api_version: str, max_tool_calls
     from agent_framework.openai import OpenAIChatClient
     from azure.identity import DefaultAzureCredential
 
-    where = {"base_url": endpoint} if "/openai/v1" in endpoint else {"azure_endpoint": endpoint,
-                                                                     "api_version": api_version}
+    if "/openai/v1" in endpoint:
+        where = {"base_url": endpoint}
+    else:
+        where = {"azure_endpoint": endpoint, "api_version": api_version}
     return OpenAIChatClient(model=deployment, credential=DefaultAzureCredential(), **where,
                             function_invocation_configuration={"max_function_calls": max_tool_calls})

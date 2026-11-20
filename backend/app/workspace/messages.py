@@ -11,42 +11,55 @@ def display_campno(campno: str) -> str:
 
 
 def sentences(text: str) -> list[str]:
-    return [s.strip() for s in re.split(r"(?<=[.!?])\s+", text or "") if s.strip()]
+    parts = re.split(r"(?<=[.!?])\s+", text or "")
+    return [sentence.strip() for sentence in parts if sentence.strip()]
 
 
 def readable(text: str) -> str:
     """Older NHTSA recall texts are ALL CAPS; show them in sentence case."""
     letters = [ch for ch in text if ch.isalpha()]
-    if not letters or sum(ch.isupper() for ch in letters) / len(letters) <= 0.5:
+    if not letters:
         return text
-    return " ".join(s[:1].upper() + s[1:].lower() for s in sentences(text))
+    uppercase = [ch for ch in letters if ch.isupper()]
+    if len(uppercase) / len(letters) <= 0.5:
+        return text
+    return " ".join(sentence[:1].upper() + sentence[1:].lower() for sentence in sentences(text))
 
 
 def plain_defect(defect: str) -> str:
     """Drop the boilerplate opening ('Hyundai ... is recalling certain 2022-2024 IONIQ 5, ...') and keep the failure."""
     defect = readable(defect)
-    kept = [s for s in sentences(defect)
-            if "is recalling" not in s.lower() and not s.lower().startswith("please refer")]
+    kept = []
+    for sentence in sentences(defect):
+        lowered = sentence.lower()
+        if "is recalling" in lowered or lowered.startswith("please refer"):
+            continue
+        kept.append(sentence)
     return " ".join(kept) or defect
 
 
-def covers(r: RecallItem, c: Complaint) -> str:
-    years = r.model_years
-    span = years[0] if len(years) == 1 else f"{years[0]}–{years[-1]}" if years else "?"
-    return f"{span} {c.make.title()} {c.model.title()}"
+def covers(recall: RecallItem, complaint: Complaint) -> str:
+    years = recall.model_years
+    if not years:
+        span = "?"
+    elif len(years) == 1:
+        span = years[0]
+    else:
+        span = f"{years[0]}–{years[-1]}"
+    return f"{span} {complaint.make.title()} {complaint.model.title()}"
 
 
-def owner_recall_reply(c: Complaint, r: RecallItem, after_remedy: bool) -> str:
-    vehicle = f"{c.year} {c.make.title()} {c.model.title()}"
+def owner_recall_reply(complaint: Complaint, recall: RecallItem, after_remedy: bool) -> str:
+    vehicle = f"{complaint.year} {complaint.make.title()} {complaint.model.title()}"
     lines = [
         f"Thank you for reporting this problem with your {vehicle}.",
         "",
-        f"Your vehicle is covered by safety recall {display_campno(r.campno)}. What the recall says: "
-        f"{plain_defect(r.defect)}",
+        f"Your vehicle is covered by safety recall {display_campno(recall.campno)}. What the recall says: "
+        f"{plain_defect(recall.defect)}",
         "",
-        f"The remedy: {r.remedy.strip()}",
+        f"The remedy: {recall.remedy.strip()}",
         "",
-        f"Please contact an authorized {c.make.title()} dealer to have the recall repair done.",
+        f"Please contact an authorized {complaint.make.title()} dealer to have the recall repair done.",
     ]
     if after_remedy:
         lines += ["", "If this recall repair was already done on your vehicle, please reply with the date of the "
@@ -54,11 +67,15 @@ def owner_recall_reply(c: Complaint, r: RecallItem, after_remedy: bool) -> str:
     return "\n".join(lines)
 
 
-def owner_info_request(c: Complaint, questions: list[str]) -> str:
-    vehicle = f"{c.year} {c.make.title()} {c.model.title()}" if c.year.isdigit() else \
-        f"{c.make.title()} {c.model.title()}"
+def owner_info_request(complaint: Complaint, questions: list[str]) -> str:
+    vehicle = f"{complaint.make.title()} {complaint.model.title()}"
+    if complaint.year.isdigit():
+        vehicle = f"{complaint.year} {vehicle}"
     asks = questions or ["What exactly happened, and what warning lights or messages did you see?",
                          "What is the model year of the vehicle (or its VIN)?"]
-    return "\n".join([f"Thank you for reporting this problem with your {vehicle}.", "",
-                      "To check whether an existing recall covers it, could you tell us:",
-                      *[f"{i}. {q}" for i, q in enumerate(asks, 1)]])
+    lines = [f"Thank you for reporting this problem with your {vehicle}.",
+             "",
+             "To check whether an existing recall covers it, could you tell us:"]
+    for number, question in enumerate(asks, 1):
+        lines.append(f"{number}. {question}")
+    return "\n".join(lines)

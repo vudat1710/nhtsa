@@ -11,7 +11,6 @@ import json
 import sqlite3
 import time
 import zipfile
-from collections import defaultdict
 from html import escape
 from pathlib import Path
 
@@ -35,30 +34,41 @@ class H(str):
 
 
 def h(x) -> str:
+    """One value as HTML: escaped and cut to CELL_MAX characters; None shows as a dim 'null'; H passes through."""
     if isinstance(x, H):
         return x
     if x is None:
         return '<span class="dim">null</span>'
-    s = str(x)
-    return escape(s if len(s) <= CELL_MAX else s[:CELL_MAX] + "…")
+    text = str(x)
+    if len(text) > CELL_MAX:
+        text = text[:CELL_MAX] + "…"
+    return escape(text)
 
 
 def table(headers: list[str], rows: list[list], cls: str = "") -> H:
-    head = "".join(f"<th>{escape(x)}</th>" for x in headers)
-    body = "".join("<tr>" + "".join(f"<td>{h(c)}</td>" for c in r) + "</tr>" for r in rows)
+    """An HTML table; every cell goes through h()."""
+    head = "".join(f"<th>{escape(header)}</th>" for header in headers)
+    body_rows = []
+    for row in rows:
+        cells = "".join(f"<td>{h(cell)}</td>" for cell in row)
+        body_rows.append(f"<tr>{cells}</tr>")
+    body = "".join(body_rows)
     return H(f'<table class="{cls}"><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>')
 
 
 def kv(pairs: list[tuple[str, object]]) -> H:
-    return H('<table class="kv">' + "".join(f"<tr><th>{escape(k)}</th><td>{h(v)}</td></tr>" for k, v in pairs)
-             + "</table>")
+    """A two-column key/value table; values go through h()."""
+    rows = "".join(f"<tr><th>{escape(key)}</th><td>{h(value)}</td></tr>" for key, value in pairs)
+    return H(f'<table class="kv">{rows}</table>')
 
 
 def pre(text: str, title: str | None = None, open_: bool = False) -> H:
+    """Preformatted text; with a title it goes inside a collapsible <details> block."""
     block = f"<pre>{escape(text)}</pre>"
     if title is None:
         return H(block)
-    return H(f"<details{' open' if open_ else ''}><summary>{escape(title)}</summary>{block}</details>")
+    open_attr = " open" if open_ else ""
+    return H(f"<details{open_attr}><summary>{escape(title)}</summary>{block}</details>")
 
 
 def badge(text: str, kind: str = "") -> H:
@@ -68,10 +78,12 @@ def badge(text: str, kind: str = "") -> H:
 def mark(text: str, needles: list[str]) -> H:
     """Escape text and highlight the masked recall numbers and every verified quote found in it."""
     out = escape(text)
-    for n in sorted({x for x in needles if x}, key=len, reverse=True):
-        e = escape(n)
-        if e in out:
-            out = out.replace(e, f"<mark>{e}</mark>")
+    non_empty = {needle for needle in needles if needle}
+    # Longest first: once a short quote is wrapped in <mark>, a longer quote containing it would no longer match.
+    for needle in sorted(non_empty, key=len, reverse=True):
+        escaped = escape(needle)
+        if escaped in out:
+            out = out.replace(escaped, f"<mark>{escaped}</mark>")
     return H(out)
 
 
@@ -82,21 +94,28 @@ def mb(path: Path) -> str:
 # ---------------------------------------------------------------------------------------------------------- raw files
 
 def scan(zip_name: str, key_col: int, keys: set[str], repair_example: bool = False) -> tuple[dict, dict | None]:
-    """Raw rows (as published, split on tabs) whose key column is in keys; optionally the first complaint since
-    COMPLAINTS_FROM whose text needed the UTF-8 repair."""
-    found: dict[str, list[list[str]]] = defaultdict(list)
+    """Raw rows (as published, split on tabs) whose key column is in keys, grouped by key; optionally also the first
+    complaint since COMPLAINTS_FROM whose text needed the UTF-8 repair."""
+    found: dict[str, list[list[str]]] = {}
     repair = None
-    needles = [k.encode() for k in keys]
-    since = COMPLAINTS_FROM.replace("-", "")
-    with zipfile.ZipFile(RAW / zip_name) as z, z.open(z.namelist()[0]) as fh:
+    key_bytes = [key.encode() for key in keys]
+    since = COMPLAINTS_FROM.replace("-", "")  # raw dates are YYYYMMDD
+    with zipfile.ZipFile(RAW / zip_name) as archive, archive.open(archive.namelist()[0]) as fh:
         for line in fh:
-            hit = any(n in line for n in needles)
-            want_repair = repair_example and repair is None and b"\xe2\x80" in line  # UTF-8 punctuation bytes
-            if not hit and not want_repair:
+            # Cheap byte tests first; only lines that may be wanted are decoded and split.
+            has_key = any(key in line for key in key_bytes)
+            still_looking_for_repair = repair_example and repair is None
+            want_repair = still_looking_for_repair and b"\xe2\x80" in line  # UTF-8 punctuation bytes
+            if not has_key and not want_repair:
                 continue
+
             parts = line.rstrip(b"\r\n").decode("latin-1").split("\t")
-            if hit and len(parts) > key_col and parts[key_col] in keys:
-                found[parts[key_col]].append(parts)
+            # The key bytes may appear anywhere in the line; keep it only if they are in the key column.
+            if has_key and len(parts) > key_col and parts[key_col] in keys:
+                key = parts[key_col]
+                if key not in found:
+                    found[key] = []
+                found[key].append(parts)
             if want_repair and len(parts) >= len(CMPL):
                 row = dict(zip(CMPL, parts, strict=False))
                 if row["LDATE"] >= since and fix_text(row["CDESCR"]) != row["CDESCR"]:
@@ -105,21 +124,36 @@ def scan(zip_name: str, key_col: int, keys: set[str], repair_example: bool = Fal
 
 
 def repair_snippet(text: str, width: int = 70) -> tuple[str, str]:
-    i = next((k for k, ch in enumerate(text) if ord(ch) > 127), 0)
-    raw = text[max(0, i - width):i + width]
+    """The text around its first non-ASCII character, as published and after fix_text()."""
+    first_non_ascii = 0
+    for index, char in enumerate(text):
+        if ord(char) > 127:
+            first_non_ascii = index
+            break
+    raw = text[max(0, first_non_ascii - width):first_non_ascii + width]
     return raw, fix_text(raw)
 
 
 # -------------------------------------------------------------------------------------------------------- sections
 
 def section_flow() -> H:
-    steps = [("NHTSA flat files", "data/raw/*.zip", "raw"), ("ingest.py", "clean + split", "code"),
-             ("nhtsa.db", "SQLite, read-only", "db"), ("intake", "mask + flags", "code"),
-             ("evidence", "SQL, as of date", "code"), ("judge", "AI agent", "ai"), ("verify", "quotes, ids", "code"),
-             ("decide", "rules", "code"), ("app.db", "stored run", "db"), ("suggestion", "analyst view", "ui")]
-    boxes = '<span class="arrow">→</span>'.join(
-        f'<div class="box {k}"><b>{escape(a)}</b><small>{escape(b)}</small></div>' for a, b, k in steps)
-    return H(f"""<section><h2>The path, end to end</h2><div class="flow">{boxes}</div>
+    steps = [  # (name, detail, CSS class for its colour)
+        ("NHTSA flat files", "data/raw/*.zip", "raw"),
+        ("ingest.py", "clean + split", "code"),
+        ("nhtsa.db", "SQLite, read-only", "db"),
+        ("intake", "mask + flags", "code"),
+        ("evidence", "SQL, as of date", "code"),
+        ("judge", "AI agent", "ai"),
+        ("verify", "quotes, ids", "code"),
+        ("decide", "rules", "code"),
+        ("app.db", "stored run", "db"),
+        ("suggestion", "analyst view", "ui"),
+    ]
+    boxes = []
+    for name, detail, kind in steps:
+        boxes.append(f'<div class="box {kind}"><b>{escape(name)}</b><small>{escape(detail)}</small></div>')
+    flow = '<span class="arrow">→</span>'.join(boxes)
+    return H(f"""<section><h2>The path, end to end</h2><div class="flow">{flow}</div>
 <p>One complaint flows left to right. Only <b>judge</b> calls a model; everything else is code, so every number and
 every recall shown comes from the data, not from the AI. The AI proposes; <b>verify</b> checks every quote word for
 word and <b>decide</b> sets the outcome by rules. If the answer fails verification twice, decide falls back to a
@@ -128,35 +162,55 @@ labelled rules-only answer.</p>
 {badge('UI', 'ui')}</p></section>""")
 
 
-def section_raw(main: Result, cmpl_rows: dict, rcl_rows: dict, repair: dict | None) -> H:
-    files = [("FLAT_CMPL.zip", "Consumer complaints since 1995 (one row per complaint × component)", "CMPL.txt"),
-             ("FLAT_RCL_POST_2010.zip", "Recall campaigns since 2010 (one row per campaign × vehicle × component)",
-              "RCL.txt"),
-             ("FLAT_INV.zip", "Defect investigations (one row per investigation × vehicle)", "INV.txt")]
-    ft = table(["File", "Size", "What it is", "Format"],
-               [[f, mb(RAW / f), what, H(f"tab-delimited, no header, no quoting; columns in <code>{doc}</code>")]
-                for f, what, doc in files if (RAW / f).exists()])
-    c = main.complaint
-    rows = cmpl_rows.get(str(c.odino), [])
-    raw_c = ""
-    if rows:
-        named = [dict(zip(CMPL, r, strict=False)) for r in rows]
-        raw_c = (f"<h3>One raw complaint: ODINO {c.odino}</h3><p>{len(rows)} raw row(s) for this complaint (one per "
-                 f"component the owner picked). The first {len(CMPL)} columns are read; later ones are not used:</p>"
-                 + table(["Column"] + [f"row {i + 1}" for i in range(len(rows))],
-                         [[k] + [n[k] for n in named] for k in CMPL], "raw"))
-    raw_r = ""
-    if main.decision.campno and rcl_rows.get(main.decision.campno):
-        rr = rcl_rows[main.decision.campno]
-        raw_r = (f"<h3>One raw recall: CAMPNO {main.decision.campno}</h3><p>{len(rr)} raw rows (one per covered make × "
-                 "model × year × component). Row 1:</p>" + kv(list(zip(RCL, rr[0], strict=False))))
-    raw_e = ""
+def section_raw(main_run: Result, cmpl_rows: dict, rcl_rows: dict, repair: dict | None) -> H:
+    # The three files: what they contain, and which NHTSA document describes their columns.
+    files = [
+        ("FLAT_CMPL.zip", "Consumer complaints since 1995 (one row per complaint × component)", "CMPL.txt"),
+        ("FLAT_RCL_POST_2010.zip", "Recall campaigns since 2010 (one row per campaign × vehicle × component)",
+         "RCL.txt"),
+        ("FLAT_INV.zip", "Defect investigations (one row per investigation × vehicle)", "INV.txt"),
+    ]
+    file_rows = []
+    for name, what, doc in files:
+        if not (RAW / name).exists():
+            continue
+        file_format = H(f"tab-delimited, no header, no quoting; columns in <code>{doc}</code>")
+        file_rows.append([name, mb(RAW / name), what, file_format])
+    files_table = table(["File", "Size", "What it is", "Format"], file_rows)
+
+    # The main complaint as raw rows: one table column per raw row, one table row per CMPL column.
+    complaint = main_run.complaint
+    complaint_rows = cmpl_rows.get(str(complaint.odino), [])
+    raw_complaint = ""
+    if complaint_rows:
+        named_rows = [dict(zip(CMPL, row, strict=False)) for row in complaint_rows]
+        headers = ["Column"] + [f"row {i + 1}" for i in range(len(complaint_rows))]
+        table_rows = []
+        for column in CMPL:
+            values = [named[column] for named in named_rows]
+            table_rows.append([column] + values)
+        raw_complaint = (f"<h3>One raw complaint: ODINO {complaint.odino}</h3><p>{len(complaint_rows)} raw row(s) for "
+                         "this complaint (one per component the owner picked). The first "
+                         f"{len(CMPL)} columns are read; later ones are not used:</p>"
+                         + table(headers, table_rows, "raw"))
+
+    # The matched recall: only its first raw row.
+    campno = main_run.decision.campno
+    raw_recall = ""
+    if campno and rcl_rows.get(campno):
+        recall_rows = rcl_rows[campno]
+        raw_recall = (f"<h3>One raw recall: CAMPNO {campno}</h3><p>{len(recall_rows)} raw rows (one per covered "
+                      "make × model × year × component). Row 1:</p>" + kv(list(zip(RCL, recall_rows[0], strict=False))))
+
+    # An example of the encoding problem that ingest repairs.
+    raw_encoding = ""
     if repair:
         before, after = repair_snippet(repair["CDESCR"])
-        raw_e = (f"<h3>Encoding problem in the raw text (ODINO {repair['ODINO']})</h3><p>UTF-8 bytes published as "
-                 "Latin-1. Quotes must match word for word later, so ingest repairs this:</p>"
-                 + kv([("as published", before), ("after fix_text()", after)]))
-    return H(f"<section><h2>1 · Raw NHTSA files</h2>{ft}{raw_c}{raw_r}{raw_e}</section>")
+        raw_encoding = (f"<h3>Encoding problem in the raw text (ODINO {repair['ODINO']})</h3><p>UTF-8 bytes published "
+                        "as Latin-1. Quotes must match word for word later, so ingest repairs this:</p>"
+                        + kv([("as published", before), ("after fix_text()", after)]))
+
+    return H(f"<section><h2>1 · Raw NHTSA files</h2>{files_table}{raw_complaint}{raw_recall}{raw_encoding}</section>")
 
 
 def section_ingest() -> H:
@@ -178,120 +232,220 @@ def section_ingest() -> H:
              + table(["Step", "Raw", "In nhtsa.db"], rows) + "</section>")
 
 
-def section_db(con: sqlite3.Connection, main: Result) -> H:
-    c = main.complaint
-    counts = []
-    for t in ["complaints", "complaint_components", "recalls", "recall_vehicles", "investigations",
-              "investigation_vehicles"]:
-        cols = [r[1] for r in con.execute(f"PRAGMA table_info({t})")]
-        n = con.execute(f"SELECT count(*) FROM {t}").fetchone()[0]
-        counts.append([t, f"{n:,}", ", ".join(cols)])
-    span = con.execute("SELECT min(received), max(received) FROM complaints").fetchone()
-    rspan = con.execute("SELECT min(filed), max(filed) FROM recalls").fetchone()
+def section_db(con: sqlite3.Connection, main_run: Result) -> H:
+    complaint = main_run.complaint
+
+    # Every table: row count and columns.
+    table_rows = []
+    for table_name in ["complaints", "complaint_components", "recalls", "recall_vehicles", "investigations",
+                       "investigation_vehicles"]:
+        columns = [info[1] for info in con.execute(f"PRAGMA table_info({table_name})")]
+        row_count = con.execute(f"SELECT count(*) FROM {table_name}").fetchone()[0]
+        table_rows.append([table_name, f"{row_count:,}", ", ".join(columns)])
+    tables_table = table(["Table", "Rows", "Columns"], table_rows)
+    complaint_span = con.execute("SELECT min(received), max(received) FROM complaints").fetchone()
+    recall_span = con.execute("SELECT min(filed), max(filed) FROM recalls").fetchone()
 
     def sample(sql: str, args: tuple) -> H:
-        cur = con.execute(sql, args)
-        return table([d[0] for d in cur.description], [list(r) for r in cur.fetchall()])
+        """The query result as a table, headed by its column names."""
+        cursor = con.execute(sql, args)
+        headers = [column[0] for column in cursor.description]
+        return table(headers, [list(row) for row in cursor.fetchall()])
 
-    camp = main.decision.campno
+    # The main case's own records, as stored in the database.
+    odino = complaint.odino
     parts = [
-        f"<h3>complaints (ODINO {c.odino})</h3>", sample("SELECT * FROM complaints WHERE odino = ?", (c.odino,)),
-        "<h3>complaint_components</h3>", sample("SELECT * FROM complaint_components WHERE odino = ?", (c.odino,)),
+        f"<h3>complaints (ODINO {odino})</h3>",
+        sample("SELECT * FROM complaints WHERE odino = ?", (odino,)),
+        "<h3>complaint_components</h3>",
+        sample("SELECT * FROM complaint_components WHERE odino = ?", (odino,)),
     ]
-    if camp:
-        parts += [f"<h3>recalls ({camp})</h3>", sample("SELECT * FROM recalls WHERE campno = ?", (camp,)),
-                  f"<h3>recall_vehicles ({camp}, {c.make} {c.model} only)</h3>",
-                  sample("SELECT * FROM recall_vehicles WHERE campno = ? AND make = ? AND model = ? ORDER BY year",
-                         (camp, c.make, c.model))]
-    parts += [f"<h3>investigations ({c.make} {c.model})</h3>",
-              sample("""SELECT DISTINCT i.action, i.opened, i.closed, i.campno, i.subject FROM investigations i
-                        JOIN investigation_vehicles v USING (action) WHERE v.make = ? AND v.model = ?
-                        ORDER BY i.opened DESC LIMIT 3""", (c.make, c.model))]
-    return H(f"""<section><h2>3 · The database (<code>data/nhtsa.db</code>, {mb(get_settings().db_path)})</h2>
-<p>Complaints received {span[0]} to {span[1]}; recalls filed {rspan[0]} to {rspan[1]}. The app opens it read-only.
+    campno = main_run.decision.campno
+    if campno:
+        parts.append(f"<h3>recalls ({campno})</h3>")
+        parts.append(sample("SELECT * FROM recalls WHERE campno = ?", (campno,)))
+        parts.append(f"<h3>recall_vehicles ({campno}, {complaint.make} {complaint.model} only)</h3>")
+        parts.append(sample("SELECT * FROM recall_vehicles WHERE campno = ? AND make = ? AND model = ? ORDER BY year",
+                            (campno, complaint.make, complaint.model)))
+    parts.append(f"<h3>investigations ({complaint.make} {complaint.model})</h3>")
+    parts.append(sample("""SELECT DISTINCT i.action, i.opened, i.closed, i.campno, i.subject FROM investigations i
+                           JOIN investigation_vehicles v USING (action) WHERE v.make = ? AND v.model = ?
+                           ORDER BY i.opened DESC LIMIT 3""", (complaint.make, complaint.model)))
+    samples = "".join(parts)
+
+    db_size = mb(get_settings().db_path)
+    date_ranges = (f"Complaints received {complaint_span[0]} to {complaint_span[1]}; "
+                   f"recalls filed {recall_span[0]} to {recall_span[1]}.")
+    return H(f"""<section><h2>3 · The database (<code>data/nhtsa.db</code>, {db_size})</h2>
+<p>{date_ranges} The app opens it read-only.
 Analyst work and AI runs live in a separate file (<code>data/app.db</code>).</p>
-{table(["Table", "Rows", "Columns"], counts)}
-<p>The same records, now in the database, for the demo complaint below:</p>{"".join(parts)}</section>""")
+{tables_table}
+<p>The same records, now in the database, for the demo complaint below:</p>{samples}</section>""")
 
 
-def section_case(case: dict, r: Result) -> H:
-    c, it, ev, j, d = r.complaint, r.intake, r.evidence, r.judgment, r.decision
-    quotes = [ch.complaint_quote for ch in j.checks] if j else []
-    s = suggest(r, deps.store().tickets, related_for(r))
-    base = baseline(it, ev, [], "rules")
+def section_case(case: dict, run: Result) -> H:
+    """One demo case through every pipeline step (a-h), each step showing its actual input/output."""
+    complaint = run.complaint
+    intake = run.intake
+    evidence = run.evidence
+    judgment = run.judgment
+    decision = run.decision
 
-    complaint = kv([("odino", c.odino), ("vehicle", f"{c.year} {c.make} {c.model}"), ("received (as_of)", c.received),
-                    ("crash / fire / injured", f"{c.crash} / {c.fire} / {c.injured}"),
-                    ("components (as the owner chose)", ", ".join(c.components) or "—"),
-                    ("comps (top level, used for matching)", ", ".join(c.comps) or "—")])
-    intake = kv([("flags", H(" ".join(badge(f) for f in it.flags) or '<span class="dim">none</span>')),
-                 ("recall numbers masked", it.masked),
-                 ("text the AI sees", H(f'<div class="text">{mark(it.text, [MASK, *quotes])}</div>'))])
+    # a. Complaint
+    complaint_html = kv([
+        ("odino", complaint.odino),
+        ("vehicle", f"{complaint.year} {complaint.make} {complaint.model}"),
+        ("received (as_of)", complaint.received),
+        ("crash / fire / injured", f"{complaint.crash} / {complaint.fire} / {complaint.injured}"),
+        ("components (as the owner chose)", ", ".join(complaint.components) or "—"),
+        ("comps (top level, used for matching)", ", ".join(complaint.comps) or "—"),
+    ])
 
-    recalls = table(
-        ["campno", "filed", "comps", "same comp.", "replaced by", "complaints since", "covers years", "defect"],
-        [[x.campno, x.filed, ", ".join(x.comps), "✔" if x.same_component else "", x.replaced_by or "",
-          x.complaints_since if x.same_component else "", ", ".join(x.model_years), x.defect] for x in ev.recalls])
-    st = ev.stats
-    evidence = H(f"<p>{len(ev.recalls)} candidate recall(s) shown of {ev.recalls_total} covering this exact vehicle "
-                 f"before {c.received} (same component first, then newest).</p>{recalls}"
-                 + kv([("earlier complaints, same vehicle + component", st.total),
-                       ("… with crash / fire / injury", f"{st.crash} / {st.fire} / {st.injury}"),
-                       ("… in the last 12 months", st.last_12_months), ("first / last", f"{st.first} / {st.last}"),
-                       ("investigations on this vehicle", len(ev.investigations))]))
-
-    if j:
-        searches = table(["tool", "query (the AI's own words)", "complaint ids returned", "ms"],
-                         [[t.get("tool"), json.dumps(t.get("arguments"), ensure_ascii=False),
-                           ", ".join(map(str, t.get("results") or [])), t.get("ms")] for t in r.tool_calls])
-        checks = table(["recall", "verdict", "owner wrote", "recall says", "reason"],
-                       [[ch.campno, H(badge(ch.verdict, ch.verdict)), ch.complaint_quote, ch.recall_quote, ch.reason]
-                        for ch in j.checks])
-        similar = table(["earlier complaint", "quote"], [[x.odino, x.quote] for x in j.similar]) if j.similar else ""
-        judge = H(pre(case_message(c, it, ev), "Exactly what the AI received (built by code)")
-                  + (f"<h4>Searches the agent chose to run</h4>{searches}" if r.tool_calls else "")
-                  + f"<h4>Per-recall checks</h4>{checks}"
-                  + (f"<h4>Earlier owners describing the same failure</h4>{similar}" if similar else "")
-                  + kv([("proposed outcome", j.proposed), ("summary", j.summary),
-                        ("questions for the owner", " · ".join(j.questions) or "—"), ("model", r.model)]))
+    # b. Intake. The text highlights the masked recall numbers and every quote the AI took from it.
+    if judgment:
+        quotes = [check.complaint_quote for check in judgment.checks]
     else:
-        judge = H('<p class="dim">No AI judgment for this run (rules only).</p>')
+        quotes = []
+    flag_badges = " ".join(badge(flag) for flag in intake.flags) or '<span class="dim">none</span>'
+    highlighted_text = mark(intake.text, [MASK, *quotes])
+    intake_html = kv([
+        ("flags", H(flag_badges)),
+        ("recall numbers masked", intake.masked),
+        ("text the AI sees", H(f'<div class="text">{highlighted_text}</div>')),
+    ])
 
-    verify = table(["attempt", "error", "issues found by the verifier", "tokens in / out"],
-                   [[a.n, a.error or "", "; ".join(f"{i.code}: {i.message}" for i in a.issues) or "none ✔",
-                     f"{a.input_tokens:,} / {a.output_tokens:,}"] for a in r.attempts])
+    # c. Evidence
+    recall_rows = []
+    for recall in evidence.recalls:
+        same_component = ""
+        complaints_since = ""
+        if recall.same_component:
+            same_component = "✔"
+            complaints_since = recall.complaints_since
+        recall_rows.append([recall.campno, recall.filed, ", ".join(recall.comps), same_component,
+                            recall.replaced_by or "", complaints_since, ", ".join(recall.model_years), recall.defect])
+    recalls_table = table(
+        ["campno", "filed", "comps", "same comp.", "replaced by", "complaints since", "covers years", "defect"],
+        recall_rows)
+    stats = evidence.stats
+    stats_table = kv([
+        ("earlier complaints, same vehicle + component", stats.total),
+        ("… with crash / fire / injury", f"{stats.crash} / {stats.fire} / {stats.injury}"),
+        ("… in the last 12 months", stats.last_12_months),
+        ("first / last", f"{stats.first} / {stats.last}"),
+        ("investigations on this vehicle", len(evidence.investigations)),
+    ])
+    evidence_html = H(f"<p>{len(evidence.recalls)} candidate recall(s) shown of {evidence.recalls_total} covering "
+                      f"this exact vehicle before {complaint.received} (same component first, then newest).</p>"
+                      + recalls_table + stats_table)
 
-    decide = kv([("outcome", H(badge(d.outcome, d.outcome))), ("confidence", d.confidence),
-                 ("matched recall", d.campno or "—"), ("escalate", "yes" if d.escalate else "no"),
-                 ("source", d.source), ("flags", ", ".join(d.flags) or "—"),
-                 ("reasons", H("<ul>" + "".join(f"<li>{escape(x)}</li>" for x in d.reasons) + "</ul>")),
-                 ("for contrast: rules-only baseline",
-                  f"{base.outcome}" + (f" ({base.campno})" if base.campno else "") + f" — {base.reasons[0]}")])
+    # d. Judge
+    if judgment:
+        judge_parts = [pre(case_message(complaint, intake, evidence), "Exactly what the AI received (built by code)")]
 
-    stored = kv([("app.db results.id", r.id), ("created_at", r.created_at), ("steps that ran", " → ".join(r.steps)),
-                 ("latency", f"{r.latency_ms:,} ms")])
+        if run.tool_calls:
+            search_rows = []
+            for call in run.tool_calls:
+                query = json.dumps(call.get("arguments"), ensure_ascii=False)
+                returned_ids = ", ".join(map(str, call.get("results") or []))
+                search_rows.append([call.get("tool"), query, returned_ids, call.get("ms")])
+            searches = table(["tool", "query (the AI's own words)", "complaint ids returned", "ms"], search_rows)
+            judge_parts.append(f"<h4>Searches the agent chose to run</h4>{searches}")
 
-    actions = "".join(f"<li>{'<b>' if a.primary else ''}{escape(a.label)}{'</b> (suggested)' if a.primary else ''}"
-                      "</li>" for a in s.actions)
-    why = "".join(f"<li>{escape(w.text)}</li>" for w in s.why)
-    suggestion = H(f'<div class="card"><div class="headline">{escape(s.headline)}</div>'
-                   f"<p>{escape(s.summary)}</p><b>Why</b><ul>{why}</ul><b>Actions</b><ul>{actions}</ul></div>")
+        check_rows = []
+        for check in judgment.checks:
+            verdict = H(badge(check.verdict, check.verdict))
+            check_rows.append([check.campno, verdict, check.complaint_quote, check.recall_quote, check.reason])
+        checks = table(["recall", "verdict", "owner wrote", "recall says", "reason"], check_rows)
+        judge_parts.append(f"<h4>Per-recall checks</h4>{checks}")
 
-    steps = [("a", "Complaint", "nhtsa.db → Complaint", complaint),
-             ("b", "Intake", "code: mask recall numbers, flag what is missing", intake),
-             ("c", "Evidence", "code: SQL, only records dated before the complaint", evidence),
-             ("d", "Judge", "AI agent: compares the complaint with each candidate recall", judge),
-             ("e", "Verify", "code: recall ids exist, quotes copied exactly, no invented numbers", verify),
-             ("f", "Decide", "code: rules turn verified checks into the outcome", decide),
-             ("g", "Stored run", "app.db: the whole Result as JSON, the audit record", stored),
-             ("h", "What the analyst sees", "workspace: suggestion built from the stored run", suggestion)]
-    body = "".join(f'<div class="step"><h3><span class="n">{n}</span> {escape(t)} <small>{escape(sub)}</small></h3>'
-                   f"{content}</div>" for n, t, sub, content in steps)
-    title = f"{case['id']} · {c.year} {c.make} {c.model} — {case['title']}"
-    hindsight = f"<p class='dim'><b>Hindsight (never shown to the system):</b> {escape(case['next'])}</p>" \
-        if case.get("next") else ""
-    return H(f"""<details class="case"{' open' if case['id'] == 'D1' else ''}><summary>{escape(title)}
-{badge(d.outcome, d.outcome)}</summary><p>{escape(case['story'])}</p>{hindsight}{body}</details>""")
+        if judgment.similar:
+            similar_rows = [[earlier.odino, earlier.quote] for earlier in judgment.similar]
+            similar_table = table(["earlier complaint", "quote"], similar_rows)
+            judge_parts.append(f"<h4>Earlier owners describing the same failure</h4>{similar_table}")
+
+        judge_parts.append(kv([
+            ("proposed outcome", judgment.proposed),
+            ("summary", judgment.summary),
+            ("questions for the owner", " · ".join(judgment.questions) or "—"),
+            ("model", run.model),
+        ]))
+        judge_html = H("".join(judge_parts))
+    else:
+        judge_html = H('<p class="dim">No AI judgment for this run (rules only).</p>')
+
+    # e. Verify
+    attempt_rows = []
+    for attempt in run.attempts:
+        issues = "; ".join(f"{issue.code}: {issue.message}" for issue in attempt.issues) or "none ✔"
+        tokens = f"{attempt.input_tokens:,} / {attempt.output_tokens:,}"
+        attempt_rows.append([attempt.n, attempt.error or "", issues, tokens])
+    verify_html = table(["attempt", "error", "issues found by the verifier", "tokens in / out"], attempt_rows)
+
+    # f. Decide, next to what the rules alone would have decided.
+    rules_only = baseline(intake, evidence, [], "rules")
+    rules_only_text = f"{rules_only.outcome}"
+    if rules_only.campno:
+        rules_only_text += f" ({rules_only.campno})"
+    rules_only_text += f" — {rules_only.reasons[0]}"
+    reasons = "".join(f"<li>{escape(reason)}</li>" for reason in decision.reasons)
+    decide_html = kv([
+        ("outcome", H(badge(decision.outcome, decision.outcome))),
+        ("confidence", decision.confidence),
+        ("matched recall", decision.campno or "—"),
+        ("escalate", "yes" if decision.escalate else "no"),
+        ("source", decision.source),
+        ("flags", ", ".join(decision.flags) or "—"),
+        ("reasons", H(f"<ul>{reasons}</ul>")),
+        ("for contrast: rules-only baseline", rules_only_text),
+    ])
+
+    # g. Stored run
+    stored_html = kv([
+        ("app.db results.id", run.id),
+        ("created_at", run.created_at),
+        ("steps that ran", " → ".join(run.steps)),
+        ("latency", f"{run.latency_ms:,} ms"),
+    ])
+
+    # h. What the analyst sees
+    suggestion = suggest(run, deps.store().tickets, related_for(run))
+    action_items = []
+    for action in suggestion.actions:
+        label = escape(action.label)
+        if action.primary:
+            label = f"<b>{label}</b> (suggested)"
+        action_items.append(f"<li>{label}</li>")
+    actions = "".join(action_items)
+    why = "".join(f"<li>{escape(reason.text)}</li>" for reason in suggestion.why)
+    suggestion_html = H(f'<div class="card"><div class="headline">{escape(suggestion.headline)}</div>'
+                        f"<p>{escape(suggestion.summary)}</p><b>Why</b><ul>{why}</ul><b>Actions</b><ul>{actions}</ul>"
+                        "</div>")
+
+    # Put the steps together.
+    steps = [
+        ("a", "Complaint", "nhtsa.db → Complaint", complaint_html),
+        ("b", "Intake", "code: mask recall numbers, flag what is missing", intake_html),
+        ("c", "Evidence", "code: SQL, only records dated before the complaint", evidence_html),
+        ("d", "Judge", "AI agent: compares the complaint with each candidate recall", judge_html),
+        ("e", "Verify", "code: recall ids exist, quotes copied exactly, no invented numbers", verify_html),
+        ("f", "Decide", "code: rules turn verified checks into the outcome", decide_html),
+        ("g", "Stored run", "app.db: the whole Result as JSON, the audit record", stored_html),
+        ("h", "What the analyst sees", "workspace: suggestion built from the stored run", suggestion_html),
+    ]
+    step_blocks = []
+    for letter, name, subtitle, content in steps:
+        heading = f'<h3><span class="n">{letter}</span> {escape(name)} <small>{escape(subtitle)}</small></h3>'
+        step_blocks.append(f'<div class="step">{heading}{content}</div>')
+    body = "".join(step_blocks)
+
+    title = f"{case['id']} · {complaint.year} {complaint.make} {complaint.model} — {case['title']}"
+    hindsight = ""
+    if case.get("next"):
+        hindsight = f"<p class='dim'><b>Hindsight (never shown to the system):</b> {escape(case['next'])}</p>"
+    open_attr = " open" if case["id"] == "D1" else ""
+    return H(f"""<details class="case"{open_attr}><summary>{escape(title)}
+{badge(decision.outcome, decision.outcome)}</summary><p>{escape(case['story'])}</p>{hindsight}{body}</details>""")
 
 
 CSS = """
@@ -326,42 +480,53 @@ font-size:13px;line-height:22px}
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--out", type=Path, default=OUT)
-    ap.add_argument("--no-raw", action="store_true", help="skip scanning the raw zip files (the slow part)")
-    args = ap.parse_args()
-    t = time.time()
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--out", type=Path, default=OUT)
+    parser.add_argument("--no-raw", action="store_true", help="skip scanning the raw zip files (the slow part)")
+    args = parser.parse_args()
+    started = time.time()
 
+    # The demo cases and their stored AI runs. The first case is the one followed through the raw files and the db.
     cases = json.loads(DEMO.read_text(encoding="utf-8"))["cases"]
     latest = deps.store().latest("queue")
-    missing = [x["id"] for x in cases if x["odino"] not in latest]
+    missing = [case["id"] for case in cases if case["odino"] not in latest]
     if missing:
         raise SystemExit(f"no stored run for {missing}: run `python -m app.store.reset` first")
-    runs = [(x, latest[x["odino"]]) for x in cases]
+    runs = [(case, latest[case["odino"]]) for case in cases]
     main_run = runs[0][1]
 
-    cmpl_rows, rcl_rows, repair = {}, {}, None
+    # The raw rows behind the first case.
+    cmpl_rows = {}
+    rcl_rows = {}
+    repair = None
     if not args.no_raw:
         print("scanning raw files (up to a minute)...")
-        cmpl_rows, repair = scan("FLAT_CMPL.zip", CMPL.index("ODINO"), {str(main_run.complaint.odino)}, True)
-        if main_run.decision.campno:
-            rcl_rows, _ = scan("FLAT_RCL_POST_2010.zip", RCL.index("CAMPNO"), {main_run.decision.campno})
+        odino = str(main_run.complaint.odino)
+        cmpl_rows, repair = scan("FLAT_CMPL.zip", CMPL.index("ODINO"), {odino}, repair_example=True)
+        campno = main_run.decision.campno
+        if campno:
+            rcl_rows, _ = scan("FLAT_RCL_POST_2010.zip", RCL.index("CAMPNO"), {campno})
 
     con = deps.con()
-    body = [section_flow(),
-            section_raw(main_run, cmpl_rows, rcl_rows, repair) if not args.no_raw else "",
-            section_ingest(), section_db(con, main_run),
-            H("<section><h2>4 · One complaint through the pipeline</h2><p>Real complaints from the demo inbox, with "
-              "their stored AI runs. Each step shows its actual input/output. Highlighted in the text: "
-              f"<mark>{escape(MASK)}</mark> and the exact words the AI quoted (verified).</p>"
-              + "".join(section_case(x, r) for x, r in runs) + "</section>")]
+    sections = [section_flow()]
+    if not args.no_raw:
+        sections.append(section_raw(main_run, cmpl_rows, rcl_rows, repair))
+    sections.append(section_ingest())
+    sections.append(section_db(con, main_run))
+    cases_html = "".join(section_case(case, run) for case, run in runs)
+    sections.append(H("<section><h2>4 · One complaint through the pipeline</h2><p>Real complaints from the demo inbox, "
+                      "with their stored AI runs. Each step shows its actual input/output. Highlighted in the text: "
+                      f"<mark>{escape(MASK)}</mark> and the exact words the AI quoted (verified).</p>"
+                      + cases_html + "</section>"))
+    content = "".join(sections)
+
     page = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Recall Match: the data</title>
 <style>{CSS}</style></head><body><main><h1>Recall Match: how the data flows</h1>
 <p class="dim">Generated by <code>python -m app.data.report</code> from data/raw, data/nhtsa.db and the stored runs in
-data/app.db. Static snapshot: no model or server needed to view it.</p>{"".join(body)}</main></body></html>"""
+data/app.db. Static snapshot: no model or server needed to view it.</p>{content}</main></body></html>"""
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(page, encoding="utf-8")
-    print(f"wrote {args.out} ({args.out.stat().st_size / 1e3:,.0f} KB) in {time.time() - t:.0f}s")
+    print(f"wrote {args.out} ({args.out.stat().st_size / 1e3:,.0f} KB) in {time.time() - started:.0f}s")
 
 
 if __name__ == "__main__":

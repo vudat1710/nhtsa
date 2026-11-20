@@ -23,13 +23,13 @@ class Store:
         self.con.executescript(SCHEMA)
         self.tickets = Tickets(self.con)
 
-    def save(self, r: Result, label: str = "") -> None:
+    def save(self, result: Result, label: str = "") -> None:
         """label groups runs: 'queue' for the workspace, or an evaluation run name."""
-        d = r.decision
+        decision = result.decision
         self.con.execute("INSERT INTO results (id, odino, label, created_at, outcome, confidence, escalate, source, "
                          "body) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                         (r.id, r.complaint.odino, label, r.created_at, d.outcome, d.confidence, int(d.escalate),
-                          d.source, r.model_dump_json()))
+                         (result.id, result.complaint.odino, label, result.created_at, decision.outcome,
+                          decision.confidence, int(decision.escalate), decision.source, result.model_dump_json()))
         self.con.commit()
 
     def get(self, result_id: str) -> Result | None:
@@ -42,20 +42,33 @@ class Store:
             """SELECT body FROM results r WHERE label = ? AND created_at = (
                  SELECT max(created_at) FROM results r2 WHERE r2.odino IS r.odino AND r2.label = r.label)""",
             (label,)).fetchall()
-        out = [Result.model_validate_json(row["body"]) for row in rows]
-        return {r.complaint.odino: r for r in out}
+        results = [Result.model_validate_json(row["body"]) for row in rows]
+        return {result.complaint.odino: result for result in results}
 
     def runs(self, limit: int = 200) -> list[dict]:
         """Run summaries for the operations portal, newest first."""
         out = []
         for row in self.con.execute("SELECT label, body FROM results ORDER BY created_at DESC LIMIT ?", (limit,)):
-            r = Result.model_validate_json(row["body"])
-            first = r.attempts[0] if r.attempts else None
-            out.append({"id": r.id, "odino": r.complaint.odino, "label": row["label"], "created_at": r.created_at,
-                        "vehicle": f"{r.complaint.year} {r.complaint.make} {r.complaint.model}",
-                        "outcome": r.decision.outcome, "confidence": r.decision.confidence,
-                        "source": r.decision.source, "latency_ms": r.latency_ms, "fault": r.fault,
-                        "tokens": sum(a.input_tokens + a.output_tokens for a in r.attempts),
-                        "attempts": len(r.attempts), "tool_calls": len(r.tool_calls),
-                        "first_issues": [i.code for i in first.issues] if first else []})
+            result = Result.model_validate_json(row["body"])
+            complaint = result.complaint
+            decision = result.decision
+            tokens = sum(attempt.input_tokens + attempt.output_tokens for attempt in result.attempts)
+            # What the verifier flagged in the AI's first answer, if there was one.
+            first_issues = []
+            if result.attempts:
+                first_issues = [issue.code for issue in result.attempts[0].issues]
+            out.append({"id": result.id,
+                        "odino": complaint.odino,
+                        "label": row["label"],
+                        "created_at": result.created_at,
+                        "vehicle": f"{complaint.year} {complaint.make} {complaint.model}",
+                        "outcome": decision.outcome,
+                        "confidence": decision.confidence,
+                        "source": decision.source,
+                        "latency_ms": result.latency_ms,
+                        "fault": result.fault,
+                        "tokens": tokens,
+                        "attempts": len(result.attempts),
+                        "tool_calls": len(result.tool_calls),
+                        "first_issues": first_issues})
         return out

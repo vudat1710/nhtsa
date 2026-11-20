@@ -34,16 +34,21 @@ def build_judge(con: sqlite3.Connection, complaint: Complaint, llm: LlmSetup, fa
     return Judge(agent, AgentSession(), trace, found)
 
 
-async def ask(judge: Judge, n: int, text: str, model_name: str) -> tuple[Attempt, str, str]:
-    """One turn. Never raises: an outage or provider error becomes Attempt.error (-> fallback in verify)."""
+async def ask(judge: Judge, attempt_no: int, text: str, model_name: str) -> tuple[Attempt, str, str]:
+    """One turn: returns (the attempt record, the reply text, the model that answered).
+
+    Never raises: an outage or provider error becomes Attempt.error (-> fallback in verify)."""
     try:
-        r = await judge.agent.run([Message(role="user", contents=[text])], session=judge.session)
-        usage = getattr(r, "usage_details", None) or {}
-        reply = r.text or ""
-        return (Attempt(n=n, raw=reply[:6000],
-                        input_tokens=usage.get("input_token_count") or 0,
-                        output_tokens=usage.get("output_token_count") or 0),
-                reply, getattr(r, "model", "") or model_name)
+        response = await judge.agent.run([Message(role="user", contents=[text])], session=judge.session)
+        usage = getattr(response, "usage_details", None) or {}
+        reply = response.text or ""
+        attempt = Attempt(n=attempt_no, raw=reply[:6000],
+                          input_tokens=usage.get("input_token_count") or 0,
+                          output_tokens=usage.get("output_token_count") or 0)
+        model = getattr(response, "model", "") or model_name
+        return attempt, reply, model
     except Exception as exc:
+        # An LlmUnavailable raised inside the agent can arrive wrapped; report it (and its kind) rather than the wrapper
         cause = exc.__cause__ if isinstance(exc.__cause__, LlmUnavailable) else exc
-        return Attempt(n=n, error=f"{getattr(cause, 'kind', 'error')}: {cause}"), "", model_name
+        kind = getattr(cause, "kind", "error")
+        return Attempt(n=attempt_no, error=f"{kind}: {cause}"), "", model_name
