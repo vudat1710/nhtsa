@@ -1,0 +1,21 @@
+{
+ "about": "Five real complaints for the demo. 'next' is hindsight shown only after the decision, never given to the system.",
+ "cases": [
+  {"id": "D1", "odino": 11714455, "title": "Known recall, superseded recall, complaints after the remedy",
+   "expect": "known_recall", "campno": "24V868000",
+   "story": "2024 Ioniq 5 loses drive power (ICCU). Two recalls describe it; 24V204 was replaced by 24V868. 75 similar complaints arrived after the 24V868 remedy was published: the fix may not hold, or cars are not being repaired."},
+  {"id": "D2", "odino": 11633527, "title": "Same vehicle and component, opposite failure",
+   "expect": "related_different",
+   "story": "2022 Acura MDX: airbags did not deploy in a crash with fire and injury. The only airbag recall (24V064) is about an airbag deploying when it should be suppressed. A naive vehicle+component lookup would call this a known recall."},
+  {"id": "D3", "odino": 11443328, "title": "Possible new defect, escalated early",
+   "expect": "possible_new",
+   "story": "2018 Honda Ridgeline rear camera fails because tailgate use pinches the wiring. None of the 4 recalls on the vehicle fits; 4 similar complaints in the prior 10 months.",
+   "next": "NHTSA recall 22V867000 (filed 2022-11-23, influenced by ODI): 'Opening and closing the tailgate may break the rearview camera wiring harness'. 348 days after this complaint."},
+  {"id": "D4", "odino": 11591938, "title": "Too little to go on",
+   "expect": "needs_info",
+   "story": "'Backup camara is not working' - no symptom detail, conditions or warnings; the system should ask, not guess."},
+  {"id": "D5", "odino": 11714455, "title": "AI failure", "fault": "llm_down",
+   "expect": "fallback",
+   "story": "Same complaint as D1 with the model unavailable: the rules-only fallback answers, clearly labelled 'not AI-verified'."}
+ ]
+}
