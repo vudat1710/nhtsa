@@ -1,0 +1,46 @@
+{
+ "type": "chat_response",
+ "messages": [
+  {
+   "type": "message",
+   "role": "assistant",
+   "contents": [
+    {
+     "type": "text_reasoning",
+     "text": "",
+     "protected_data": "gAAAAABq__rMx-40ft2Tif0Whp01QwVcniuujlisNe8LGV7tyQJfHdbBVpFxMP_lfPFmgRc_9k8sr3dglcHjYyD-0MNblmF9-Ib37B0g0CA0sIi8cbWcC5I4iMg5tMhyvPFwrAwFNFV1pD881__zqaJ9n2BrAIcrpitD29dUZVFdLIWVJBL6FHmx7tX3seGLDFzZxYa4m6sBq7953eJwA-aqgHVmTmLrepksBKdJH596GqtZq3RizI9npwFL6NCJk2G0BOE0ctCuPv_690QPra-e9z1bZ87Pfkbxyu8Ep8w0uLp2FbrLQd687RORIqlpEbYPS3ZbflgUxN6XB1AznDGA6aUXGSPLFoH3DGzQR5U9HUaEC3GrfvoycZy7rUsqaR2WK49qIzU52tgjHKaYaXQIpSUCnJMTIeLgDh5wnIEVzBaFZw_lAAmBgH7UkQU5LBoqFFEKomV0xmgn5aPzvSp8iBzpCAx7BsAjHpFdJs5mO--F1yD36Rg1vYUWea3KBYJ75JzRdpr0I8VST19OP-5DmUusL3x0qUYa8nUyTyl7oJz55HpCcVUuzJ6fHhHjn37Fi19bXE7Nb92ZgTI1UPGfg7OR0isgyPRrh8wnohogBrPi8Ynu_4rfIbF1k6fs524pQxEuPXfm2d0_W_a8adEO4K-FOQicnM7S0aR1LjiHI69CikLqSjjfgm6Fysk7q0BVN-SokcioV5eBua76cDkKj-ZEbLmkEd8J2BRQarPtwvA96oF7w6eTqt3mRBpf1-1EhMvNNKxHouQyNQQvTgQJwgw3JBCjWQuhXOa0nBM1GntdaRNGznm9QcuWf2iEP0953SznIFjhCKPIcjdh8cei_n7mOqv5S69BAKPZGxFwjTMKmlHMvIR4WPme40eEWFy6Zm3Ba2MYWOZFTkLRZi08AOKU3pEBr3l75i55UhlFlgoaJ6QaXZ6tLY2buxfARb7sGdwDP1z28d_gWVzJEGUtxroz7qHdEXJw7QhFouoZv8QiyTLCF8xCoRPJdXNMDHWtfW3CrFZQXD9JqPhqm6MDpW5OAkXsyuqXu1YAi_fob06RiBNndWIsDlk9ajqa8V2K3ZDzcdiQIHPHf0JPy47TfGLuWppObWZib1l1a1W4luKqnDRKRQaBRR9aW9cm7yUSfFqMalZ6YZxnN09vhzuX7Ii3mh1F10N7h7XHwg8Y_8SixKJzC5VxppVhABHm8aE-Cqd-vnrvqK7LcZCmqZ61sthJiNWLS3u9Lk_roZtbaHeJHjvbs6bhTJBcotJuEiAV7YE4xS1S03r1-5MStULmdZHdIysTe1qtk7cK5oqWO9TipMvHm02XMWk3KMu3bv7GzC0YiVrnSry_sHg10aqJEPJWuwP6ss08LvZBzePbc3-_IkjDxbLyPd5m96lB5jYEo0MzZGoSJpowgENZG4RkTs7xykwOuP0b588pi9cCDsMapqxG-n-SsK0_qexgvVd-LImAPizjVgfT1qrTqvkZ7-DbAFszYZY7mu-6fLy6PAMCcRFMUmYMHLm6nHhR5hZlMIxIIp4czeOZ6icvbtNS7Hs8OfkOyL9-OEYnZf6kZLVqVRgDir_LXhwsGvxgU4m7W3kj8qUnry5WJwG4DG2ccQxucYNCkMz5DZd2IGeZhHbUP0Q-7wMXa-MnJFj-x4ISAZjhrB9xs6ymynQM36z7DL_dRzsa60CtQJ8blXmcP6bDGPUnvRzYsDcE0GXseDTmcpi4bNF_At77lW2KrgbtcFSH9F1seWEZbL3NHLUZ7hY_yBm-zotCfeESbJOhqQNaRSRvkkuIgwhcnQTujl7OE8tXz03QoW4SVIwV-LsWbkosJ5umR4RkmCM5LOvfrWnL7YyvSfWYdb9UkT2gM1IaBQuGdaalmvMrUasAMyaxreVTlR4uQyAkVa-vRfnunI5eQr93hw4td43X5KxoS8OELFASsrt5JgpP1nt9ss84tEJyq69YaWGHn6vYOULL9WEl8DkD-IH5vPdbdE99VZL0B71F2eA7Qp0260y6TQKKUJvmttmE9oRPc1jbGoA0O5YnDjDYfl36JsnHvoeVzGs7aAc70M1R3WURAziGPEOAPQKswMNI2nm48xBlpU3bW8LB8TOtFmdyeHxi9UELaDJfO1NsXCEoC_jqWvrogTF6f6NioeVAfIQtKArWEUCznuqjDR65CAvXl-pgBIfuWOs4af0SfPwrxyrTRhFHZULw6z8rVTXk-C0BaJKGSb6HdvWYAZSABvQ1RQPONtc8ZWVQk865AJ95AM42lZPNgrRNwHUTATjJHFd-Q9IXV1B3Dh7xmzK4LC11RWWkCmoemm1WIvQsYcfxco068IkF7umaPX5IFAGauZVRKsYZk1zIEyEH9nBgmhLzcrI2Xd1uDgfcOz7RxXsr3XeV3SpNPZzHEJKjVcrgN9AWhv9waemyiFhmQUDSKtQII9ufkGqvv0D0sjZOg_FBnKaJzqe0xGaQkGcjUK1vz12Ix60octc3kka5WoxIfDnH11kHAWkvAK9gNc4R2KAbS-2W5wkXfrwiH5rpcnK0YwnozgYIf6b3uqwG-7J99a5sc7-ftpvrg_NLdYYovtqHYpsTG7ev6VWmKuI9ZB2pMiJ9bhbBrQ2zrtdVK2ZN0Bp4t_NiaHC-dpKoo3dmz32DSXvLUdarjsN2Auo48DXgYtCf4c2-zSCGE-mhchAw6pIJopkUxI_vbxWEXPOj0SxzZsEerGDOsjbxhN6rcdE7MF1-V2lp4aj_7tYJ-pjQVtowp1CLW9yKJZ2MxMIF4xA68w-zwxEqSH19sOxSiqB6i_uJD-n5YC1au9q0vBq2K5ey8ndEKaNsEBe0bjWxiLoripOWq2x5NN9Wnto6a-6uZigpZCRlCe2YgRAgjGAGkRBvBk6eCbJwL_S_L0TiLm7dvh1AGuwlPEaFdUag1sbnc7d-rJnUUqNHhmRcp6vaXbINOXftB_pVIdlptB4l2T_sOYO-3HlSP_G6KyznwKxNWoDPWjWvkNXtgK2GZ23mKFAIEh3Xt804vVEgocOLATW9XZZBPjmaX0gMm3UAvx-C1fBP2AI-jYW5E8XKFPs8O9HWogRczbcltz42tYVpGLHi5XuqX5O7Ak9dCdNBdJrrgVfTnR9iYhjQs3OR9zr6vE3TlkGA5xly7nA6dtTrlSQMhX8OU9K6rgHDaBAJKZV6F7R8d1gg1rED0YcIUQz0Ofq2YghIcCtRMCHXrWX7s0ahJFohnC0r2Iv_NJzV3zTpJJlblkg0t5j2SFE9PEuMltldi98G7cO7x3rb98kwUH3psP2zRb5d_e6zzsk2SZoxRSjCnY4Ocdyehxyq5NVnSNyXbIxrDfF4szj2eoj-vttzi_0BiDRYrypMxME73rpFHXnXZQbnVYzWnR27OK8tTYjOz6AP8BQVGPGH8ooMImN3H3J_cqKLKK9NwftaC8ajb300tNABVFI6Bsm0oXB_Nr7ZwREvQVNStjHwu7ly8QW6ZF9y826q3XzRAf0ZUyD_4_F-AOzmPLMGi1NvJrpj7KpdaLNL-uI5sujcGku9g679YA==",
+     "id": "rs_000a1606891edd2e006afffac518a8819484dd3be228f77649",
+     "additional_properties": {}
+    },
+    {
+     "type": "text",
+     "text": "{\"answer\":\"The owner reports that normal tailgate use pinches and damages the wiring, disabling the rear camera. None of the listed recalls describes that failure: they address the hood latch, tonneau-cover panel separation, fuel-pump cracking, and seat rivets—not rear-camera wiring.\",\"scope\":\"answered\",\"recheck\":false,\"citations\":[{\"kind\":\"complaint\",\"id\":\"11443328\",\"quote\":\"normal tailgate use pinches the wires and eventually they become damaged, severing the connection and disabling the rear camera\"},{\"kind\":\"recall\",\"id\":\"21V932000\",\"quote\":\"The hood latch striker may become damaged and separate from the hood\"},{\"kind\":\"recall\",\"id\":\"20E068000\",\"quote\":\"possibly allowing the rear panel to separate from the vehicle\"},{\"kind\":\"recall\",\"id\":\"19V053000\",\"quote\":\"can result in the fuel pump feed port cracking\"},{\"kind\":\"recall\",\"id\":\"18V221000\",\"quote\":\"may have been assembled with improperly manufactured rivets\"}]}",
+     "additional_properties": {
+      "openai": {
+       "logprobs": []
+      },
+      "logprobs": []
+     }
+    }
+   ],
+   "message_id": "msg_000a1606891edd2e006afffac9a608819481c2af4c88dc4e9e",
+   "additional_properties": {}
+  }
+ ],
+ "response_id": "resp_000a1606891edd2e006afffac3ead0819481c1138b258b0cb6",
+ "conversation_id": "resp_000a1606891edd2e006afffac3ead0819481c1138b258b0cb6",
+ "model": "gpt-6.1-sol-2026-09-29",
+ "created_at": "2026-11-20T07:46:11.000000Z",
+ "finish_reason": "stop",
+ "usage_details": {
+  "input_token_count": 2895,
+  "output_token_count": 371,
+  "total_token_count": 3266,
+  "openai.cache_write_tokens": 2892,
+  "cache_creation_input_token_count": 2892,
+  "openai.cached_input_tokens": 0,
+  "cache_read_input_token_count": 0,
+  "openai.reasoning_tokens": 156,
+  "reasoning_output_token_count": 156
+ }
+}

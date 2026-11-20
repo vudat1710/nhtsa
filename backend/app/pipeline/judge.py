@@ -33,8 +33,16 @@ def build_judge(con: sqlite3.Connection, complaint: Complaint, llm: LlmSetup, fa
         middleware.append(CassetteMiddleware(llm.cassette_dir, llm.cassette_mode))
     middleware.append(trace)
     agent = Agent(client=llm.client, name="recall_judge", instructions=INSTRUCTIONS,
-                  tools=[search_tool(con, complaint, found)], middleware=middleware)
+                  tools=[search_tool(con, complaint, found)], middleware=middleware,
+                  default_options=llm.options or None)
     return Judge(agent, AgentSession(), trace, found)
+
+
+def reasoning_of(response) -> str:
+    """The model's reasoning summary, if it returned one (Responses API 'text_reasoning' content)."""
+    parts = [getattr(c, "text", "") or "" for m in getattr(response, "messages", []) for c in m.contents
+             if c.type == "text_reasoning"]
+    return "\n\n".join(p.strip() for p in parts if p.strip())
 
 
 async def ask(judge: Judge, n: int, text: str, model_name: str) -> tuple[Attempt, str, str]:
@@ -43,7 +51,8 @@ async def ask(judge: Judge, n: int, text: str, model_name: str) -> tuple[Attempt
         r = await judge.agent.run([Message(role="user", contents=[text])], session=judge.session)
         usage = getattr(r, "usage_details", None) or {}
         reply = r.text or ""
-        return (Attempt(n=n, raw=reply[:6000], input_tokens=usage.get("input_token_count") or 0,
+        return (Attempt(n=n, raw=reply[:6000], reasoning=reasoning_of(r)[:4000],
+                        input_tokens=usage.get("input_token_count") or 0,
                         output_tokens=usage.get("output_token_count") or 0),
                 reply, getattr(r, "model", "") or model_name)
     except Exception as exc:

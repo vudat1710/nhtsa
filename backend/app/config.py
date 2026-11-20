@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     app_db_path: Path = ROOT / "data" / "app.db"    # results and reviews written by the app
     cassette_dir: Path = ROOT / "cassettes"
     max_tool_calls: int = 2
+    reasoning_summary: str = "auto"   # ask the model for a summary of its reasoning ("" = off); shown, never used
+    ask_reasoning_effort: str = "medium"  # follow-up assistant reasons more (sometimes summarized); judge: default
 
 
 @lru_cache

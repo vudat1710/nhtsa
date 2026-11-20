@@ -36,6 +36,8 @@ A workspace that suggests the **next action** for each complaint (not a chatbot)
   remedy that isn't holding; escalate to an emerging issue *only with a stated reason*; record and watch single
   reports; or ask the owner the AI's questions. Disagreeing asks for one line of why. Builders audit every run in a
   separate operations portal.
+- **The analyst can see how it got there and ask follow-ups**: the agent's steps (including what it chose to search
+  for) and a case-scoped assistant whose quotes are checked and which says "not in the records" instead of guessing.
 
 *Why this design:* the costly error is a false "known recall", so that decision sits in code; every claim is
 checkable in seconds; engineers' time is protected by escalating only with a reason.
@@ -50,6 +52,7 @@ checkable in seconds; engineers' time is protected by escalating only with a rea
 | Trust | Final answers with every quote/id/number verified | 100% | 100% by construction; 1 of 563 first answers needed a repair |
 | Escalation | No-recall-yet complaints escalated or sent back to the owner (set B) | ≥ 90% | 95% |
 | Robustness | Stress cases (unknown year/part, two words, injected instructions) | All | 25/26 |
+| Trust | Follow-up answers: quotes verified, "not in the records" instead of guessing | All | 21/21 questions |
 | Cost | Per complaint | Report | ~5,400 tokens, ~13 s |
 | In production | Analyst override rate · time to triage · share of escalations engineers confirm · new defects found before a recall | Baseline, then improve | Logged from day one (every action stored) |
 

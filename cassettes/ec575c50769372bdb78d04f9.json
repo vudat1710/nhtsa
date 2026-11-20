@@ -1,0 +1,50 @@
+{
+ "type": "chat_response",
+ "messages": [
+  {
+   "type": "message",
+   "role": "assistant",
+   "contents": [
+    {
+     "type": "text_reasoning",
+     "text": "**Searching for evidence**\n\nI need to gather negative evidence without citations. I can say, \"I did not find another report or available earlier complaints.\" The previous complaint about the airbag mentioned missing recall parts and noted that the owner did not experience any failure. I’ll rely on the scope labeled \"not_in_records\" because there's no definitive answer. Although I could create a second query, it might not be necessary, but it's an option to ensure comprehensive coverage.",
+     "protected_data": "gAAAAABq__oW1S5g9Ocb8UCT1bPBxisV4O07ZaqUY3rQjCZQ5Vi76v1XkPWXxF9s5wbag7LThLCeCtlvlNuI1gvRAqvwLBDUa488lvuX7NjF3QtQZTVb9IZJNHkfGGjRI0Bidus2OHXjP9q7isPUUsnmDDrGimFJzKZX0o8ZasmEiD-nCwI5y9ZwhDWRlyaYJtOND0G8EtCntnBNCxDslQ9GGmTPETI_kr2jGHmVFSGcz83y2R2b4SYRL-UOjPlCN2UDx5pW34dMxCXIDaYSD32mI6c1MkaG09NNlwXO6JogqFEfXeYO11XufLl4kvWWdI4Pc-txFWhntFvhyNInY_hiHhJWhJRmoepuHCm1uqXFMseTC5l6jeokFr8niQ77ohCLFN7YdYImndDlSCoPYj3hPdu9r6HFTEUK8CF2X8wHVAXaA4q5yjz0BuqZQ_Heh596Q8duDmlwarcpllcxCISdVvjHetZUApKj7tj7sGzyNd63d-da7pdwZEvyKhgg0kjy_19pdIoPd2yNfIhdkqYtjGrGB48YpGuKwvRJ62FR2bd9P1l5j15Ga5Jn1zMXJlBtnLhsRm4i0nWjMiyxymC8dgUyK_5bIYEAVnq0P5ekjLzVsFUOG0tUpmyheg-IMFrHDRVwZqGcd31o8HCG7tNsZqO5MG11PgWYACRy0PaN10i9uLTfC0DV7Tj06xY7si0k7EmVEJg6gGCv1YZHFMrN_vPZvGrlzGpW_HIC4Os60Wb6spFXlphAqwxU9r0fU3_9O-mhR75CJtRmrqoneMmxyLWHcS2qeFnCa02ks08x1eXtQ4uwBh_d7gLOjzviD5mlbDIqXSv7kAUl6O0zTOo4rFgkLZizDbfoS1F54rR3ogE-Y9mqBcrKww_zxlcDc1CHOqAZWLuZg38yfArKQ8b8kfRdZno9iiwBVHCT50buemxxqKoodVoEvyWBbOnW0Al0ziPlkg7WiCgI3dQcb1RBxwCgoSEPhYThLpLxMC_jLFOEQq9B9Uls9Y085jB05jWHT1ttc9X0D-DLF6Jf7ANtcgFAdCsbe_O3qOKu2v-FR534jmcIVMiY2a5Av8Oa7lEvqEn7KtCs6DTzUOqSjwFwDXhZS2ds5KScQHu0cv-72VpuSyi0JvGo3m9mLVbqyrvCDQfawbSwpBN_wKJ8oVWCDIDXOyv1BfNfzcqS_bhqaf3R8AVzHeXNB66NIBnb70g36zSn9qA2Lw9BSxYGbuQrqt7lvZ9RPW0jkuFMDdACDN8urfECQpYhjmp6X0qk9ZFwz-uNiw4ialdasX7tAhGvTv29sgakealvk1zbHD8ZfLm69odk8p1D9FQwtDblUB4ljIe58iSQMnq2e55EavySQ60vt90n9Rx8zWWG1plUoWGjVQ3GOYPZD-o917Xsnq1JKrt0-aVK7f4IzhwgWuCUXhwjAAIfGVWymVJiCsKzD5YLEeDEFDgE2JLVZPH7EuGSwk6j0-oIq-6AAll_aLAZDe7RwcwZRoHP37pLmi3g4RvuY9d1uz1dRqDg99FBeGzdeJJ25CM5_51QGuMX8ZVV_6mrG4ahlREhDcn4F7K8BN9cyIu-lebe5ms9ds5ZSOFCAaJF1t8OeyY8Ftcq5yR5-WuL1BsD2E25gz9AifNlQGzonXt1aIM13mpfARarJbwzklxizrSTBzpqnZUsMM4wTjExFxVUI_TeUqpyQXpixLDeWDG7LEb6_rGnJ5OymzOKfD3Nl8n51RxzXrGcjALUJNjXaKn23IonCul4IbUoaPM_FAmvfi75fHO0XK88uEPIayBwKlSxxIsvmgjP1dsLZ0xiXVRz0nicX9BSR8u6RVra-sZqaU4KE6otiANVX70y59GlkDzglDKsGWwUMHeWZzOcee1UI_UdJbCgxjaSXLL7zrpdkFQDSa48pevQ7RbYRm_or1SgkC4cYRqPSRCB9i2eiWikD5IRHMxHO9TRlvtWf_IYXFEGaWzgkaSGeL4gLDer0UJt0TtswbpMlWLZh0zDQd9pIePWsJG8487NtnJvQzq21-uXnM-3qrmNMRTqO7-H-CfQgRP2WRpBCcJQxSM1PPkQve9B0xOUxhs9x-adBmoZXv-Hy5Q6218V6RTB4HqgJzHOcxkDeAO3HuD4fSIWqODKyFJvPJrla1hQtaNHg02PfEeVJvq56xnk2gA9kYfK9UjV7UVgOOqX2f7Id6XBbkQoBF8cpuaQ-c0PvHEclh5tocw4Sa_2LONbLF-40EjDOepVXnnHbSQ9OdblQ1ZE5SnqfUDhFXszseoew5B0RH3YCqOvo_M3iaACSZOXlwNk6rOIQmvZ3nmdXPHZuMjbNEoE649JzOpqFJVHU_EjnX5BDfv1Xbluiq_P5hHPJb2nSfaVHgtzrw2JzPQH0FVvsXlayhJ2VcaVnk_OmW37LfbeSqFFSqVmxea572bEyG7MqBty",
+     "id": "rs_07e4916a9dbaec8b006afffa131034819482be1e10ed92ff4f",
+     "additional_properties": {}
+    },
+    {
+     "type": "function_call",
+     "call_id": "call_L3p60qb6GmKqUSETh4vvyibQ",
+     "name": "search_complaints",
+     "arguments": "{\"query\":\"Airbag nondeployment: airbags failed to deploy after impact, rear-end collision, or frontal crash\"}",
+     "status": "completed",
+     "hosted": false,
+     "additional_properties": {
+      "openai": {
+       "item_id": "fc_07e4916a9dbaec8b006afffa162f4c819481c659532ffa1c26"
+      },
+      "fc_id": "fc_07e4916a9dbaec8b006afffa162f4c819481c659532ffa1c26",
+      "status": "completed"
+     }
+    }
+   ],
+   "additional_properties": {}
+  }
+ ],
+ "response_id": "resp_07e4916a9dbaec8b006afffa12245881948e88d00a1a71b532",
+ "conversation_id": "resp_07e4916a9dbaec8b006afffa12245881948e88d00a1a71b532",
+ "model": "gpt-6.1-sol-2026-09-29",
+ "created_at": "2026-11-20T07:43:14.000000Z",
+ "finish_reason": "tool_calls",
+ "usage_details": {
+  "input_token_count": 2233,
+  "output_token_count": 115,
+  "total_token_count": 2348,
+  "openai.cache_write_tokens": 662,
+  "cache_creation_input_token_count": 662,
+  "openai.cached_input_tokens": 1568,
+  "cache_read_input_token_count": 1568,
+  "openai.reasoning_tokens": 75,
+  "reasoning_output_token_count": 75
+ }
+}

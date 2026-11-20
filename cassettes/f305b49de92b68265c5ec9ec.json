@@ -1,0 +1,39 @@
+{
+ "type": "chat_response",
+ "messages": [
+  {
+   "type": "message",
+   "role": "assistant",
+   "contents": [
+    {
+     "type": "text",
+     "text": "{\"answer\":\"I did not find another report of crash-related airbag nondeployment in the available earlier complaints; the records do not establish whether other owners have reported it elsewhere. An earlier airbag-recall complaint concerned unavailable repair parts and explicitly stated that the owner had not experienced a failure.\",\"scope\":\"not_in_records\",\"recheck\":false,\"citations\":[{\"kind\":\"earlier_complaint\",\"id\":\"11622688\",\"quote\":\"the part to do the recall repair was not yet available\"},{\"kind\":\"earlier_complaint\",\"id\":\"11622688\",\"quote\":\"The contact had not experienced a failure.\"}]}",
+     "additional_properties": {
+      "openai": {
+       "logprobs": []
+      },
+      "logprobs": []
+     }
+    }
+   ],
+   "message_id": "msg_07e4916a9dbaec8b006afffa17b6f88194b8f451177f5cbb88",
+   "additional_properties": {}
+  }
+ ],
+ "response_id": "resp_07e4916a9dbaec8b006afffa16bb1481949870b3ed7d7c0ca3",
+ "conversation_id": "resp_07e4916a9dbaec8b006afffa16bb1481949870b3ed7d7c0ca3",
+ "model": "gpt-6.1-sol-2026-09-29",
+ "created_at": "2026-11-20T07:43:18.000000Z",
+ "finish_reason": "stop",
+ "usage_details": {
+  "input_token_count": 2990,
+  "output_token_count": 131,
+  "total_token_count": 3121,
+  "openai.cache_write_tokens": 757,
+  "cache_creation_input_token_count": 757,
+  "openai.cached_input_tokens": 2158,
+  "cache_read_input_token_count": 2158,
+  "openai.reasoning_tokens": 0,
+  "reasoning_output_token_count": 0
+ }
+}

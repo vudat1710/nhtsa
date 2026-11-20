@@ -109,6 +109,7 @@ class Issue(BaseModel):
 class Attempt(BaseModel):
     n: int
     raw: str = ""
+    reasoning: str = ""               # the model's own summary of its reasoning, if it gave one (shown, never used)
     error: str | None = None
     issues: list[Issue] = []
     input_tokens: int = 0

@@ -1,6 +1,6 @@
 """Model clients (MAF chat clients): live Azure OpenAI / Foundry, offline (replay only), scripted (tests), and the
 LlmSetup the pipeline receives (client + record/replay mode)."""
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +15,7 @@ class LlmSetup:
     cassette_dir: Path | None = None
     cassette_mode: str = "live"     # replay | record | live
     model_name: str = ""
+    options: dict = field(default_factory=dict)  # MAF default_options, e.g. {"reasoning": {"summary": "auto"}}
 
 
 def setup_from_settings(s: Settings) -> LlmSetup:
@@ -23,8 +24,10 @@ def setup_from_settings(s: Settings) -> LlmSetup:
     client = live_client(s.azure_endpoint, s.deployment, s.azure_api_version, s.max_tool_calls) if configured \
         else OfflineChatClient()
     mode = s.llm_mode.value if configured else "replay"
+    # a reasoning summary changes what the model reports, not what it decides; it is shown to people, never used
+    options = {"reasoning": {"summary": s.reasoning_summary}} if configured and s.reasoning_summary else {}
     return LlmSetup(client=client, cassette_dir=s.cassette_dir, cassette_mode=mode,
-                    model_name=s.deployment if configured else "")
+                    model_name=s.deployment if configured else "", options=options)
 
 
 class LlmUnavailable(RuntimeError):

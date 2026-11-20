@@ -33,28 +33,35 @@ backend/app/
     suggest.py           what it is, why (in field-quality words), pattern, escalation reasons, actions
     messages.py          owner replies and questions: templates over the recall's own text
     actions.py           apply an analyst action (validated against the case's evidence), log it
+    trail.py             "How the agent investigated": the steps of a stored run, in analyst words
+
+  ask/                   follow-up questions about one case (the only other place the model is called)
+    prompt.py            rules, answer shape (text + citations + scope + recheck), the case record it sees
+    verify.py            each citation points to a source of this case, its quote is in it word for word; numbers exist
+    service.py           ask → verify → one repair; provider content-filter → "blocked" answer (never raises)
 
   store/                 data/app.db
     results.py           every AI run, whole (the audit record)
-    tickets.py           what people did: ticket status, actions, emerging issues
+    tickets.py           what people did: ticket status, actions, emerging issues, questions asked
     reset.py             clear what people did (keep runs) for a fresh demo
 
   api/                   HTTP only; calls the layers above
-    workspace.py         inbox, ticket, check (live progress), actions, emerging issues
+    workspace.py         inbox, ticket (+ trail, questions), check (live progress), actions, ask, emerging issues
     ops.py               runs, run detail, failure drills, sandbox, evaluation reports
     streaming.py · deps.py
 
   eval/                  build_sets.py (frozen real-data sets) · run.py (score + report + full results)
                          rescore.py (re-apply rules to stored answers) · adjudicate.py (who was right?)
-                         prune_cassettes.py (drop recordings no run uses)
+                         prune_cassettes.py (drop recordings no run uses) · ask_eval.py (follow-up questions)
 
 backend/tests/           one file per area; conftest.py is a tiny NHTSA world (same schema)
 frontend/src/
   api/                   client.ts (workspace + ops clients, progress stream), types.ts (mirrors models.py)
-  workspace/             Inbox, Ticket (SuggestionView + ActionPanel), Emerging issues: the analyst's product
+  workspace/             Inbox, Ticket (SuggestionView + ActionPanel + TrailView + AskPanel), Emerging issues:
+                         the analyst's product
   ops/                   AI runs, run detail (decision, recall checks, evidence, audit trail), drills, sandbox,
                          evaluation: for the people who build and run it
-  shared/ · lib/         badges, quote highlighting, plain-word labels
+  shared/ · lib/         badges, quote highlighting, plain-word labels, liveTrail (progress events → steps)
 data/eval/               frozen sets, demo.json, runs/ reports/ results/ adjudication/
 docs/                    BRIEF.md, DATA_CARD.md, this file
 ```
@@ -89,3 +96,5 @@ The analyst opens the Honda Ridgeline ticket (`/tickets/11443328`):
 | How is it evaluated, and can I reproduce it? | `eval/run.py`, `eval/rescore.py` (from committed results), `docs/DATA_CARD.md` |
 | Why is the search tool async? | `ai/tools.py` + `tests/test_workflow.py::test_concurrent_cases_share_the_connection_safely` |
 | Why are recordings keyed on some fields only? | `ai/middleware.py: cassette_key` + `tests/test_replay.py` |
+| How do you show the agent's thinking? Is it real? | `workspace/trail.py` (built from the stored run, not narrated by the model), `pipeline/workflow.py` (live `judgment`/`reasoning` events) |
+| Can the follow-up assistant make things up? | `ask/verify.py` (quotes checked), `ask/prompt.py` rules, `eval/ask_eval.py`, `tests/test_ask_trail.py` |

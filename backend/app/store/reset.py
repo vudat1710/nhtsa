@@ -9,7 +9,7 @@ from app.store.results import Store
 
 def main() -> None:
     con = Store(get_settings().app_db_path).con
-    for table in ("tickets", "actions", "issue_complaints", "issues"):
+    for table in ("tickets", "actions", "issue_complaints", "issues", "questions"):
         con.execute(f"DELETE FROM {table}")
     con.execute("DELETE FROM sqlite_sequence WHERE name IN ('issues', 'actions')")
     con.commit()

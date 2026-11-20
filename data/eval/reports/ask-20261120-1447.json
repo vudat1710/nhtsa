@@ -1,0 +1,41 @@
+{
+ "name": "ask-20261120-1447",
+ "set": "ask",
+ "split": "test",
+ "mode": "ai",
+ "model": "gpt-6.1-sol",
+ "metrics": {
+  "passed": {
+   "k": 21,
+   "n": 21,
+   "rate": 1.0,
+   "ci95": [
+    0.845,
+    1.0
+   ]
+  },
+  "verified_when_not_blocked": {
+   "k": 20,
+   "n": 20,
+   "rate": 1.0,
+   "ci95": [
+    0.839,
+    1.0
+   ]
+  },
+  "says_not_in_records_when_expected": {
+   "k": 4,
+   "n": 4,
+   "rate": 1.0,
+   "ci95": [
+    0.51,
+    1.0
+   ]
+  },
+  "blocked_by_provider": 1,
+  "citations_per_answered": 3.3,
+  "used_search": 1,
+  "gave_reasoning_summary": 1,
+  "seconds_p50": 4.8
+ }
+}

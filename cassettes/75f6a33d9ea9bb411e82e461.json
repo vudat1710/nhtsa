@@ -1,0 +1,39 @@
+{
+ "type": "chat_response",
+ "messages": [
+  {
+   "type": "message",
+   "role": "assistant",
+   "contents": [
+    {
+     "type": "text",
+     "text": "{\"answer\":\"Recall 22V382000 is the most likely match: the owner reports a nonworking backup camera, and this recall describes a fault signal that may disable the reverse camera. However, it covers certain Mustangs with 5.0L engines and manual transmissions, and the owner's report does not identify the engine or transmission. More information is needed to confirm the match.\",\"scope\":\"answered\",\"recheck\":false,\"citations\":[{\"kind\":\"complaint\",\"id\":\"11591938\",\"quote\":\"Backup camara is not working\"},{\"kind\":\"recall\",\"id\":\"22V382000\",\"quote\":\"The Powertrain Control Module (PCM) may broadcast an unintended faulted signal to the modules controlling the reverse camera, reverse light, and driver assist features, which may disable all of these functions.\"},{\"kind\":\"recall\",\"id\":\"22V382000\",\"quote\":\"certain 2019-2020 Mustang vehicles equipped with 5.0L engines and manual transmissions\"}]}",
+     "additional_properties": {
+      "openai": {
+       "logprobs": []
+      },
+      "logprobs": []
+     }
+    }
+   ],
+   "message_id": "msg_0e8225ead1e2c431006afffad74a148197b88a14ebbb4689ef",
+   "additional_properties": {}
+  }
+ ],
+ "response_id": "resp_0e8225ead1e2c431006afffad644348197a62ba43b5a7b3682",
+ "conversation_id": "resp_0e8225ead1e2c431006afffad644348197a62ba43b5a7b3682",
+ "model": "gpt-6.1-sol-2026-09-29",
+ "created_at": "2026-11-20T07:46:30.000000Z",
+ "finish_reason": "stop",
+ "usage_details": {
+  "input_token_count": 2321,
+  "output_token_count": 204,
+  "total_token_count": 2525,
+  "openai.cache_write_tokens": 295,
+  "cache_creation_input_token_count": 295,
+  "openai.cached_input_tokens": 2023,
+  "cache_read_input_token_count": 2023,
+  "openai.reasoning_tokens": 0,
+  "reasoning_output_token_count": 0
+ }
+}

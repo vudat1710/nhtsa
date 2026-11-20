@@ -1,17 +1,21 @@
 """The analyst's workspace: inbox, ticket (what it is, why, what to do), actions, and emerging issues.
 No model names, tokens or simulated failures here; those live in the operations portal (ops.py)."""
 import json
+from dataclasses import replace
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
 
 from app.api import deps
 from app.api.streaming import stream
-from app.config import ROOT
+from app.ask.service import Turn, ask
+from app.config import ROOT, get_settings
 from app.data import queries
 from app.models import Complaint
 from app.workspace.actions import ActionError, ActionRequest, apply
 from app.workspace.suggest import Suggestion, related_other_years, suggest
+from app.workspace.trail import trail
 
 router = APIRouter()
 LABEL = "queue"   # store label for runs made from the workspace
@@ -30,6 +34,16 @@ def inbox_ids(limit: int = 15) -> list[int]:
     return list(dict.fromkeys([*demo, *[r[0] for r in rows]]))
 
 
+def related_for(r) -> list[dict]:
+    """Recalls of the same part on other model years that share failure words (unmatched complaints only)."""
+    if r.decision.outcome not in ("possible_new", "related_different"):
+        return []
+    c = r.complaint
+    comps = [x for x in c.comps if x != "UNKNOWN OR OTHER"]
+    return related_other_years(r, queries.recalls_other_years(
+        deps.con(), queries.Vehicle(c.make, c.model, c.year), comps, c.received))
+
+
 def suggestion(r) -> Suggestion:
     """The analyst's view of a stored run, with other-year recalls of the same part as context for unmatched ones."""
     c = r.complaint
@@ -38,12 +52,7 @@ def suggestion(r) -> Suggestion:
         years = queries.recall_model_years(deps.con(), missing, c.make, c.model)
         for x in r.evidence.recalls:
             x.model_years = x.model_years or years.get(x.campno, [])
-    related = []
-    if r.decision.outcome in ("possible_new", "related_different"):
-        comps = [x for x in c.comps if x != "UNKNOWN OR OTHER"]
-        related = related_other_years(r, queries.recalls_other_years(
-            deps.con(), queries.Vehicle(c.make, c.model, c.year), comps, c.received))
-    return suggest(r, deps.store().tickets, related)
+    return suggest(r, deps.store().tickets, related_for(r))
 
 
 def complaint_or_404(odino: int) -> Complaint:
@@ -82,7 +91,30 @@ def ticket(odino: int) -> dict:
         status["status"] = "suggested"
     demo = next((d for d in demo_cases() if d["odino"] == odino and not d.get("fault")), None)
     return {"complaint": c.model_dump(), "status": status, "history": [a.model_dump() for a in tickets.history(odino)],
-            "suggestion": suggestion(r).model_dump() if r else None, "demo": demo}
+            "suggestion": suggestion(r).model_dump() if r else None, "demo": demo,
+            "trail": [s.model_dump() for s in trail(r)] if r else [],
+            "questions": [json.loads(q) for q in tickets.questions(odino)]}
+
+
+class Question(BaseModel):
+    question: str = Field(min_length=3, max_length=1000)
+
+
+@router.post("/tickets/{odino}/ask")
+async def ask_about(odino: int, q: Question) -> dict:
+    """A follow-up question about this checked complaint, answered with verified citations (app/ask)."""
+    r = deps.store().latest(LABEL).get(odino)
+    if r is None:
+        raise HTTPException(409, "check this ticket first")
+    tickets = deps.store().tickets
+    history = [Turn.model_validate_json(x) for x in tickets.questions(odino)][-6:]
+    llm = deps.llm()
+    if llm.options:  # the follow-up assistant may reason a little; its summary is shown, labelled, never used
+        llm = replace(llm, options={"reasoning": {**llm.options.get("reasoning", {}),
+                                                  "effort": get_settings().ask_reasoning_effort}})
+    turn = await ask(deps.con(), llm, r, history, q.question.strip(), related_for(r))
+    tickets.add_question(odino, turn.model_dump_json())
+    return turn.model_dump()
 
 
 @router.post("/tickets/{odino}/check")

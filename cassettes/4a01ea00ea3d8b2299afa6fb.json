@@ -1,0 +1,46 @@
+{
+ "type": "chat_response",
+ "messages": [
+  {
+   "type": "message",
+   "role": "assistant",
+   "contents": [
+    {
+     "type": "text_reasoning",
+     "text": "",
+     "protected_data": "gAAAAABq__pRKGjU84jzcccQSlh6E34mNyGGj-byIrrnq4KYaRoYomTpyokpDvndvHmZoJfHrAAGpDkainJR82IzNna0Ys5zsVNyDn8_EOfwJOenUe6gWntAj2Wmb1TOt_65cMhuqmf93fBy1YBbcgGrRHgrwWj5L1cQ3H_K7XsLl9Klfx_PgBi69Pjwv6CVaB1Py6kl54larv3A33Ol6lWrDklrqz70-3Mrk_AvVi-4xYpwypsYuAPlKORYstjrrkH-iisJl7Vq1sOWSLJyQK9M76hPouJ-F_jbK3F5ZwN5b02TKsMG2U3dPE8a9vI-nOKYhBlsj4B6J27gFfmk-_kWCiYRbS43vYyDL0I9UksElSSYFbgC1jpUC0isAiGs-KrGZAyWChzvZBlxABGc-IQxzDYmkb31psHLwQEwiL9fkfqYSkViwEpBMeEr3AlGi4bbrgDGe5mJJBTs1RwLURAVbN8Bfhjn1kXpyVZXlOBD1xrq26X28nuLkvJKwprCzExdDqKUWcmd_w1sWt2_0w5qgxSX-pouA-d1xfU0lbfM48w8D9sHDmDP7759iv_PSO0X62kwfQIJwHywLMnYEup7maSbfkYt-DiKyv7KCXVjyEHKK-udHUnhhZ1P81ZA023hlWozxtSajVUWrCriqzE44dlKcBMcAOo_aE8ic-FpLkvFu9o_koLOvdaOvULGgMm43wrOJs-SH05JCLE2Rbz33ZDXfWvDpJ4IeQWeUOehoGRiim3JDEeP3kg56AQ6pNWLEZF2HJKOZRUizbRXlw4W4ubHGevF0NOjnDQfOj9_pbqshxUsDHRjS_VcYB8i4uwESB7z4m31QWz4GBQOJulvyBF9H4-p3jo0vLUH4-MFtKSpNysoUtzGs9MFUlnAPcfq2FaznjbSM3SO28YCAD5Sl7Kw2X6Nd2cx2CQI_8jh9x6nJPcx0cM5OXetIwdjXytBlFPIS-eGKEqOpDIisBYSdmWyatQ1KfZVAFeYdy1brY_YJyOU4sowI5BpWvbPZc0bmgPaqnWI3BAR5ZBC7-woxxKy2YA_HVtUt9Lr3IOAsYai8UjDjBomsTQGoYeJNOg11qBAmtUPkGNwc0pJnn-47bxwYPz_B6fzjObzGEDLlWhXeYrDaZZiLMv1bjMcUqfiy_0CnFPhdFliWHrgbWaLYkNnClj9dMRl1JPfpZ4eZabVkFTmqBOKKZ1JOR6JTywnwNI4ENvsEac6tZhqWkccF64vjSb-DzWCa2GIdGhVd03hc51UYrwpnIgqZ0Wj1yORNgjg-ZiX0pJhg7hi6kTpFVFTWZwko82Uth9MuCM41RKFTQDcE91TmreSkoOwaEtj_U0MX-KGqndQ05_-rgrYWfJAdUsden3W-_NBNdUBJPN1crEHXkO7J_wVXLKokKeZvJ9B6bPfeTD12BPTJbG0ajq-D30uXdwwj37Fo8G0ks4SmU1nRPmTRij1olkxGyYPhli1XChQxHRtFd-FA9VlKV3cN-_v5C9kMnGzEr1c9fkZO75Ry9Zo7HwCLPOF4i0YFyJcNEfvVh5EQcNK_zrdnLWZ5CeoEGIG7J4mJXvvpKb0Oe5ND7xTzmKoHgyNIzbQwZ6EOwi9WRN6RmObEPl0sHXAiCdVXJKVBitpTnkJPlHDGbmpbcMl_gZKspiuSBKo28v-Yzi0CiU5TLVAU6_mMp1wNVA6YwNHwzaXOBFWZTF73RHx_Wga-eQF3RCYGn3Qid_WQCAv-j_H4KACm7itBO_ay2yXTg0kgpl9MxI9I-H5A6ZYD6p_GGWSk-_75bu5OiqgTQpuJei3NRV5yGGgGs-K8iSlwf2NymjydpvyJHr2UtWVllmul4Mk5psi6xoEkzn_g2D_4_f2bXOxdzrXcullWzkkySLUKxmSPx6qES3YoesiwCr6MCXdxKNh7Z75b97pEwSW_AZ2ugrzqwCthcVkI1HLUl4iyLXXmlEg7ZkVRi_cnx46Eb9PwgXJXcG2WqSIPblj8OSsjFOgQfpY-biK_DCydAFEz_n-Ea0K3qcZOYJ4ymxXFg8b0rbDW8PnXOqJHq8SPiYM_k5xbyUP52zY8VjU1j5jvIsxL0pzBgUGj20nMugG4UuE4nHPFP_Pn2mUR9SsVKOFcQew3-Rv_D5mPeOrdfI9zd4kakh7aFpsQlYiEKEAPRuANIZjzWpMKRXuKewoRn009KqinPmp1PUFBPZ3WBR8xc0mPSOoQ-EP8J-hgT12--IiAxeQWIKdsTcu8naWm-ghQLYQ2C4Lk-03T6Ba-WmiN6EHD1OkScfDDpNiH9vlrc3Bbck6VvuELwj6iq85pW4BZ325rNwFr74sPXr-MJe_ue5K5nnkCoVIZWPERxDjBQUxeJzSOIR-2c0QGYu9CgWINUZkckj7n1Z7Bgwf_ZopvF8aqgfzohROFs9u8h7e9lY5snTxmg3qu31ATFBmxpKkKQUPkUwvifER1WwwaTfnZa4jN3negscmI7YvcZldC9V2Ojig8YB0AbXjzbp0DZRtNwPTib70-Y2l4Ff1-w==",
+     "id": "rs_0cbd7f96f4abb40c006afffa4dde648196bf3d5f95062eae45",
+     "additional_properties": {}
+    },
+    {
+     "type": "text",
+     "text": "{\"answer\":\"The provided records do not list an NHTSA investigation, so they do not establish whether NHTSA opened one on this vehicle.\",\"scope\":\"not_in_records\",\"citations\":[],\"recheck\":false}",
+     "additional_properties": {
+      "openai": {
+       "logprobs": []
+      },
+      "logprobs": []
+     }
+    }
+   ],
+   "message_id": "msg_0cbd7f96f4abb40c006afffa50b09481969265c42e8d1db395",
+   "additional_properties": {}
+  }
+ ],
+ "response_id": "resp_0cbd7f96f4abb40c006afffa4ce7f88196b1d107dfdaf1d759",
+ "conversation_id": "resp_0cbd7f96f4abb40c006afffa4ce7f88196b1d107dfdaf1d759",
+ "model": "gpt-6.1-sol-2026-09-29",
+ "created_at": "2026-11-20T07:44:12.000000Z",
+ "finish_reason": "stop",
+ "usage_details": {
+  "input_token_count": 1571,
+  "output_token_count": 134,
+  "total_token_count": 1705,
+  "openai.cache_write_tokens": 1568,
+  "cache_creation_input_token_count": 1568,
+  "openai.cached_input_tokens": 0,
+  "cache_read_input_token_count": 0,
+  "openai.reasoning_tokens": 83,
+  "reasoning_output_token_count": 83
+ }
+}

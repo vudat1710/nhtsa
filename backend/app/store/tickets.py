@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS issue_complaints (issue_id INTEGER, odino INTEGER, ad
   PRIMARY KEY (issue_id, odino));
 CREATE TABLE IF NOT EXISTS actions (id INTEGER PRIMARY KEY AUTOINCREMENT, odino INTEGER, action TEXT, detail TEXT,
   result_id TEXT, by TEXT, at TEXT);
+CREATE TABLE IF NOT EXISTS questions (id INTEGER PRIMARY KEY AUTOINCREMENT, odino INTEGER, body TEXT, at TEXT);
 """
 
 
@@ -73,6 +74,15 @@ class Tickets:
     def history(self, odino: int) -> list[Action]:
         rows = self.con.execute("SELECT * FROM actions WHERE odino = ? ORDER BY id", (odino,))
         return [Action(**{k: r[k] for k in Action.model_fields}) for r in rows]
+
+    # ---------- follow-up questions (ask/service.py Turn, stored as JSON) ----------
+
+    def add_question(self, odino: int, turn_json: str) -> None:
+        self.con.execute("INSERT INTO questions (odino, body, at) VALUES (?, ?, ?)", (odino, turn_json, now()))
+        self.con.commit()
+
+    def questions(self, odino: int) -> list[str]:
+        return [r[0] for r in self.con.execute("SELECT body FROM questions WHERE odino = ? ORDER BY id", (odino,))]
 
     # ---------- emerging issues ----------
 

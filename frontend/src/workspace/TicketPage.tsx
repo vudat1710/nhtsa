@@ -1,53 +1,51 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { workspace } from '../api/client'
-import type { RunEvent, Ticket } from '../api/types'
+import type { RunEvent, Ticket, Turn } from '../api/types'
 import { STATUS } from '../lib/labels'
 import { Chip } from '../shared/Badges'
 import { Quoted } from '../shared/Quoted'
 import { ActionPanel } from './ActionPanel'
+import { AskPanel } from './AskPanel'
 import { SuggestionView } from './SuggestionView'
-
-// What the analyst sees while a ticket is being checked: plain progress, no system internals.
-const PROGRESS: Record<string, string> = {
-  intake: 'Reading the complaint', evidence: 'Looking up recalls for this vehicle on that date',
-  judge: 'Comparing the complaint with each recall', verify: 'Double-checking every quote against the records',
-  decide: 'Preparing the suggestion',
-}
+import { liveLine } from '../lib/liveTrail'
+import { TrailView } from './TrailView'
 
 const HISTORY: Record<string, string> = {
   linked_recall: 'Linked to recall', replied_to_owner: 'Replied to the owner', asked_owner: 'Asked the owner',
-  escalated: 'Escalated to', closed: 'Closed', disagreed: 'Disagreed with the suggestion',
+  escalated: 'Escalated to', closed: 'Closed', disagreed: 'Disagreed with the suggestion', monitoring: 'Recorded and watching',
 }
 
+/** One ticket: what it is (suggestion), how the agent got there (trail), what to do (actions), and follow-ups (ask). */
 export function TicketPage() {
   const odino = Number(useParams().odino)
   const [t, setT] = useState<{ odino: number; ticket: Ticket } | null>(null)
-  const [progress, setProgress] = useState<string | null>(null)
+  const [live, setLive] = useState<{ icon: string; text: string }[] | null>(null)
   const [error, setError] = useState('')
   const ticket = t && t.odino === odino ? t.ticket : null
 
   const load = useCallback(() => workspace.ticket(odino).then(ticket => setT({ odino, ticket })).catch(e => setError(String(e))), [odino])
   const runCheck = useCallback(async () => {
-    setProgress(PROGRESS.intake)
+    setLive([])
     try {
-      await workspace.check(odino, (e: RunEvent) => { if (e.type === 'step') setProgress(PROGRESS[e.step] ?? e.step) })
+      await workspace.check(odino, (e: RunEvent) => { const l = liveLine(e); if (l) setLive(x => [...(x ?? []), l]) })
     } catch (e) { setError(String(e)) }
-    setProgress(null)
     await load()
+    setLive(null)
   }, [odino, load])
 
   useEffect(() => { load() }, [load])
   useEffect(() => {  // a ticket is checked automatically the first time anyone opens it
-    if (ticket && !ticket.suggestion && progress === null) queueMicrotask(runCheck)
-  }, [ticket, progress, runCheck])
+    if (ticket && !ticket.suggestion && live === null) queueMicrotask(runCheck)
+  }, [ticket, live, runCheck])
 
   if (error) return <p className="alert-text">{error}</p>
   if (!ticket) return <p className="muted">Loading…</p>
   const c = ticket.complaint
   const s = ticket.suggestion
-  const done = ['resolved', 'escalated', 'waiting'].includes(ticket.status.status)
+  const done = ['resolved', 'escalated', 'waiting', 'monitoring'].includes(ticket.status.status)
   const marks = s ? s.why.flatMap(w => w.quotes.map(q => ({ quote: q.owner, label: 'owner' }))) : []
+  const asked = (turn: Turn) => setT({ odino, ticket: { ...ticket, questions: [...ticket.questions, turn] } })
 
   return (
     <>
@@ -60,11 +58,22 @@ export function TicketPage() {
         <Chip tone={done ? 'ok' : 'info'}>{STATUS[ticket.status.status]}</Chip>
       </div>
       {ticket.demo && <div className="demo-banner"><strong>Demo {ticket.demo.id}:</strong> {ticket.demo.title}</div>}
-      {progress && <section className="card checking"><span className="spinner" /> {progress}…</section>}
+      {live && (
+        <section className="card live-trail">
+          <h3><span className="spinner" /> The agent is investigating…</h3>
+          <ol className="trail">{live.map((l, i) => <li key={i} className="trail-step"><span className="trail-icon">{l.icon}</span><div>{l.text}</div></li>)}</ol>
+        </section>
+      )}
 
       <div className="ticket-grid">
         <div>
-          {s && <SuggestionView s={s} />}
+          {s && !live && <SuggestionView s={s} />}
+          {ticket.trail.length > 0 && !live && (
+            <details className="card trail-card">
+              <summary>How the agent investigated · {ticket.trail.length} steps <button className="link" onClick={e => { e.preventDefault(); runCheck() }}>watch it again live</button></summary>
+              <TrailView steps={ticket.trail} />
+            </details>
+          )}
           <section className="card">
             <h3>What the owner wrote</h3>
             <div className="chips">
@@ -75,7 +84,7 @@ export function TicketPage() {
           </section>
         </div>
         <div>
-          {s && !done && <ActionPanel key={s.result_id} odino={odino} s={s} onDone={load} />}
+          {s && !done && !live && <ActionPanel key={s.result_id} odino={odino} s={s} onDone={load} />}
           {ticket.history.length > 0 && (
             <section className="card">
               <h3>What was done</h3>
@@ -86,9 +95,9 @@ export function TicketPage() {
                   <div className="muted small">{h.by} · {h.at.replace('T', ' ').slice(0, 16)}</div>
                 </div>
               ))}
-              {done && <button className="secondary" onClick={runCheck}>Check again</button>}
             </section>
           )}
+          {s && !live && <AskPanel odino={odino} s={s} turns={ticket.questions} onAsked={asked} />}
           {ticket.demo?.next && done && (
             <details className="card hindsight">
               <summary>What happened next (hindsight, not known when the complaint arrived)</summary>

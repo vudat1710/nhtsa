@@ -111,6 +111,19 @@ def test_other_year_recall_counts_only_if_it_shares_failure_words():
                                     {"toyota", "tacoma"})
 
 
+def test_ask_about_a_checked_ticket(client):
+    assert client.post("/api/tickets/3/ask", json={"question": "Why this recall?"}).status_code == 409
+    check(client)
+    client.turns.append(json.dumps({"answer": "The records hold no repair history.", "citations": [],
+                                    "scope": "not_in_records"}))
+    turn = client.post("/api/tickets/3/ask", json={"question": "Was it repaired?"}).json()
+    assert turn["verified"] and turn["answer"]["scope"] == "not_in_records"
+    t = client.get("/api/tickets/3").json()
+    assert [q["question"] for q in t["questions"]] == ["Was it repaired?"]
+    assert [s["kind"] for s in t["trail"]][0] == "read"
+    assert client.post("/api/tickets/3/ask", json={"question": "x"}).status_code == 422
+
+
 def test_ops_drill_never_changes_what_the_analyst_sees(client):
     check(client)
     done = events(client.post("/api/ops/drill/3", params={"fault": "llm_down"}))[-1]

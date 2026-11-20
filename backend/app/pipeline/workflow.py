@@ -97,7 +97,7 @@ class JudgeStep(Step):
         att, case.reply, case.model = await ask(self.res.judge, n, text, self.res.llm.model_name)
         case.attempts.append(att)
         self.res.emit({"type": "agent", "attempt": n, "error": att.error, "input_tokens": att.input_tokens,
-                       "output_tokens": att.output_tokens})
+                       "output_tokens": att.output_tokens, "reasoning": att.reasoning})
         await ctx.send_message(case)
 
 
@@ -121,6 +121,9 @@ class VerifyStep(Step):
             case.status = "fallback"
         self.res.emit({"type": "verify", "attempt": att.n, "result": case.status,
                        "issues": [i.model_dump() for i in att.issues]})
+        if case.judgment:  # what the agent concluded per recall, now that every quote is verified
+            self.res.emit({"type": "judgment", "checks": [ch.model_dump() for ch in case.judgment.checks],
+                           "similar": [s.model_dump() for s in case.judgment.similar]})
         await ctx.send_message(case)
 
 

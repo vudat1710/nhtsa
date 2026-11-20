@@ -50,6 +50,23 @@ Anything other than the suggestion asks for one line of why; that is the feedbac
 grouped on the **Emerging issues** page. The **operations portal** (`/ops`) is for the people running the system: every
 AI run with its audit trail, failure drills (break the model on purpose), a sandbox, and the evaluation.
 
+### See how it got there, then ask about it
+
+- **How the agent investigated**: every ticket shows the steps in order, in analyst words: read the complaint → looked
+  up what was known on that date → *decided to search* earlier complaints for "…" (the agent's own wording, and what it
+  found) → compared with each recall (quotes) → checked every quote → decided by the rules. While a check runs, the
+  same steps appear live; "watch it again live" replays them. The steps are built by code from the stored run
+  (`workspace/trail.py`), so they show what actually happened, not a story the model tells afterwards.
+- **Ask about this case**: follow-up questions ("Why doesn't that recall cover this?", "Have other owners reported the
+  same failure?"). The assistant only sees this case's record and may search earlier complaints (same date limit).
+  Every answer cites quotes that are **checked word for word**; it says *"not in the records"* instead of guessing
+  (VIN, repair history), declines out-of-scope requests, and flags when new information (e.g. "it's actually a 2023")
+  means the case should be **re-checked** rather than answered. Each answer has **How it answered**: the searches
+  it ran, the quotes it used, the check result. Questions and answers are stored on the ticket.
+- *Model reasoning summaries:* the judge's evaluated settings use no reasoning tokens, so there is nothing to show.
+  The assistant's summaries appear only sometimes (1 of 21 eval questions), so "How it answered" is built by code
+  and a model summary is shown, labelled, only when one exists.
+
 ### Demo (real complaints, in the inbox)
 
 | | Complaint | What it shows |
@@ -117,6 +134,12 @@ was identical to the clean complaint (the 6th moved between two escalation outco
 measured). One rule bug was found on test set C (a two-word complaint escalated as a new defect) and fixed; the same
 stored AI answers were re-decided (`app/eval/rescore.py`, 5 decisions changed), and the report says so.
 
+**Follow-up questions** (`app/eval/ask_eval.py`, 21 questions over the 5 demo tickets, checked by code: scope,
+citations verified, "not in the records" when the records can't answer, re-check flag): **21/21 passed**, every
+answer's quotes verified (20/20; 1 injection request was blocked by the provider's safety filter and shown as such),
+4/4 "not in the records" when expected, 3.3 citations per answer, p50 4.8 s. Small set: it shows the guardrails work,
+not that answers are always the most useful.
+
 Reproduce: every run's full results are committed (`data/eval/results/*.jsonl.gz`), so
 `uv run python -m app.eval.rescore --run <name>` re-scores without the model. Fresh runs:
 `uv run python -m app.eval.run --set a,b,c`.
@@ -134,6 +157,9 @@ Reproduce: every run's full results are committed (`data/eval/results/*.jsonl.gz
 - **Model down, garbage output, invented ids or numbers** → one repair, then labelled rules-only fallback.
 - **Look-ahead** → every query is bounded by the complaint date (a recall filed the same day is invisible).
 - **ALL-CAPS older recall texts** → shown in sentence case; not mistaken for acronyms.
+- **Follow-up question the records can't answer** (VIN, was it repaired?) → "not in the records", no guess.
+- **Follow-up that changes the facts** ("it's a 2023, not a 2022") → flagged for a re-check, not answered on stale evidence.
+- **Follow-up blocked by the provider's content filter** → shown as blocked, not as an error or an empty answer.
 
 ## Limitations and next steps
 

@@ -120,3 +120,24 @@ table.quotes td { padding: 6px 8px; background: #fafafa; border: 1px solid var(-
 .top.ops { background: #1d2330; color: #e5e7eb; border-bottom-color: #1d2330; }
 .top.ops a { color: #c7cbd4; } .top.ops nav a.active { color: #fff; }
 @media (max-width: 900px) { .ticket-grid { grid-template-columns: 1fr; } }
+
+/* ---------- investigation trail and ask ---------- */
+.trail { list-style: none; padding: 0; margin: 8px 0 0; }
+.trail-step { display: flex; gap: 10px; padding: 8px 0; border-top: 1px dashed var(--line); font-size: 14px; }
+.trail-step:first-child { border-top: 0; }
+.trail-step p { margin: 3px 0; color: #374151; }
+.trail-icon { width: 22px; flex: none; text-align: center; }
+.trail-step.think { background: #f8f7fc; border-radius: 6px; padding: 8px; }
+.trail-step.think p { color: #5b5480; font-style: italic; }
+.trail-step.warn strong { color: var(--warn); }
+.trail-card summary { cursor: pointer; font-weight: 600; }
+.trail-card summary .link { margin-left: 10px; font-weight: 400; }
+.live-trail h3 { display: flex; gap: 10px; align-items: center; color: var(--info); }
+.ask .turn { border-top: 1px solid var(--line); padding: 8px 0; }
+.ask .question { font-weight: 600; margin: 0 0 4px; }
+.ask .answer p { margin: 4px 0; }
+.citations { margin: 4px 0; padding-left: 18px; font-size: 13.5px; }
+.chip-button { background: #eef0f3; color: #374151; border-radius: 14px; padding: 4px 10px; font-size: 12.5px; }
+.chip-button:hover { background: #e3e6eb; }
+.grow { flex: 1; }
+.how-answered { margin-top: 6px; font-size: 13.5px; } .how-answered summary { cursor: pointer; color: var(--info); }
