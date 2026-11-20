@@ -105,9 +105,7 @@ def build_b(con: sqlite3.Connection, rng: random.Random) -> list[dict]:
 def build_c(ro: sqlite3.Connection, a: list[dict], b: list[dict], rng: random.Random) -> list[dict]:
     """Stress cases carry a full complaint payload (not just an id) because the complaint itself is modified."""
     def payload(odino: int) -> dict:
-        c = queries.complaint(ro, odino)
-        return {k: c[k] for k in ("odino", "make", "model", "year", "received", "crash", "fire", "injured", "text",
-                                  "components")}
+        return queries.complaint(ro, odino).model_dump()
 
     rows = []
     a_test = [r for r in a if r["split"] == "test"]

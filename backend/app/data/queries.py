@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from app.data.ingest import DB
+from app.models import Complaint
 
 MAX_RECALLS = 15  # 90% of complaints have <= 13 candidate recalls; more are cut, and the cut is reported
 
@@ -24,13 +25,15 @@ def connect(path: Path = DB) -> sqlite3.Connection:
     return con
 
 
-def complaint(con: sqlite3.Connection, odino: int) -> dict | None:
+def complaint(con: sqlite3.Connection, odino: int) -> Complaint | None:
     row = con.execute("SELECT * FROM complaints WHERE odino = ?", (odino,)).fetchone()
     if row is None:
         return None
-    comps = con.execute("SELECT component, comp FROM complaint_components WHERE odino = ? ORDER BY component",
+    comps = con.execute("SELECT component FROM complaint_components WHERE odino = ? ORDER BY component",
                         (odino,)).fetchall()
-    return {**dict(row), "components": [r["component"] for r in comps], "comps": sorted({r["comp"] for r in comps})}
+    return Complaint(odino=row["odino"], make=row["make"], model=row["model"], year=row["year"],
+                     received=row["received"], crash=row["crash"] or 0, fire=row["fire"] or 0,
+                     injured=row["injured"] or 0, text=row["text"] or "", components=[r[0] for r in comps])
 
 
 def recalls_for(con: sqlite3.Connection, v: Vehicle, as_of: str, comps: list[str]) -> tuple[list[dict], int]:

@@ -20,12 +20,13 @@ from typing import Any
 from agent_framework import Executor, WorkflowBuilder, WorkflowContext, handler
 from pydantic import ValidationError
 
+from app.ai.clients import LlmSetup
 from app.ai.prompt import case_message, parse_judgment, repair_message
 from app.models import Attempt, Complaint, Decision, Evidence, Intake, Issue, Judgment, Result
 from app.pipeline.decide import decide
 from app.pipeline.evidence import gather
 from app.pipeline.intake import intake
-from app.pipeline.judge import Judge, LlmSetup, ask, build_judge
+from app.pipeline.judge import Judge, ask, build_judge
 from app.pipeline.verify import verify
 
 MAX_ATTEMPTS = 2  # first answer + one repair

@@ -5,7 +5,7 @@ from app.models import Judgment, RecallCheck, SimilarComplaint
 from app.pipeline.decide import decide
 from app.pipeline.evidence import gather
 from app.pipeline.intake import intake
-from app.pipeline.verify import verify
+from app.pipeline.verify import quote_problem, verify
 
 SAME_868 = RecallCheck(campno="24V868000", verdict="same", complaint_quote="would not accelerate. The ICCU failed",
                        recall_quote="may become damaged and stop charging", reason="Same ICCU failure.")
@@ -46,6 +46,18 @@ def test_verifier_catches(case, change, code):
 def test_quotes_ignore_case_spacing_and_curly_quotes(case):
     check = SAME_868.model_copy(update={"complaint_quote": "WOULD  NOT accelerate.  the iccu failed"})
     assert verify(judgment(check), *case, found={}) == []
+
+
+@pytest.mark.parametrize("source, quote, problem", [
+    ("Zero airbags were deployed with either impact.", "airbags were deployed with either impact", "drops"),
+    ("The car didn't stop when braking hard.", "stop when braking hard", "drops"),
+    ("No warning lights came on at all.", "warning lights came on", "drops"),
+    ("The airbags deployed with no warning at all.", "airbags deployed with", None),
+    ("It was unbelievable how it stalled.", "believable how it", "middle of a word"),
+])
+def test_quote_cannot_cut_off_a_negation_or_a_word(source, quote, problem):
+    found = quote_problem(quote, source)
+    assert (found is None) if problem is None else (problem in found)
 
 
 def test_similar_complaints_must_come_from_the_search(case):

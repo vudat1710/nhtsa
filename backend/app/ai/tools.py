@@ -20,7 +20,9 @@ def search_tool(con: sqlite3.Connection, c: Complaint, found: dict[int, str]) ->
     can check quotes; the model sees the first PREVIEW_CHARS characters of each."""
     v = queries.Vehicle(c.make, c.model, c.year)
 
-    def search_complaints(query: str) -> str:
+    async def search_complaints(query: str) -> str:
+        # async on purpose: MAF runs sync tools in worker threads, and the sqlite connection is shared by concurrent
+        # cases on the event loop thread (a sync tool here failed with InterfaceError under concurrency)
         out = []
         for h in queries.search_complaints(con, v, query, c.received, exclude=c.odino):
             text = con.execute("SELECT text FROM complaints WHERE odino = ?", (h["odino"],)).fetchone()[0]

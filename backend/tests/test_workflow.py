@@ -4,8 +4,7 @@ import json
 
 from agent_framework import Content
 
-from app.ai.clients import ScriptedChatClient
-from app.pipeline.judge import LlmSetup
+from app.ai.clients import LlmSetup, ScriptedChatClient
 from app.pipeline.workflow import run
 
 GOOD = json.dumps({
@@ -38,6 +37,21 @@ def test_tool_results_can_be_cited(con, iccu_complaint):
     assert r.decision.source == "ai_verified" and r.judgment.similar[0].odino == 5
     assert r.tool_calls[0]["tool"] == "search_complaints" and 5 in r.tool_calls[0]["results"]
     assert any(e["type"] == "tool_call" for e in events)
+
+
+def test_concurrent_cases_share_the_connection_safely(con, iccu_complaint):
+    """Regression: a sync tool ran in worker threads and broke the shared sqlite connection under concurrency."""
+    async def one():
+        call = Content.from_function_call("c1", "search_complaints", arguments={"query": "ICCU power failure"})
+        client = ScriptedChatClient([[call], GOOD], function_invocation_configuration={"max_function_calls": 2})
+        return await run(con, iccu_complaint, LlmSetup(client=client))
+
+    async def many():
+        return await asyncio.gather(*(one() for _ in range(8)))
+
+    results = asyncio.run(many())
+    assert all(r.tool_calls[0]["results"] for r in results)
+    assert all(r.decision.source == "ai_verified" for r in results)
 
 
 def test_bad_answer_is_repaired_once(con, iccu_complaint):

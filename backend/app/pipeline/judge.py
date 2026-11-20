@@ -6,24 +6,14 @@ it says is used until verify.py has checked it.
 import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any
 
 from agent_framework import Agent, AgentSession, Message
 
-from app.ai.clients import LlmUnavailable
+from app.ai.clients import LlmSetup, LlmUnavailable
 from app.ai.middleware import CassetteMiddleware, FaultMiddleware, ToolTraceMiddleware
 from app.ai.prompt import INSTRUCTIONS
 from app.ai.tools import search_tool
 from app.models import Attempt, Complaint
-
-
-@dataclass
-class LlmSetup:
-    client: Any                     # MAF chat client: live Azure OpenAI, OfflineChatClient or ScriptedChatClient
-    cassette_dir: Path | None = None
-    cassette_mode: str = "live"     # replay | record | live
-    model_name: str = ""
 
 
 @dataclass

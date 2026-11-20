@@ -8,3 +8,5 @@ frontend/dist/
 data/raw/
 data/*.db
 data/*.db-*
+data/eval/runs/
+data/eval/reports/*-demo-*

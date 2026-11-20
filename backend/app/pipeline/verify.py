@@ -11,6 +11,8 @@ from app.models import MIN_QUOTE_WORDS, Complaint, Evidence, Intake, Issue, Judg
 from app.pipeline.intake import MASK
 
 NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
+# A quote starting right after one of these can flip the meaning: "[Zero] airbags were deployed" (found in a live run)
+NEGATIONS = {"no", "not", "zero", "never", "without", "none", "nor", "neither", "cannot", "nothing"}
 
 
 def normalize(s: str) -> str:
@@ -18,14 +20,41 @@ def normalize(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
-def quote_ok(quote: str, source: str) -> bool:
+def quote_problem(quote: str, source: str) -> str | None:
+    """None if the quote is fine, else why not: too short, quotes the mask, not found, cuts a word, drops a negation."""
     q = normalize(quote).strip(" .,;:!?\"'…")
-    return len(q.split()) >= MIN_QUOTE_WORDS and MASK.lower() not in q and q in normalize(source)
+    if len(q.split()) < MIN_QUOTE_WORDS:
+        return f"shorter than {MIN_QUOTE_WORDS} words"
+    if MASK.lower() in q:
+        return "quotes the removed recall number"
+    src = normalize(source)
+    starts = [m.start() for m in re.finditer(re.escape(q), src)]
+    if not starts:
+        return "not found word for word"
+    for s in starts:
+        e = s + len(q)
+        if (s > 0 and src[s - 1].isalnum()) or (e < len(src) and src[e].isalnum()):
+            continue  # cuts a word in half here; try the next occurrence
+        before = src[:s].split()[-1:] if s else []
+        if before and (before[0].strip("\"'(,;:") in NEGATIONS or before[0].endswith("n't")):
+            return f"drops the word '{before[0]}' right before it, which changes the meaning"
+        return None
+    return "starts or ends in the middle of a word"
+
+
+def quote_ok(quote: str, source: str) -> bool:
+    return quote_problem(quote, source) is None
 
 
 def recall_text(ev: Evidence, campno: str) -> str:
     r = ev.recall(campno)
     return f"{r.defect}\n{r.consequence}\n{r.remedy}" if r else ""
+
+
+def check_quote(issues: list[Issue], where: str, quote: str, source: str) -> None:
+    if problem := quote_problem(quote, source):
+        code = "quote_drops_negation" if problem.startswith("drops") else "quote_not_found"
+        issues.append(Issue(code=code, message=f"{where}: quote {quote!r} {problem}"))
 
 
 def verify(j: Judgment, c: Complaint, it: Intake, ev: Evidence, found: dict[int, str]) -> list[Issue]:
@@ -38,18 +67,15 @@ def verify(j: Judgment, c: Complaint, it: Intake, ev: Evidence, found: dict[int,
         if ch.campno in seen:
             issues.append(Issue(code="duplicate_check", message=f"{ch.campno} is checked twice"))
         seen.add(ch.campno)
-        if not quote_ok(ch.complaint_quote, it.text):
-            issues.append(Issue(code="quote_not_found", message=f"{ch.campno}: complaint_quote is not an exact quote "
-                                f"of at least {MIN_QUOTE_WORDS} words from the complaint: {ch.complaint_quote!r}"))
-        if not quote_ok(ch.recall_quote, recall_text(ev, ch.campno)):
-            issues.append(Issue(code="quote_not_found", message=f"{ch.campno}: recall_quote is not an exact quote of "
-                                f"at least {MIN_QUOTE_WORDS} words from that recall: {ch.recall_quote!r}"))
+        check_quote(issues, f"{ch.campno} complaint_quote (from the complaint)", ch.complaint_quote, it.text)
+        check_quote(issues, f"{ch.campno} recall_quote (from that recall)", ch.recall_quote,
+                    recall_text(ev, ch.campno))
     for s in j.similar:
         if s.odino not in found:
             issues.append(Issue(code="unknown_complaint", message=f"complaint {s.odino} was not returned by "
                                                                   "search_complaints"))
-        elif not quote_ok(s.quote, found[s.odino]):
-            issues.append(Issue(code="quote_not_found", message=f"complaint {s.odino}: quote not found: {s.quote!r}"))
+        else:
+            check_quote(issues, f"similar complaint {s.odino}", s.quote, found[s.odino])
 
     verdicts = {ch.verdict for ch in j.checks}
     if j.proposed == "known_recall" and "same" not in verdicts:

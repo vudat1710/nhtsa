@@ -4,7 +4,7 @@ import json
 
 from app.models import MIN_QUOTE_WORDS, Complaint, Evidence, Intake, Issue, Judgment
 
-PROMPT_VERSION = "v1"
+PROMPT_VERSION = "v2"  # v2: quotes must keep a negation that belongs to them (live run cut "Zero" off a quote)
 
 INSTRUCTIONS = f"""You are a vehicle-safety analyst on an automaker's field-quality team. For one consumer complaint,
 decide whether it describes the failure of one of the candidate recalls for that exact vehicle.
@@ -21,7 +21,8 @@ Rules:
      deploys when it should not vs. one that does not deploy at all).
    Leave out recalls that are unrelated. Never list a recall that is not a candidate.
 4. Every check quotes at least {MIN_QUOTE_WORDS} consecutive words copied exactly from the complaint (complaint_quote)
-   and from that recall's defect, consequence or remedy text (recall_quote). Copy, do not paraphrase.
+   and from that recall's defect, consequence or remedy text (recall_quote). Copy whole words, do not paraphrase, and
+   never cut off a negation that belongs to the phrase ("Zero airbags were deployed", not "airbags were deployed").
 5. If no recall is the same failure, you may call search_complaints (at most twice) with your own short description of
    the failure to find earlier complaints about it. Cite up to 3 in `similar`, each with an exact quote.
 6. proposed: known_recall (a check is 'same') | related_different (only 'different' checks) | possible_new (no check
