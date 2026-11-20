@@ -23,11 +23,17 @@ from agent_framework import (
 
 from app.ai.clients import LlmUnavailable
 
+KEY_FIELDS = ("type", "text", "name", "arguments", "call_id", "result")
+
 
 def cassette_key(context: ChatContext) -> str:
-    """Same conversation + instructions + tools -> same key, so a recording replays only for an identical request."""
-    payload = {"messages": [m.to_dict() for m in context.messages],
-               "instructions": (context.options or {}).get("instructions"),
+    """Same conversation + instructions + tools -> same key, so a recording replays only for an identical request.
+    Only the meaningful fields of each message count (role, text, tool name/arguments/call id/result): live messages
+    carry provider metadata that a replayed one does not, which made every tool-using case miss on replay."""
+    messages = [{"role": str(m.role), "contents": [{k: c.get(k) for k in KEY_FIELDS if c.get(k) is not None}
+                                                   for c in m.to_dict().get("contents", [])]}
+                for m in context.messages]
+    payload = {"messages": messages, "instructions": (context.options or {}).get("instructions"),
                "tools": sorted(getattr(t, "name", str(t)) for t in (context.options or {}).get("tools") or [])}
     raw = json.dumps(payload, sort_keys=True, default=str, ensure_ascii=False).encode()
     return hashlib.sha256(raw).hexdigest()[:24]

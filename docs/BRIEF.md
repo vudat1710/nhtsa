@@ -24,31 +24,37 @@ part failing differently, a possible new defect, or too vague, with every claim 
 
 ## Solution and why
 
-An evidence-first assistant, not a chatbot:
+A workspace that suggests the **next action** for each complaint (not a chatbot), backed by checkable evidence:
 
 - **Code finds the evidence**: only recalls covering that exact vehicle, filed before the complaint arrived; earlier
   complaint counts; investigations. The AI cannot cite anything else.
-- **The AI does the reading**: one call compares the complaint with each candidate recall and must back every
-  judgment with word-for-word quotes from both. It may search earlier complaints to find a pattern.
-- **Code checks everything**: ids, quotes (including that a quote doesn't drop a "no"), numbers. One repair; then a
-  labelled rules-only fallback.
-- **Rules decide**: outcome, confidence, and escalation follow written rules with plain-language reasons; the AI only
-  proposes. Engineer decisions are stored and become labels.
+- **The AI does the reading**: it compares the complaint with each candidate recall and must back every judgment with
+  word-for-word quotes from both. It may search earlier complaints for the same failure.
+- **Code checks everything** (ids, quotes, that a quote doesn't drop a "no", numbers), then **rules decide** the
+  outcome and confidence. One repair, then a labelled rules-only fallback.
+- **The analyst acts in one click**: link the recall and send a reply drafted *from the recall's own text*; flag a
+  remedy that isn't holding; escalate to an emerging issue *only with a stated reason*; record and watch single
+  reports; or ask the owner the AI's questions. Disagreeing asks for one line of why. Builders audit every run in a
+  separate operations portal.
 
-*Why this design:* the costly error is a false "known recall", so control of that decision sits in code, and every
-claim is checkable by a person in seconds (highlighted quotes in context).
+*Why this design:* the costly error is a false "known recall", so that decision sits in code; every claim is
+checkable in seconds; engineers' time is protected by escalating only with a reason.
 
 ## Success criteria
 
-| | Metric | Target (prototype) | How measured |
+| | Metric | Target | Prototype result (frozen real-data test sets) |
 |---|---|---|---|
-| Safety | Confidently-wrong "known recall" (sets A+B) | Well below the rules baseline (baseline: RESULT_BASE_WRONG) | Frozen real-data test sets, 95% CI |
-| Usefulness | Agreement with the owner's cited recall (set A) | Report, and adjudicate disagreements | Set A + hand-adjudicated sample |
-| Escalation | Complaints with no recall yet that are escalated (set B) | ≥ 90% | Set B |
-| Trust | Final answers with every quote/id/number verified | 100% (by construction); first-answer failure rate reported | Verifier |
-| Calibration | "High confidence" answers that are right | ≥ 90% | By confidence level |
-| Operations | Cost and latency per complaint | Report (~6k tokens, ~10 s) | Run logs |
-| In production | Analyst override rate; time to triage; share of escalations engineers confirm; new defects found before a recall | Baseline then improve | Review records |
+| Safety | Names a recall other than the owner's (set A) | Well below the rules baseline (19%) | **7%** [5–10] |
+| Usefulness | "Known recall" answers that match the owner's recall | > baseline (79%) | **88%** [83–92] |
+| Trust | "High confidence" answers that are right | ≥ 90% | **94%** [88–97] |
+| Trust | Final answers with every quote/id/number verified | 100% | 100% by construction; 1 of 563 first answers needed a repair |
+| Escalation | No-recall-yet complaints escalated or sent back to the owner (set B) | ≥ 90% | 95% |
+| Robustness | Stress cases (unknown year/part, two words, injected instructions) | All | 25/26 |
+| Cost | Per complaint | Report | ~5,400 tokens, ~13 s |
+| In production | Analyst override rate · time to triage · share of escalations engineers confirm · new defects found before a recall | Baseline, then improve | Logged from day one (every action stored) |
+
+Hand check of disagreements: in 30 sampled cases where the AI disagreed with the owner, the AI was right 12 times,
+the owner 7, unclear 11; all 7 owner-right cases were "can't get the recall repair" complaints (next step below).
 
 ## Assumptions
 
@@ -59,9 +65,12 @@ claim is checkable by a person in seconds (highlighted quotes in context).
 
 ## Limitations
 
+- **Remedy-access complaints** ("dealer can't do the recall repair", no failure described) are escalated or sent back
+  instead of linked to the cited recall: the main finding of the hand check, and the next thing to build.
 - **Labels.** "Known recall" labels exist only where the owner cited a recall (owners are sometimes wrong); "new
-  defect" labels are noisy (~65% the same failure on hand check). Engineer decisions should replace both.
+  defect" labels are noisy (~65% the same failure on hand check). Analyst and engineer actions should replace both.
 - **Coverage.** Complaints from 2020, recalls from 2010; no repair records, so "complaints after the remedy" cannot
   distinguish a failed fix from an unrepaired car.
-- **Throughput.** ~10 s per complaint at our model quota; bulk triage needs a higher quota or a cheaper first pass.
-- **Not built:** clustering escalations into investigations, alerting, multi-language complaints, VIN decoding.
+- **Throughput.** ~13 s per complaint at our model quota; bulk triage needs a higher quota or a cheaper first pass.
+- **Not built:** automatic clustering of escalations, alerting, multi-language complaints, VIN decoding; run-to-run
+  stability not yet measured.

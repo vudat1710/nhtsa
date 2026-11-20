@@ -1,0 +1,46 @@
+{
+ "type": "chat_response",
+ "messages": [
+  {
+   "type": "message",
+   "role": "assistant",
+   "contents": [
+    {
+     "type": "text_reasoning",
+     "text": "",
+     "protected_data": "gAAAAABq_-DiveQF4nyEZg03bjWokyMUmNasu_m44PVXIGL7eJfEN7ME4Cqmu34oTafjAl3NZ42dsoHK3E1jPJXMqyz6nZScdTnQ_j8iq5AHaCOx8HhzVWTw4xRHOVmM4NhvdLkx-eohRUQMfiGHlCNYbaLMblEiPBrXk3BaxrXussnzDEjlN8LUTpqwPxbhZ7GzFTP9ZJzQ7ne1zes_1bQCFolOByKx1a5xAw5ZBwbiDtT2Ys--7ku2RtoCTTz5URSEaTK5Pmnm_m4TJQ0CFEqXbjP_SanWcituM0ElfQfvXyQWI2CI-tiu3E0MWWH0Xjptxm-ws1gQkcIHz-ssAtOx5Dkft8dMaOp5wMuj54DbOhafHeOUz5S8lj14ZEHgW1EteTQ23T3slZoWz-nVQH7fhgxKqxgU-Oo1NxctQS8s7HjJgx-SkAmwwPsd-lMcPN__L1n_3_4f6CiV9J89So_3_PsbLHJyQ4c-e8bs2JRX5gOnIbroiBUcGbHm8eYTGh4xy5CGab6c_-8Kzw9GPs9fLpqPYtGrddmsCQWp5z9YHJHi1Bqib-9jafx6Xys-xTgV4nePG4vGbpbt5eZX9XsCHVelwS-jXuik57dEcEOgxXCVIsyNILgsc7J6p3qiO9wanQCK0jMKVgvSlEsolIES50O7d51mXUuzySFY4SFcesym2WQV0BQhqZCcNjAO6gVNqzdcujUfWDPpIxhqdsYx94YDejCDX5YYp_BUh-_2A4JKm92KzN3lPtNTsdM8gFBkxfeN6tnBmOgVOvUeOovjX9nlANZvZsirWVEcQQJX326rFRKjco6SA7RS6uZUAMKop9uWwIvvJw9fLQq7fx0tJhfAvkyWzj9gx7tw7xxDQVa772XsSoi-YHiFumjBqnxmvGQxMTfYWWl19PF506h_bkGqCYbLLqLg8m9FrSrsIS0Lmc992RVurjDgl-jX-QO1w-r4SwqDzz0YcyvnjdWfQ_vzWQp1vSvoyCgmvgLWImH-KU087Qj7ETKOsHNV6ZrVN_3yFiCDQUSdNixRm4SrswXPgO3r8sXlXyFolmZ8xhLUvBhe-hr3H_9Ts9Da67re6kgovk6yoD1pLekV5xorlDLTuKKvu9Mt6-h1gGxMpYyLmpYDqGWPk3OkdeOK3o-AVi_GkSgf-XKRvu5f_GCVIwFdMxEoLc1UA9TXVjQ7PVAtJflNb74O3crhVNUfeznZiZW0jyOmqjNirsXqeE6s7aP0ndfX-wDgwsMhWPnlijMnT5kp2g3zT2yHd92wkiTinR2NNSK-cZVqwl_8QbdbtJ0S9UzmwHHTWWYjf5faoO_U5AWkjjb99lPHTmDncbkq6svG7HsWFBgWS4_E6oIEYcg_BGZLvSoA4sRQoKf6_n9BLT7B1gPk4eLL8_Y05wnNYMspbpF5LtugFD0u3rLHbou8NA00eeftnZBYTf3wJiogDzfOz3wYenOlk0zprAjmWWX9QtI_MDnKw_Ptm73qJfyOant5LndgU_Jdb-QuY9YQ7aNUG136qbVEULUDvvB4-bF5lLNZBXIxQOm5FtndaFDa2TV33n7a6Ea6uJ_FvXjAcjCBpIc4KCm6d3Pgc4_N4X_ySxnZYsJT2eRwjmcJFSm3Z9h972gTVKpVVFiuP85kdQWmzi8AN2rVLtQE4_gUyM6I3-Wa-J59-gdo6HamoM3b-Nc3i8aJs7D6gZ749qu3MEwoF-k1l4NU4-82AyBsa21W1hWIan3y_Ru3LiYSh89wySNmYwZzSRm0DHm0W5r7NGf69FQs-LiooL1DtME-yDJGxkJQCbfkQ5uN5ICxLVaSbk-NLk2_F2pBfoOx0XitGmkyVrvbVIGMZ-L5Ss4isuoK2IQNWkUTTv69QLjnSl0YEb5Dh0tDgR1Eq_3bPLbcAztrCJf0tcb28kV8mvB6N5MNUjzR",
+     "id": "rs_0052b213aa5b9aa2006affe0dec1848190acccc7ffacb31456",
+     "additional_properties": {}
+    },
+    {
+     "type": "text",
+     "text": "{\n  \"checks\": [],\n  \"proposed\": \"needs_info\",\n  \"questions\": [\n    \"What warning messages or observable behavior indicate that Audi Pre Sense has failed?\",\n    \"Did automatic emergency braking fail to activate during a specific event, or is the system reported as unavailable?\",\n    \"Has the dealership identified any fault codes or provided a written diagnosis?\"\n  ],\n  \"similar\": [],\n  \"summary\": \"The owner reports complete failure of Audi Pre Sense but provides no warning messages, specific braking events, or diagnostic findings. No candidate recalls were supplied, and the earlier complaints returned do not describe a matching failure; obtain observable symptoms and any diagnostic records before classifying this as a possible new issue.\"\n}",
+     "additional_properties": {
+      "openai": {
+       "logprobs": []
+      },
+      "logprobs": []
+     }
+    }
+   ],
+   "message_id": "msg_0052b213aa5b9aa2006affe0dfbd4c819099d9bab8ccc55a59",
+   "additional_properties": {}
+  }
+ ],
+ "response_id": "resp_0052b213aa5b9aa2006affe0dd83c881909acda52ef1f0cbb4",
+ "conversation_id": "resp_0052b213aa5b9aa2006affe0dd83c881909acda52ef1f0cbb4",
+ "model": "gpt-6.1-sol-2026-09-29",
+ "created_at": "2026-11-20T05:55:41.000000Z",
+ "finish_reason": "stop",
+ "usage_details": {
+  "input_token_count": 2125,
+  "output_token_count": 190,
+  "total_token_count": 2315,
+  "openai.cache_write_tokens": 706,
+  "cache_creation_input_token_count": 706,
+  "openai.cached_input_tokens": 1416,
+  "cache_read_input_token_count": 1416,
+  "openai.reasoning_tokens": 40,
+  "reasoning_output_token_count": 40
+ }
+}

@@ -1,0 +1,39 @@
+{
+ "type": "chat_response",
+ "messages": [
+  {
+   "type": "message",
+   "role": "assistant",
+   "contents": [
+    {
+     "type": "text",
+     "text": "{\n  \"checks\": [\n    {\n      \"campno\": \"24V064000\",\n      \"verdict\": \"different\",\n      \"complaint_quote\": \"Zero  airbags were deployed with either impact.\",\n      \"recall_quote\": \"An air bag that deploys unintentionally during a crash\",\n      \"reason\": \"The owner reports air bags not deploying, whereas the recall describes unintended deployment caused by failure to suppress the front passenger air bag.\"\n    }\n  ],\n  \"proposed\": \"related_different\",\n  \"similar\": [],\n  \"summary\": \"The owner reports no air bag deployment after a rear impact forced the vehicle into a box truck, with severe hood and dashboard damage. This is the opposite of the candidate recall's unintended-deployment failure and warrants separate review of the crash and restraint-system evidence. The search returned no similar air bag nondeployment complaints.\"\n}",
+     "additional_properties": {
+      "openai": {
+       "logprobs": []
+      },
+      "logprobs": []
+     }
+    }
+   ],
+   "message_id": "msg_022475980320488b006affe018950081978092da556156b58f",
+   "additional_properties": {}
+  }
+ ],
+ "response_id": "resp_022475980320488b006affe017c5708197b721fa18a320cc04",
+ "conversation_id": "resp_022475980320488b006affe017c5708197b721fa18a320cc04",
+ "model": "gpt-6.1-sol-2026-09-29",
+ "created_at": "2026-11-20T05:52:23.000000Z",
+ "finish_reason": "stop",
+ "usage_details": {
+  "input_token_count": 2401,
+  "output_token_count": 183,
+  "total_token_count": 2584,
+  "openai.cache_write_tokens": 770,
+  "cache_creation_input_token_count": 770,
+  "openai.cached_input_tokens": 1628,
+  "cache_read_input_token_count": 1628,
+  "openai.reasoning_tokens": 0,
+  "reasoning_output_token_count": 0
+ }
+}

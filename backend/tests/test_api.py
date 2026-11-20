@@ -1,11 +1,12 @@
-"""API: queue, streamed case run, typed complaint, review rules, health. Uses the test DB and a scripted model."""
+"""API: the analyst's workspace (check, suggestion, actions, emerging issues) and the operations portal (drills, runs).
+Uses the test DB and a scripted model."""
 import json
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.ai.clients import LlmSetup, ScriptedChatClient
-from app.api import cases, deps
+from app.api import deps, workspace
 from app.main import app
 from app.store.results import Store
 
@@ -13,16 +14,17 @@ GOOD = json.dumps({
     "checks": [{"campno": "24V868000", "verdict": "same", "complaint_quote": "ICCU failed again after",
                 "recall_quote": "result in a loss of drive power", "reason": "Same failure."}],
     "proposed": "known_recall", "summary": "Matches the ICCU recall."})
+NOTHING = json.dumps({"checks": [], "proposed": "possible_new", "summary": "Nothing fits."})
 
 
 @pytest.fixture
 def client(con, tmp_path, monkeypatch):
     turns: list = []
-    monkeypatch.setattr(deps, "con", lambda: con)
     store = Store(tmp_path / "app.db")
+    monkeypatch.setattr(deps, "con", lambda: con)
     monkeypatch.setattr(deps, "store", lambda: store)
     monkeypatch.setattr(deps, "llm", lambda: LlmSetup(client=ScriptedChatClient(turns)))
-    monkeypatch.setattr(cases, "demo_cases", lambda: [{"odino": 3, "title": "demo one"}])
+    monkeypatch.setattr(workspace, "demo_cases", lambda: [{"odino": 3, "title": "demo one"}])
     c = TestClient(app)
     c.turns = turns
     return c
@@ -32,50 +34,102 @@ def events(resp) -> list[dict]:
     return [json.loads(line[6:]) for line in resp.text.splitlines() if line.startswith("data: ")]
 
 
-def test_run_streams_progress_then_stores_the_result(client):
-    client.turns.append(GOOD)
-    ev = events(client.post("/api/cases/3/run"))
-    assert [e["step"] for e in ev if e["type"] == "step"] == ["intake", "evidence", "judge", "verify", "decide"]
-    done = ev[-1]
-    assert done["type"] == "done" and done["result"]["decision"]["campno"] == "24V868000"
-    queue = client.get("/api/queue").json()
-    assert queue[0]["odino"] == 3 and queue[0]["demo"] == "demo one"
-    assert queue[0]["result"]["outcome"] == "known_recall"
-    assert client.get("/api/cases/3").json()["result"]["id"] == done["result"]["id"]
+def check(client, odino=3, answer=GOOD) -> dict:
+    client.turns.append(answer)
+    done = events(client.post(f"/api/tickets/{odino}/check"))[-1]
+    assert done["type"] == "done"
+    return client.get(f"/api/tickets/{odino}").json()
 
 
-def test_model_failure_still_answers_with_fallback(client):
-    done = events(client.post("/api/cases/3/run", params={"fault": "llm_down"}))[-1]
-    assert done["result"]["decision"]["source"] == "fallback"
+def test_check_gives_the_analyst_a_suggestion_in_their_terms(client):
+    t = check(client)
+    s = t["suggestion"]
+    assert t["status"]["status"] == "suggested"
+    assert s["headline"].startswith("Covered by recall 24V-868")
+    assert s["recall"]["covers"] == "2024 Hyundai Ioniq 5" and s["recall"]["replaced"] == ["24V-204"]
+    assert s["why"][1]["quotes"][0] == {"owner": "ICCU failed again after", "recall": "result in a loss of drive power"}
+    assert "5 after it" in s["pattern"]["sentence"]  # 5 complaints after the remedy -> remedy concern
+    primary = next(a for a in s["actions"] if a["primary"])
+    assert primary["id"] == "link_close" and primary["issue_kind"] == "remedy_concern"
+    assert "Dealers will inspect and replace the ICCU" in primary["message"]  # remedy text copied, not written
+    item = client.get("/api/inbox").json()[0]
+    assert item["demo"] == "demo one" and item["suggestion"]["headline"] == s["headline"]
 
 
-def test_unknown_fault_and_missing_complaint_are_rejected(client):
-    assert client.post("/api/cases/3/run", params={"fault": "nope"}).status_code == 422
-    assert client.post("/api/cases/999/run").status_code == 404
+def test_link_and_close_flags_the_remedy_and_the_next_ticket_joins_the_same_issue(client):
+    s = check(client)["suggestion"]
+    primary = next(a for a in s["actions"] if a["primary"])
+    body = {k: primary[k] for k in ("campno", "issue_title", "issue_kind", "issue_comp", "message")}
+    status = client.post("/api/tickets/3/actions", json={"action": "link_close", **body}).json()
+    assert status["status"] == "resolved" and status["campno"] == "24V868000"
+    issues = client.get("/api/issues").json()
+    assert len(issues) == 1 and issues[0]["kind"] == "remedy_concern" and issues[0]["count"] == 1
+    again = next(a for a in check(client)["suggestion"]["actions"] if a["primary"])
+    assert again["issue_id"] == issues[0]["id"]  # suggested: add to the existing issue, not a duplicate
+    history = [h["action"] for h in client.get("/api/tickets/3").json()["history"]]
+    assert history == ["linked_recall", "replied_to_owner"]
 
 
-def test_typed_complaint_runs_through_the_same_pipeline(client):
-    client.turns.append(GOOD)
+def test_actions_are_validated(client):
+    check(client)
+    post = lambda body: client.post("/api/tickets/3/actions", json=body)  # noqa: E731
+    assert post({"action": "link_close", "campno": "99V999000"}).status_code == 422
+    assert post({"action": "close_no_action"}).status_code == 422            # needs a reason
+    assert post({"action": "request_info", "message": " "}).status_code == 422
+    assert post({"action": "close_no_action", "reason": "x", "disagrees": True, }).status_code == 200
+    assert post({"action": "request_info", "message": "When?", "disagrees": True}).status_code == 422
+    assert client.post("/api/tickets/4/actions", json={"action": "close_no_action", "reason": "x"}).status_code == 409
+
+
+def test_no_recall_fits_escalates_to_a_new_emerging_issue(client):
+    s = check(client, answer=NOTHING)["suggestion"]
+    assert s["headline"].startswith("No recall covers this")
+    primary = next(a for a in s["actions"] if a["primary"])
+    assert primary["id"] == "new_issue" and primary["issue_kind"] == "new_defect"
+    st = client.post("/api/tickets/3/actions", json={"action": "new_issue", "issue_title": primary["issue_title"],
+                                                     "issue_kind": "new_defect"}).json()
+    assert st["status"] == "escalated"
+    assert client.get(f"/api/issues/{st['issue_id']}").json()["complaint_details"][0]["odino"] == 3
+
+
+def test_a_single_unmatched_report_is_recorded_not_escalated(client):
+    """No crash/fire/injury, no similar complaints, nothing recalled elsewhere: don't spend engineering's time yet."""
+    s = check(client, odino=4, answer=NOTHING)["suggestion"]
+    assert s["headline"].endswith("single report, record and watch")
+    primary = next(a for a in s["actions"] if a["primary"])
+    assert primary["id"] == "monitor"
+    assert client.post("/api/tickets/4/actions", json={"action": "monitor"}).json()["status"] == "monitoring"
+
+
+def test_other_year_recall_counts_only_if_it_shares_failure_words():
+    from app.workspace.suggest import shares_failure_words
+    iccu = "The Integrated Charging Control Unit (ICCU) may become damaged and stop charging the 12-volt battery."
+    assert shares_failure_words("ICCU failed without any notification, we were stranded", iccu)
+    assert not shares_failure_words("The electrical system warning came on while driving", iccu)
+    shouting = "TOYOTA IS RECALLING CERTAIN TACOMA VEHICLES FOR FAILING TO COMPLY WITH TIRE LOAD LABELING."
+    assert not shares_failure_words("Regarding FALKEN WILDPEAK tires on our TACOMA, worn out early", shouting,
+                                    {"toyota", "tacoma"})
+
+
+def test_ops_drill_never_changes_what_the_analyst_sees(client):
+    check(client)
+    done = events(client.post("/api/ops/drill/3", params={"fault": "llm_down"}))[-1]
+    run = client.get(f"/api/ops/runs/{done['result_id']}").json()
+    assert run["decision"]["source"] == "fallback" and run["fault"] == "llm_down"
+    assert client.get("/api/tickets/3").json()["suggestion"]["check_note"] is None  # still the AI-verified answer
+    assert {r["label"] for r in client.get("/api/ops/runs").json()} == {"queue", "ops"}
+    assert client.post("/api/ops/drill/3", params={"fault": "nope"}).status_code == 422
+
+
+def test_fallback_tells_the_analyst_to_check(client):
+    events(client.post("/api/tickets/3/check"))  # no scripted answer -> the model "fails" -> rules-only fallback
+    assert "rules only" in client.get("/api/tickets/3").json()["suggestion"]["check_note"]
+
+
+def test_typed_complaint_in_the_sandbox(client):
+    client.turns.append(GOOD.replace("ICCU failed again after", "The ICCU failed again"))
     body = {"make": "HYUNDAI", "model": "IONIQ 5", "year": "2024", "received": "2025-03-01",
-            "components": ["ELECTRICAL SYSTEM"],
-            "text": "The ICCU failed again after the dealer visit and the car lost power."}
-    done = events(client.post("/api/complaints/run", json=body))[-1]
-    assert done["result"]["decision"]["outcome"] == "known_recall" and done["result"]["complaint"]["odino"] is None
-
-
-def test_review_queue_and_review_rules(client):
-    no_match = json.dumps({"checks": [], "proposed": "possible_new", "summary": "Nothing fits."})
-    client.turns.append(no_match)
-    rid = events(client.post("/api/cases/3/run"))[-1]["result"]["id"]
-    assert [r["result_id"] for r in client.get("/api/reviews").json()] == [rid]
-    assert client.post(f"/api/results/{rid}/review", json={"result_id": rid, "action": "link_recall"}).status_code \
-        == 422
-    bad = {"result_id": rid, "action": "link_recall", "campno": "99V999000"}
-    assert client.post(f"/api/results/{rid}/review", json=bad).status_code == 422
-    ok = client.post(f"/api/results/{rid}/review", json={"result_id": rid, "action": "confirm_new", "note": "real"})
-    assert ok.status_code == 200
-    assert client.get("/api/reviews").json()[0]["review"]["action"] == "confirm_new"
-
-
-def test_health(client):
-    assert client.get("/api/health").json()["live_model"] is False
+            "components": ["ELECTRICAL SYSTEM"], "text": "The ICCU failed again after the dealer visit and it stopped."}
+    done = events(client.post("/api/ops/try", json=body))[-1]
+    assert done["outcome"] == "known_recall"
+    assert client.get("/api/ops/health").json()["live_model"] is False

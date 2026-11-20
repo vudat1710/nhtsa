@@ -1,0 +1,46 @@
+{
+ "type": "chat_response",
+ "messages": [
+  {
+   "type": "message",
+   "role": "assistant",
+   "contents": [
+    {
+     "type": "text_reasoning",
+     "text": "",
+     "protected_data": "gAAAAABq_-CVOR031WaT0O9E8O9-E72_fqQ8tQP_6LS6hAvrWTVRXt6hfqdgxYkOW2zFf42N2pFdZqLj6XgEttFic_4r7H-G1bV0HZLsKe6QPXeG_MODFt_bOP17PjH6BGPkLwHQ3f_KEtxJLX5LFSgrGzRLYDQqCPGZKKcGh_yI4WtNqAIuWRs0i5F96m3UpgMQq9O231ytJPDZ6TZg2glqa3ouu_xqtwPKfxtEnyOW3B-PRPU-W2_PBzJithuimbE3qL_odziPkcYlf0iWyY_F6eRi8k5lLV73qT4048ag7292Ls6HNsi0dLzcaZi_yKTm-lQZWIZ0XenTmErPdms8AeeZ8kHsuhh7_z_J4OQyUKZSePugsDq-X8xcHRsnKt1OymlV6-TXsbd2p_BXXiAonUZjGuREcZP0vPa4egXXlZcGkdjh8RFef_ZkDnPUMOi_cVYtAi6XybiAwP1TjWJFsKfSCOPSb6UN7DBnuXqjujJ6ZZoViVkz4KM0LO6EBpmF-KUXzXrW4DAJqqzaxYT6-Ui4izi6Aen7QsuL8pFHVvp8K4DFppc9UfKQUS4Lan9cQxtnwsvzKI6eD4f1Sf5eLlhzaZf2JFydMlMRvLfenJ1pqLXbp43oJ6mCAeixn3zgs0J5jsSGykg3V98lLQoZgrRBn1PDRVl2Y17Z6Tm0PWQZBpHtXFKcQyBO2kqO46g6ZENiS2uYLGm1rbK4UHlsB0Bv2UbjoBT5xsuGFaCl3Y47Ow_hb8Vf35Upk0Fzg2WTxa-qHwn97urUh5JZ5J4xSRDb3Sk5SyIypPdPqL5UUkE3jvAAqzznDRGbsx-JrwKZ05ECBMrWy6ehiylUNJEy3KdBFyC9QCRIyb5nu2LPWCBv9DKuSvrKGegVRbP0UwHgEJGMNOklnDGWr0hOwTUxvbFkJ68UGV8LKSThYk8huyYpkcFpWUGnsGDZHUCwxt_dhY8tG-ElZqG_k5G1yXRVoaq9z0m1wmKd1gTI3JJKLJl-GS7xKMxodn9hZPdVLXnB6YKa138xMIhmGaYMX8sHVSQut5aCi7RevgVeJe5zp2JO4Tc-hSLbHKGL9qmO-LMycOypt4ks3ERYhkZDdjovxWi3wczFDaFxwouHUT0KNpFeZUmsoLfBjNiSmEbp08eXXTaIWhCcy5sJZ1AdZn484csrhNLV7mRbXDJm4LSZVIk3Um07gtr7yc1S6jkK871zfuUVha9zWczjQKCwMasG2k74EBpqvjT1-t083aI5Kbw1dKDqrVbLgJGNwBspyubArzsIwGM-SctGMh1EmHK8lvSJzLKX270XzxGHvjzfl-I39cb-XFJ4R4lXsBpjP9cWrvj-U7GinKVMsXrl5DlV1WybGwuwvUTKokUuMzme3ASp6qtPeVh-1lMEp0UKPszmSn6ONYikmTsO4sPjJWbUxoj_Ttg7QC1KmHsBzVh0Ol6Rf0sgVfy2i9Xr3tE8xem18mW55ClruAM0B6qyVtcXd6HS6j9PpkNV40-V6eRFrZ36UVC6oxWq-R5b2ta6vOQN7PDJfWV6aoch5Bl7dYkmDALNEYpbsjykFAxMIQlil_vjGj3HKwSiQNOFxLkrTOF_2PINw9bbqc74cmrV6CWn-5m3JUNpyrs5-93NDSAfjuWeURfg1gPrnj7JiPYlcoIXQCoKfuAponQybpgF-64H1gF7gL6iE92l6ycX-Iu6pjUv-HiujoCu5BjnJxthEfDaADh-ZcnP8KCFRsXQBMX4yUrRuo9lDwClnXiFzqzpCdyw0Sw6UG9UURKxHTqzZeQFFVbYYfQXbpvPIHD2R_YuK3PQwwgPIpcTvIxS_kKaw3ZqVpHo8NuWpUdj5PVJYp7DNUNSOfqbvMJ8Cjb72-RuZPXy2uIH4PTO1wbfhcQF2wHrBl-XAsH_s-JXmtZZsgmn8D-OVAICWHCf6z7chlKdMYj7ldobfMoLkbFx3YEKEqxrLm1ZGMGM8UmI7PnAUt_rpx_rvztq7FNVoO-xCgD8b1IdmA8Yf0dn3KINo6mslmxsxNcw-4qKjzUJKMIJiMwKJzpTcPsD270_1WHpdCya1gqjhLxs68QCpJ3QZMcjV1D8O0wpftWDxPgd17kb21Nje9yt4DZNykmLQUpoInrbhnZvJZvm2-R4Kb8VtJOILTLFyZ9vkqtsF_515u9ph_4WPU0meR9dpbJspZCTKPeivGI-027OWIxQ8hYWpO2FxVxZq9GajRTb-HrbCWQWxRGVWte0li9Q2laFWTa-MG33FkENCuQ9Lak_iXJV7hPXfW2E1VOexhePHo-cC0cR-cspCh_GSkIojBcIJ0NkmQ1aWykV8A7_RGFghkCVhixoFkMuLZa6CpN72ine4yE2yH8lOmk0meNFPJ-4n9c7IE1qbRXgv4B6BElSxOiORoPNnc4kFDkqxcdKapRcUQXUMVXtEywKU8aoZR3nU6PVQ7BdHNXfhODLQg==",
+     "id": "rs_0a5c70261fff56be006affe08f94c88190a58a08cacc92b7be",
+     "additional_properties": {}
+    },
+    {
+     "type": "text",
+     "text": "{\n  \"checks\": [\n    {\n      \"campno\": \"23V858000\",\n      \"verdict\": \"different\",\n      \"complaint_quote\": \"the engine occasionally refuses to refire\",\n      \"recall_quote\": \"an engine stall while driving\",\n      \"reason\": \"The owner describes failure to restart after an intentional auto start-stop shutdown, rather than the engine stalling while driving as described in the fuel pump recall.\"\n    }\n  ],\n  \"proposed\": \"related_different\",\n  \"similar\": [\n    {\n      \"odino\": 11489511,\n      \"quote\": \"Vehicle fails to restart after shutting off using Auto Start/Stop feature.\"\n    },\n    {\n      \"odino\": 11632536,\n      \"quote\": \"Engine fails to restart after the engine idle stop shuts off the engine when stopped.\"\n    },\n    {\n      \"odino\": 11468273,\n      \"quote\": \"While stopped at a light, the engine shuts off as expected. Then when going to release the brake pedal to pull away from the stop light, the car fails to restart.\"\n    }\n  ],\n  \"summary\": \"The complaint describes an intermittent failure to restart after auto start-stop shuts down the engine, leaving the vehicle stranded in traffic. This differs from the fuel pump recall's engine-stall consequence, and earlier complaints describe the same restart failure. Route this case for review of the auto start-stop restart issue rather than assigning it to a candidate recall.\"\n}",
+     "additional_properties": {
+      "openai": {
+       "logprobs": []
+      },
+      "logprobs": []
+     }
+    }
+   ],
+   "message_id": "msg_0a5c70261fff56be006affe091b0608190a98bdcea7d257719",
+   "additional_properties": {}
+  }
+ ],
+ "response_id": "resp_0a5c70261fff56be006affe08e65b481908a07d81ae202e729",
+ "conversation_id": "resp_0a5c70261fff56be006affe08e65b481908a07d81ae202e729",
+ "model": "gpt-6.1-sol-2026-09-29",
+ "created_at": "2026-11-20T05:54:22.000000Z",
+ "finish_reason": "stop",
+ "usage_details": {
+  "input_token_count": 3338,
+  "output_token_count": 391,
+  "total_token_count": 3729,
+  "openai.cache_write_tokens": 584,
+  "cache_creation_input_token_count": 584,
+  "openai.cached_input_tokens": 2751,
+  "cache_read_input_token_count": 2751,
+  "openai.reasoning_tokens": 79,
+  "reasoning_output_token_count": 79
+ }
+}

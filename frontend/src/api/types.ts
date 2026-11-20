@@ -87,43 +87,61 @@ export interface Result {
   created_at: string
 }
 
-export interface Review {
-  result_id: string
-  action: 'confirm_new' | 'link_recall' | 'dismiss' | 'accept' | 'override'
-  campno: string | null
-  note: string
-  reviewer: string
-  created_at: string
-}
-
-export interface QueueItem {
-  odino: number
-  vehicle: string
-  received: string
-  components: string[]
-  severe: boolean
-  snippet: string
-  demo: string | null
-  result: null | { id: string; outcome: Outcome; confidence: Confidence; campno: string | null; escalate: boolean; source: Decision['source']; flags: string[] }
-}
-
-export interface DemoCase { id: string; odino: number; title: string; expect: string; story: string; next?: string }
-
-export interface CaseView { complaint: Complaint; result: Result | null; reviews: Review[]; demo: DemoCase | null }
-
-export interface ReviewItem {
-  result_id: string
-  odino: number | null
-  vehicle: string
-  received: string
-  outcome: Outcome
-  confidence: Confidence
-  flags: string[]
-  reason: string
-  review: Review | null
-}
-
 export interface RateStat { k: number; n: number; rate: number | null; ci95: [number, number] }
+
+// ---------- the analyst's workspace (backend/app/workspace) ----------
+
+export type TicketStatus = 'new' | 'suggested' | 'waiting' | 'resolved' | 'escalated'
+export type ActionId = 'link_close' | 'request_info' | 'add_to_issue' | 'new_issue' | 'close_no_action'
+
+export interface QuotePair { owner: string; recall: string }
+export interface Why { text: string; quotes: QuotePair[]; owner_quotes: { odino: number; quote: string }[] }
+export interface RecallCard {
+  campno: string; display: string; filed: string; covers: string; problem: string; consequence: string
+  remedy: string; units: number | null; replaced: string[]
+}
+export interface Pattern {
+  sentence: string; total: number; before_recall: number | null; after_recall: number | null
+  last_12_months: number; crash: number; fire: number; injury: number
+}
+export interface ActionOption {
+  id: ActionId; label: string; primary: boolean; campno: string | null; issue_id: number | null
+  issue_title: string | null; issue_kind: 'new_defect' | 'remedy_concern' | null; issue_comp: string | null
+  message: string | null
+}
+export interface Suggestion {
+  result_id: string; outcome: Outcome; headline: string; confidence: Confidence; check_note: string | null
+  severity: string[]; summary: string; recall: RecallCard | null; why: Why[]; pattern: Pattern | null
+  questions: string[]; actions: ActionOption[]
+}
+export interface HistoryItem { odino: number; action: string; detail: string; result_id: string | null; by: string; at: string }
+export interface DemoCase { id: string; odino: number; title: string; expect: string; story: string; next?: string }
+export interface Ticket {
+  complaint: Complaint
+  status: { odino: number; status: TicketStatus; campno: string | null; issue_id: number | null; updated_at: string | null }
+  history: HistoryItem[]
+  suggestion: Suggestion | null
+  demo: DemoCase | null
+}
+export interface InboxItem {
+  odino: number; vehicle: string; received: string; snippet: string; severity: string[]; status: TicketStatus
+  demo: string | null
+  suggestion: null | { outcome: Outcome; headline: string; confidence: Confidence; check: boolean; action: string }
+}
+export interface EmergingIssue {
+  id: number; title: string; kind: 'new_defect' | 'remedy_concern'; make: string; model: string; comp: string
+  campno: string | null; status: string; created_at: string; complaints: number[]; count: number; severe: number
+  latest: string | null
+  complaint_details?: { odino: number; vehicle: string; received: string; text: string; severe: boolean }[]
+}
+
+// ---------- the operations portal ----------
+
+export interface RunSummary {
+  id: string; odino: number | null; label: string; created_at: string; vehicle: string; outcome: Outcome
+  confidence: Confidence; source: Decision['source']; latency_ms: number; fault: string | null; tokens: number
+  attempts: number; tool_calls: number; first_issues: string[]
+}
 
 export interface EvalReport {
   name: string
@@ -133,6 +151,10 @@ export interface EvalReport {
   prompt: string
   model: string
   metrics: Record<string, unknown>
+  rescored_from?: string
+  rescore_note?: string
+  decisions_changed?: number
+  adjudication?: Record<'A' | 'B', { disagreements: number; adjudicated: number; ai_right: number; owner_right: number; unclear: number }>
 }
 
 // Progress events streamed while a case runs (see backend/app/pipeline/workflow.py)
@@ -143,5 +165,5 @@ export type RunEvent =
   | { type: 'tool_call'; tool: string; arguments: Record<string, unknown>; results: number[]; ms: number }
   | { type: 'agent'; attempt: number; error: string | null; input_tokens: number; output_tokens: number }
   | { type: 'verify'; attempt: number; result: string; issues: Issue[] }
-  | { type: 'done'; result: Result }
+  | { type: 'done'; result_id: string; outcome: Outcome }
   | { type: 'error'; message: string }

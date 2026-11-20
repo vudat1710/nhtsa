@@ -43,6 +43,19 @@ complaint.
 Baseline (pick the candidate recall with the same component; from the profiling run on all 21,848 clean labels): right
 46%, ambiguous 35%, right recall under a different component 21%.
 
+## Evaluation results and how to read them
+
+- **Set A measures agreement with the owner, not accuracy.** Owners sometimes cite the wrong recall (e.g. a "failed
+  fast charge" against a "battery overheats while fast charging" recall). A fixed random sample of 30 of the AI's 138
+  disagreements was read case by case (`data/eval/adjudication/`): AI right 12, owner right 7, unclear 11. All 7
+  owner-right cases describe no failure, only trouble getting the recall repair (a product gap, not a matching error).
+- **Set B is easy for the rules baseline by construction** (it requires no recall on the owner's component, and the
+  baseline only looks at that component), so B shows whether the AI over-claims on *other* components. Of its 13
+  "known recall" claims, 6 were judged right (an existing recall on another component really fits), 3 wrong, 4 unclear.
+- **Prompt changes were made on the dev split only** (v1 → v2 negation rule, v2 → v3 "symptoms, not causes"); test sets
+  were run once with v3. One rule bug found on test set C was fixed and the stored answers re-decided (5 changed).
+- A replay attempt at 12:13 was discarded: a recording-key bug made every tool-using case miss (fixed, regression test).
+
 ## What the data cannot tell us (limitations)
 
 - **Selection bias in A.** Labels exist only where the owner already knew their recall. Masking removes the number but

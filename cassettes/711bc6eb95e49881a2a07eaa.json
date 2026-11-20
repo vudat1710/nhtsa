@@ -1,0 +1,50 @@
+{
+ "type": "chat_response",
+ "messages": [
+  {
+   "type": "message",
+   "role": "assistant",
+   "contents": [
+    {
+     "type": "text_reasoning",
+     "text": "",
+     "protected_data": "gAAAAABq_-A5wO3fz2CBr00WjVZnyjADqhjLkYw_OfOrhl9-XSe3iOIU0hI7QDbTTH390EBWhU7d8gAR4oU-OQMv0h0VKu7J7xOLaLODGgEXMfgnDBCuUy2OKbqSdBq8L8I87DGMix5kZVXgtWbmlAb8reu4VryoCwkURy5sg6xjC2VqOEuXhoLss7Bv1vQJcRlpnax-eFLSVTavUQ60wvni63nZr4Vz4sRFkLI5qgz2WkDtSRtu9wOnkXiyLKBUJ-X-ShDGSWy6d3n9v_3zpQrk9-mly34EsFxFm_ldl6drlkp49L8kcVldDpzJxdrS3JniotErHE0WYZNwKqlYU7pmUXmzHElZ12JbVqd8DulYqQmFqNCfgNfcDdtex_2UX9S7EYo4iTgrWg_SIOkl_HHU7vSPOARMYdaIcSPOmV4SLqodB6xPZg3062lEg6TfX8b_0ke97uV-02oMGaVpoecvI9JD_WM9O40P7wG7uGfJ4j-XPlLXDOOEAwoGi2f6Lul3WMO-JckEMkyexxZ19JEr8RDGQfIC7U0kFi8Dp7C12ethorlLdjP77d1iwmXxMponsZp1u8R25jlQOpmeS94mtu2GEuAGctr9Sm9qhIS7am6W_VD7pBswW3ugYLvHQtX8tq4O_-o3dPp-FvSUJ8J_0B5Phdfby7zRRkeTWhNLXoK3QC4ew_BxJMgED26YZFcUx2WmtNND7wivJCA8UQJw23pppFvcAoymRl5ghJX9E2Mrd1VdktwOqhitba0Oe8gc1KZGEtK2tj_9YUfUsMEkeKc0A-QCce-59mV6s8JYAAKbrZR9kLIvK_VocOQloFWHhTA-LvI_aMGVY2YkoWC1Y5NkBYAyO0JGMOlF2Z_Be4zv9PU2YmEsO9uWW_h5_KR6djm5KcjJnNZa09PgY50jWjcs6eQmRX2-Huv1wKbbyqpTjWl1P3f1JTRl5u59fcycmLbhTkvr8vndQkM2XiW77EprNOMHzx_OaiwWEDmyDYgS4R8qGpymm0nC_13Fnf2Jta79CxmCfqcgDcJwpun3JOagkWaPXhDbmrVNAWv1F82ZsSZIRlQ-EUj0ZrmFca0azGDineu8IDh1zhp0Zc8AvVOrjs00eft_yragDg0QM3Pl1qeNvrjAivPWE7KSBYRT_1Hi_wWBihNPap8T-AXMFvWjF6zzIKoXNYVmbeoPNenZaSc0Ud8Y3ZKYn1E9XhCxasQOwo_39YB3OVov2gGDvLmxTaAd8eftt8OPGULSyvLtwSDNN2N_pS6jroZ0mThDtWiitPy-_xbuHcH0TBwm-YCLZwVs0bCgoe64dibBUb_0TICZf5MbcuKfuDlph9LA6FAsSMTdraT5osZbWp5AvHzVBy4EVJYt1mw9ZqK-6ooCkwtwm9l9W9jSsDLRqgcWYrKtvvtF-m4xM0HGHud5-oEHnE6AV3Mq7C41jpQzHhp9QpPTRENZ2yoeoOjWnPvsMToAajO4C5CuEZ0Q31Ixg-ZoTKWGPaf0TIp77Ofkhlxy39bHSwT7Tx6-O3iO1789QA2o5oMP_XYCtuwxsF74BNiQeKUMC64tahPZk3Ae_MrQsEEICJjhk-W5IwwnGdP0L5vqII6Xn_6x1l05VTUmk_hTixkZyqUVLyebudYc3p4BPibOE6E=",
+     "id": "rs_08bcd18f02db6747006affe0399dbc81978d8ca07324dddf66",
+     "additional_properties": {}
+    },
+    {
+     "type": "function_call",
+     "call_id": "call_Q8bhUoIMQo80RzMNKu3eTjSW",
+     "name": "search_complaints",
+     "arguments": "{\"query\":\"Backup camera issue; owner reports camera recall-like symptoms but does not describe what the camera does.\"}",
+     "status": "completed",
+     "hosted": false,
+     "additional_properties": {
+      "openai": {
+       "item_id": "fc_08bcd18f02db6747006affe039aa108197a2451f608822f0df"
+      },
+      "fc_id": "fc_08bcd18f02db6747006affe039aa108197a2451f608822f0df",
+      "status": "completed"
+     }
+    }
+   ],
+   "additional_properties": {}
+  }
+ ],
+ "response_id": "resp_08bcd18f02db6747006affe03650cc819784282acb5c65c011",
+ "conversation_id": "resp_08bcd18f02db6747006affe03650cc819784282acb5c65c011",
+ "model": "gpt-6.1-sol-2026-09-29",
+ "created_at": "2026-11-20T05:52:54.000000Z",
+ "finish_reason": "tool_calls",
+ "usage_details": {
+  "input_token_count": 2035,
+  "output_token_count": 59,
+  "total_token_count": 2094,
+  "openai.cache_write_tokens": 0,
+  "cache_creation_input_token_count": 0,
+  "openai.cached_input_tokens": 2032,
+  "cache_read_input_token_count": 2032,
+  "openai.reasoning_tokens": 19,
+  "reasoning_output_token_count": 19
+ }
+}

@@ -1,0 +1,43 @@
+{
+ "type": "chat_response",
+ "messages": [
+  {
+   "type": "message",
+   "role": "assistant",
+   "contents": [
+    {
+     "type": "function_call",
+     "call_id": "call_U91GAIJyqT2l07lY5ERVkzXo",
+     "name": "search_complaints",
+     "arguments": "{\"query\":\"Transmission shifts into neutral with rising RPM, harsh entry into limp mode, no reverse, reduced acceleration warning and P0776\"}",
+     "status": "completed",
+     "hosted": false,
+     "additional_properties": {
+      "openai": {
+       "item_id": "fc_08689352bf5b8db4006affe040e89c81938577c3bfe2bb621e"
+      },
+      "fc_id": "fc_08689352bf5b8db4006affe040e89c81938577c3bfe2bb621e",
+      "status": "completed"
+     }
+    }
+   ],
+   "additional_properties": {}
+  }
+ ],
+ "response_id": "resp_08689352bf5b8db4006affe03fbe048193b1fd928048f1cc64",
+ "conversation_id": "resp_08689352bf5b8db4006affe03fbe048193b1fd928048f1cc64",
+ "model": "gpt-6.1-sol-2026-09-29",
+ "created_at": "2026-11-20T05:53:03.000000Z",
+ "finish_reason": "tool_calls",
+ "usage_details": {
+  "input_token_count": 5644,
+  "output_token_count": 43,
+  "total_token_count": 5687,
+  "openai.cache_write_tokens": 0,
+  "cache_creation_input_token_count": 0,
+  "openai.cached_input_tokens": 5641,
+  "cache_read_input_token_count": 5641,
+  "openai.reasoning_tokens": 0,
+  "reasoning_output_token_count": 0
+ }
+}

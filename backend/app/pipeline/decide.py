@@ -49,6 +49,10 @@ def decide(c: Complaint, it: Intake, ev: Evidence, j: Judgment | None, source: s
         probable = (same or partial)[0].campno
         outcome, confidence, campno, escalate = "needs_info", "medium", probable, False
         reasons.append(f"Recall {probable} may fit, but the complaint lacks the detail to confirm it.")
+    elif "short_text" in it.flags:
+        # found on test set C: "car broke" was escalated as a possible new defect; too little to escalate on
+        outcome, confidence, campno, escalate = "needs_info", "high", None, False
+        reasons.append("The description is too short to compare with any recall or to escalate.")
     elif different:
         outcome, confidence, campno, escalate = "related_different", "medium", None, True
         reasons.append(f"Recall {different[0].campno} involves the same part but describes a different failure.")

@@ -1,0 +1,46 @@
+{
+ "type": "chat_response",
+ "messages": [
+  {
+   "type": "message",
+   "role": "assistant",
+   "contents": [
+    {
+     "type": "text_reasoning",
+     "text": "",
+     "protected_data": "gAAAAABq_-C9gQ6NhtkShrQ3BHAQVhqIV10_ZJKLi36RgKyTIE8nO14auCu2FTWK3Q0RX6mZOOFpiQcpwSmJFzCRWM0ngcCvgZpqcEZwf0SB5M3rWDptVcD8eMfQo4f0ZdabnuUAxHJjYg67DO-wrTa0xEaiXbnRxudR7a3ENaJf5LVCShb0p_7vDg7u1zXaoK5sa9bwFkNsWdMMKH0ltIti8cxD9Wkchxc6jLb2Lvko9z1-CSpl0-VnuJb1agChOsjbpvw5oaMNEjlxbGv6zkOrVh76GCpStmGJdTEu2pFN5lV81vWVIii36BHMWLV-4mLv8GunOsDp-JJo5QarpvvANdyd2_OePSLC1I8YhKVHTpVc7G99v4zNAIYCN6Q7eidNbn9EtJ59fN9o5c1gUGzgmBCqd2FbTDVsy8uAWF90t3HYyPHKW8TKMZg-GENlVrRIoLo2cvHkWzMVe9xUG4hKl1FiAxnqCUmPhFSymGQey1ByhaIR3zahbr7dVDn2kFubDRWOhMCG4TItoKQXYPTR6EtnWFry98al8mMXRxcrHwSapnG6h33rH2rTct_hvrRgnwM9wbgsNL6WwAvAr2xDEjFKOAqelmwnh7e3fMEwiy6J3yVIU7E2npIc9TydwDO36zg4jq53-4o0cA5oJPrkIIYS0vuzI0pclHodInr1F_Zmpzv5SkICWORTt7UAHb15WK6RbopLMO2nezRSxLZcCXKfMNOgjhUbuMtOmSzx2-N7c8k42JHHW1P0AY_7fyiQZ2nCSN4KpbdLBagg3w65b6btqlXRswKk03ZvdqvvTlRLTBCUV4qGnWQmxbytSsiBeUy_IScbk2tf_RmquKO5cP_r6c_gygFF_0l01MWbc84Q4WyTGdaHeMLnznLlVp_evbpVwsVLU_jhmD4rWDapYJ9IcwDqzT-ltBukoIWniKgC3PLFrQwID72PC0Ip6tkVEgUrgKBp52EU2agT3irbFa6i3KsYc-M-jVxUamCNF0R_WYYovo-rgSBb9TFsNwkHS5F5uPB0ZFPnCmDa6rVkBBENsj4eHYNQ9YynfbJxnP-N4N66RWGfoAOyQrY2iBxq9oil9kkxo7vQBo5YDp9sRjAFl3eGNojdK0GLhNEVTYTCdKgKp24qN0JRB8Q9bShSejO5SwOuYYhGkm88jlC2dt_YC-JUm-6CRnHLtnD0VXhfgfIvODYwss0FCNxT8IcY-3prqS4RkfiyJMHZcPQ3KBih-WgrHJgY-b4PWVSAerltvhIqKpjm9dplh3WBWMffPY_M19V8v8oQWow6T0jeNtu1WxlNDTG_njWdvj4uidMddy7il0TWkSpudQM6UrURPxKCSXbS9JtKOJljMb14Jk3Cd-KfADP8puW9r1aYQLWuqT-VyciPdP-d2j7h1sXtTw-eQL2PQM2EXNI8vuzNa_ASPXLnpURWpBpUEfoMOWggEKQ3Q3da6JOiVjPsZT_yfwHi0Z6V8Uqo4yBjigPA1V3UaUvSjnQ0SbmjOMzNCX6GjppF35vTIFN63mHvNedwS0DRylwKkYRZzrJDmn_WNMzpPzhAAEwz2vO7LCthS4xJU9oOYYJZ7lzAltE_FDyvx_S36sJvZcFCSGza8CvhLfvc0hElbjYAZxEsi3v0gLJ7gVTSMUt7Oe2MGYNiKCqmeVgwtgI6tYv7CE3iDFJcNjhBFtFnOP6ApXKPVX5LT0SVdpuVcu1ct5X-prHwK20QjiZ-CLtHfFqrIG2AeOgZZaMBnWHVfRRmIh9le2nIBT6rba8NdbvWpR-XxTSs4ClWrc8ThU4v4-dHYRGOSIkTNlXqI4nQeABxCnRH9QF616V_S2EqysTwr8nHVUp8KiYyOqm9IaWez5mIV01Y1vhfQ8sBC0r_hhmdzuDMgF-tFQ4pNv_j0K5qR1_5OIjJ8sg-2nUyD01jWCjPspLi9TF1wnU8-7VLygWrh-fel_fv0HwXcqliwrpWL2aeO0Jy0_HS3RKeMLj3VSHmlaxgYZs1nQGlmJCAK21gI4CGvdJdFgQojESmhJkVMLdOmuzoWbas2CvGso77b1XdSR3hzR3PIG52Cxv6BM_d7TLh4xePnu1ZsPsnMu1VYOe2UtMBhXV_JSQLTN4wnwEWkGoGEGdMgGNj7P49qJNnQfnxH1yzKejm8LBP2DJUEehzPTJHZ1qP-kEwTve2LpVkbEN6LFpVjd5avOsx5UU2CgR5a9pDkjihS_MiUh3QETZn4dtEXgWGhSwNbwmsLg9JCO1UXXgrQ4_8XBUwf4vosZvW_nOVxUPyK0sgfTx7ZvKWvfNDzc8xKbYZJs3pc9jjvMadd5acoNsApAQ4Auw47Es0ty1_jwmRMOqnFM8RGDoJT7PdmZw5Sy13jvQwPKYpaFKw_SDWp7oSbZ5bqELxgKJWrWIyptCfn616r5doe9UTJQBT0ZJJ3uSUBQZG2oIgrD5LRDlV2MMgbivSkX81-uMoDnj1p9RSs7-sYK3FpeNoErIaCZl8jIE-FfsqesHf9YbiHiyqSn_Ygy4Zqg==",
+     "id": "rs_0d0f603d7f2b8d93006affe0b71b008197bddfbb347858ce64",
+     "additional_properties": {}
+    },
+    {
+     "type": "text",
+     "text": "{\n  \"checks\": [\n    {\n      \"campno\": \"20V343000\",\n      \"verdict\": \"same\",\n      \"complaint_quote\": \"loud mechanical grinding and knocking noises underneath the vehicle, which are early symptoms of internal input spline wear and impending PTU failure\",\n      \"recall_quote\": \"may cause some input spline teeth to wear off, which may eventually cause a loss of engagement between the transmission and the differential inside the PTU\",\n      \"reason\": \"The owner describes mechanical PTU deterioration attributed to input spline wear, matching the recall's defect without requiring confirmation of the internal cause.\"\n    }\n  ],\n  \"proposed\": \"known_recall\",\n  \"similar\": [],\n  \"questions\": [],\n  \"summary\": \"The reported PTU grinding and knocking, described as symptoms of input spline wear, match the candidate PTU recall's defect; actual loss of drive or rollaway is not reported. Investigate the mechanical complaint and the reported refusal to inspect or schedule recall service because no dashboard warning is illuminated, as the supplied recall text states no such prerequisite.\"\n}",
+     "additional_properties": {
+      "openai": {
+       "logprobs": []
+      },
+      "logprobs": []
+     }
+    }
+   ],
+   "message_id": "msg_0d0f603d7f2b8d93006affe0b943b0819791f855abcbc89630",
+   "additional_properties": {}
+  }
+ ],
+ "response_id": "resp_0d0f603d7f2b8d93006affe0b5e91881978d578b235efa41dc",
+ "conversation_id": "resp_0d0f603d7f2b8d93006affe0b5e91881978d578b235efa41dc",
+ "model": "gpt-6.1-sol-2026-09-29",
+ "created_at": "2026-11-20T05:55:01.000000Z",
+ "finish_reason": "stop",
+ "usage_details": {
+  "input_token_count": 4955,
+  "output_token_count": 312,
+  "total_token_count": 5267,
+  "openai.cache_write_tokens": 0,
+  "cache_creation_input_token_count": 0,
+  "openai.cached_input_tokens": 4952,
+  "cache_read_input_token_count": 4952,
+  "openai.reasoning_tokens": 81,
+  "reasoning_output_token_count": 81
+ }
+}

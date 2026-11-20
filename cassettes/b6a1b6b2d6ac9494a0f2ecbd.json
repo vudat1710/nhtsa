@@ -1,0 +1,50 @@
+{
+ "type": "chat_response",
+ "messages": [
+  {
+   "type": "message",
+   "role": "assistant",
+   "contents": [
+    {
+     "type": "text_reasoning",
+     "text": "",
+     "protected_data": "gAAAAABq_-B0u2D7fjvY7wqIS2fDi4a5eaZCqBuCXOZLqIZ11j8g9KKzIgLz4PMT_ZYuLy0doeJmxvJSRcJvvtVejSCAVNUijeR1ZfpSFibpiCme4snW0PGLJzpK_oKfMNbBPeRcUoHijksmFbqdnv4G8jsAIRzBSqY3Vg6mId61WfLrgmlwd2M1Qakb2wTDJJmZS9zU9_zVuOIY_YpG3Q5s5nZA1HgpCfd5ayevobUPsbySvphqPBlymU-JfGuCEQirlIHNGHwnCoCSgaIbmvyUm2xiyGJTMsvzKZlqAnonxiPmvICv5CWqOmVdXHFKj8t4sdUWQjOxEMaVtkz_Won3rLFc5_050rKcldymEYBFw8p9X5Vyt8Mtlkw2oHeRV2rz_nvYaXmmJxYZT2bZw5_sdA9G2FdUuunKH_GDGZFWLnHwq6JA9IYq2yZy4Z7lu0_mVfQJ_8R_MoyIkFEyBc16-cpacXdlBRN9xGIDiKe91qifRY10XmPns0fbW8FuOwkoPH6f46um6bzmg-VcnhQ22Nu5zRJPgQ60jHbRMaWWiuhKEaZAjmRgyPqf20OR-qusvd5q9nD5Rasqp-KL8pbjzaU_82dEuomBQRC-EveP4Y8agg2QDbk83VcRYLvWJpa9lDf1x6z7Bg2aycjVMudGVSmx__6ult7H6lHaGSO2scrqTMsKC2CWvNFhven89OrEb--gy-iqaT30pZmTKsA7dk3P7jHFavRo8IBYQjmsKaNBCw6IbLXzkI_baRxwKfZBfFss3WPtJyLiDcDKoNKM8bC-HpVmkmu3K1L5zppl5NaP7ROaTfzF2FBvg7c7_33dIU8mU-sPfQ4wmHr7SRjsZr26U-pSGeDOd5ChBmucZUa5NtIPxnfx7EoG20EzfpP5DXcqHwqLNkYwMHzUgk7D4t8xPxm_bkfQLM7TGmhTdb6IWPyhAkGTtYNgtagPcTKOPxb6ugIqOrEokCj7whJPbrxCFFqcUeTInlHWs1iJJUI40kX0BWe17fW-8_GGSnQx_9cqWIB0dRcGpQOu-i_p1vwDQ3kNlvWM0XRmsFDJas7W3Ev_s6txun6xuAjQ-akGHkgzUU-_FoD5uziPB2_-CNnEqsCyxxF2PRhiwR66YWncgu3cNN8gzJh-1STcymY2tvqDoiZn5uG1WO5FmF3Kh8Pe0u-U-mP5QsAzp_yEyzS2X6jTUMCjASS939MSQxtUoZ0qANt3Ql7aUsNUPfUsV5z9GoQS2XcvM1Y-Zo4UH_uwSE9eQcsq3c_oyLqzWGtC0jvQrv39yWtNaIwV9_Qfh9SdpIDCOd9sJfG7uupAdkql1dwDUfTlXi6k6E1jsUPUb8A1YCGCCqCdPFIgFcbSPDV0pMPFSfiYDJkzXMVH1u081c6d1hLFIc0jEAvBDiYbwV6en_dBVDfJSNLrqKiNxIBsZbJYUHLnt6JyQZGnu8CFpEcepcI81bgROL0lfUzYOsEIUm4qFEebslWrKCyGrMPkMRShstzEuvozGpkgwBRyXiSYkfhKAq4dAVu2kWDK5rbdKzrM",
+     "id": "rs_0e4f8fe66fceef39006affe0737ef88197ae4189ab3194e322",
+     "additional_properties": {}
+    },
+    {
+     "type": "function_call",
+     "call_id": "call_0iB24o9jUImVm4JhmFRbBUWo",
+     "name": "search_complaints",
+     "arguments": "{\"query\":\"Intermittent electrical short in high-voltage battery cooling pump wiring or connector; battery coolant pump malfunction and BECM check-engine faults.\"}",
+     "status": "completed",
+     "hosted": false,
+     "additional_properties": {
+      "openai": {
+       "item_id": "fc_0e4f8fe66fceef39006affe073fbe08197b169694cef4ddd57"
+      },
+      "fc_id": "fc_0e4f8fe66fceef39006affe073fbe08197b169694cef4ddd57",
+      "status": "completed"
+     }
+    }
+   ],
+   "additional_properties": {}
+  }
+ ],
+ "response_id": "resp_0e4f8fe66fceef39006affe07254b88197b12f4c2fef5bd2be",
+ "conversation_id": "resp_0e4f8fe66fceef39006affe07254b88197b12f4c2fef5bd2be",
+ "model": "gpt-6.1-sol-2026-09-29",
+ "created_at": "2026-11-20T05:53:54.000000Z",
+ "finish_reason": "tool_calls",
+ "usage_details": {
+  "input_token_count": 3120,
+  "output_token_count": 63,
+  "total_token_count": 3183,
+  "openai.cache_write_tokens": 826,
+  "cache_creation_input_token_count": 826,
+  "openai.cached_input_tokens": 2291,
+  "cache_read_input_token_count": 2291,
+  "openai.reasoning_tokens": 14,
+  "reasoning_output_token_count": 14
+ }
+}

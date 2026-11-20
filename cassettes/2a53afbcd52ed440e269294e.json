@@ -1,0 +1,43 @@
+{
+ "type": "chat_response",
+ "messages": [
+  {
+   "type": "message",
+   "role": "assistant",
+   "contents": [
+    {
+     "type": "function_call",
+     "call_id": "call_hXO1cS3Za4RiLaeOwAliIEUH",
+     "name": "search_complaints",
+     "arguments": "{\"query\":\"Intermittent propulsion loss or stalling with simultaneous warning lights and A/C shutdown, no response in Drive or Reverse until restart, intermittent CAN communication concern\"}",
+     "status": "completed",
+     "hosted": false,
+     "additional_properties": {
+      "openai": {
+       "item_id": "fc_0abe3898da819532006affe06714fc8197af47f4f0df03c038"
+      },
+      "fc_id": "fc_0abe3898da819532006affe06714fc8197af47f4f0df03c038",
+      "status": "completed"
+     }
+    }
+   ],
+   "additional_properties": {}
+  }
+ ],
+ "response_id": "resp_0abe3898da819532006affe06609308197bad3a9f83145adc5",
+ "conversation_id": "resp_0abe3898da819532006affe06609308197bad3a9f83145adc5",
+ "model": "gpt-6.1-sol-2026-09-29",
+ "created_at": "2026-11-20T05:53:42.000000Z",
+ "finish_reason": "tool_calls",
+ "usage_details": {
+  "input_token_count": 2320,
+  "output_token_count": 49,
+  "total_token_count": 2369,
+  "openai.cache_write_tokens": 0,
+  "cache_creation_input_token_count": 0,
+  "openai.cached_input_tokens": 2317,
+  "cache_read_input_token_count": 2317,
+  "openai.reasoning_tokens": 0,
+  "reasoning_output_token_count": 0
+ }
+}

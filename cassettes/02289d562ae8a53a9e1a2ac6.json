@@ -1,0 +1,43 @@
+{
+ "type": "chat_response",
+ "messages": [
+  {
+   "type": "message",
+   "role": "assistant",
+   "contents": [
+    {
+     "type": "function_call",
+     "call_id": "call_jziSlrjGuCl56O97xdCbDwJ5",
+     "name": "search_complaints",
+     "arguments": "{\"query\":\"ICCU failed without warning, leaving vehicle stranded during a trip\"}",
+     "status": "completed",
+     "hosted": false,
+     "additional_properties": {
+      "openai": {
+       "item_id": "fc_0ee0861546e33c95006affe04ebf1081979f9032b0fb7bc626"
+      },
+      "fc_id": "fc_0ee0861546e33c95006affe04ebf1081979f9032b0fb7bc626",
+      "status": "completed"
+     }
+    }
+   ],
+   "additional_properties": {}
+  }
+ ],
+ "response_id": "resp_0ee0861546e33c95006affe04d9008819790a755303ea0d371",
+ "conversation_id": "resp_0ee0861546e33c95006affe04d9008819790a755303ea0d371",
+ "model": "gpt-6.1-sol-2026-09-29",
+ "created_at": "2026-11-20T05:53:17.000000Z",
+ "finish_reason": "tool_calls",
+ "usage_details": {
+  "input_token_count": 1306,
+  "output_token_count": 31,
+  "total_token_count": 1337,
+  "openai.cache_write_tokens": 0,
+  "cache_creation_input_token_count": 0,
+  "openai.cached_input_tokens": 1303,
+  "cache_read_input_token_count": 1303,
+  "openai.reasoning_tokens": 0,
+  "reasoning_output_token_count": 0
+ }
+}

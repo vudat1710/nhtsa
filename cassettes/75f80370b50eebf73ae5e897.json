@@ -1,0 +1,39 @@
+{
+ "type": "chat_response",
+ "messages": [
+  {
+   "type": "message",
+   "role": "assistant",
+   "contents": [
+    {
+     "type": "text",
+     "text": "{\n  \"checks\": [],\n  \"proposed\": \"possible_new\",\n  \"similar\": [\n    {\n      \"odino\": 11778388,\n      \"quote\": \"While driving at speeds under 45 mph, the vehicle suddenly stops accelerating.\"\n    }\n  ],\n  \"summary\": \"The complaint describes sudden engine shutdown at highway speed, loss of accelerator response, and loss of power-steering assistance; none of the candidate recalls addresses these failures. An earlier complaint reports loss of acceleration but describes the engine continuing to rev, so it does not establish the same failure. Obtain the dealership's diagnostic findings and preserved fault records to investigate a potential new safety defect.\"\n}",
+     "additional_properties": {
+      "openai": {
+       "logprobs": []
+      },
+      "logprobs": []
+     }
+    }
+   ],
+   "message_id": "msg_0b449a4ea19f9d96006affdd855bdc81908a5a22f36f3e07e5",
+   "additional_properties": {}
+  }
+ ],
+ "response_id": "resp_0b449a4ea19f9d96006affdd842cd48190922be90edbf83866",
+ "conversation_id": "resp_0b449a4ea19f9d96006affdd842cd48190922be90edbf83866",
+ "model": "gpt-6.1-sol-2026-09-29",
+ "created_at": "2026-11-20T05:41:24.000000Z",
+ "finish_reason": "stop",
+ "usage_details": {
+  "input_token_count": 4386,
+  "output_token_count": 140,
+  "total_token_count": 4526,
+  "openai.cache_write_tokens": 815,
+  "cache_creation_input_token_count": 815,
+  "openai.cached_input_tokens": 3496,
+  "cache_read_input_token_count": 3496,
+  "openai.reasoning_tokens": 0,
+  "reasoning_output_token_count": 0
+ }
+}

@@ -1,42 +1,73 @@
 import { useEffect, useState } from 'react'
-import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom'
-import { api } from './api/client'
-import { CasePage } from './pages/CasePage'
-import { NewComplaintPage } from './pages/NewComplaintPage'
-import { QueuePage } from './pages/QueuePage'
-import { ReviewsPage } from './pages/ReviewsPage'
-import { TrustPage } from './pages/TrustPage'
+import { BrowserRouter, NavLink, Outlet, Route, Routes } from 'react-router-dom'
+import { ops } from './api/client'
+import { EvalPage } from './ops/EvalPage'
+import { RunPage, RunsPage } from './ops/RunsPage'
+import { TryPage } from './ops/TryPage'
+import { InboxPage } from './workspace/InboxPage'
+import { IssuePage, IssuesPage } from './workspace/IssuesPage'
+import { TicketPage } from './workspace/TicketPage'
+
+/** The analyst's product: inbox, tickets, emerging issues. No system internals. */
+function WorkspaceLayout() {
+  return (
+    <>
+      <header className="top">
+        <strong>Recall Match</strong>
+        <nav>
+          <NavLink to="/" end>Inbox</NavLink>
+          <NavLink to="/issues">Emerging issues</NavLink>
+        </nav>
+        <NavLink to="/ops" className="small muted">Operations ↗</NavLink>
+      </header>
+      <main><Outlet /></main>
+    </>
+  )
+}
 
 function ModelStatus() {
   const [h, setH] = useState<{ llm_mode: string; model: string | null } | null>(null)
-  useEffect(() => { api.health().then(setH).catch(() => setH(null)) }, [])
-  if (!h) return <span className="muted small">API offline</span>
-  return <span className="muted small">{h.model ? `model ${h.model} · ${h.llm_mode}` : 'no model configured · replaying recorded answers'}</span>
+  useEffect(() => { ops.health().then(setH).catch(() => setH(null)) }, [])
+  if (!h) return <span className="small">API offline</span>
+  return <span className="small">{h.model ? `model ${h.model} · ${h.llm_mode}` : 'no model configured · replaying recordings'}</span>
+}
+
+/** For the people who build and run the system: runs, audit trails, failure drills, evaluation. */
+function OpsLayout() {
+  return (
+    <>
+      <header className="top ops">
+        <strong>Recall Match · Operations</strong>
+        <nav>
+          <NavLink to="/ops" end>AI runs</NavLink>
+          <NavLink to="/ops/eval">Evaluation</NavLink>
+          <NavLink to="/ops/try">Try a complaint</NavLink>
+        </nav>
+        <ModelStatus />
+        <NavLink to="/" className="small">← Workspace</NavLink>
+      </header>
+      <main><Outlet /></main>
+    </>
+  )
 }
 
 export function App() {
   return (
     <BrowserRouter>
-      <header className="top">
-        <strong>Recall Match</strong>
-        <nav>
-          <NavLink to="/" end>Queue</NavLink>
-          <NavLink to="/reviews">Engineer review</NavLink>
-          <NavLink to="/new">New complaint</NavLink>
-          <NavLink to="/trust">Can you trust it?</NavLink>
-        </nav>
-        <ModelStatus />
-      </header>
-      <main>
-        <Routes>
-          <Route path="/" element={<QueuePage />} />
-          <Route path="/case/:odino" element={<CasePage />} />
-          <Route path="/result/:id" element={<CasePage />} />
-          <Route path="/reviews" element={<ReviewsPage />} />
-          <Route path="/new" element={<NewComplaintPage />} />
-          <Route path="/trust" element={<TrustPage />} />
-        </Routes>
-      </main>
+      <Routes>
+        <Route element={<WorkspaceLayout />}>
+          <Route path="/" element={<InboxPage />} />
+          <Route path="/tickets/:odino" element={<TicketPage />} />
+          <Route path="/issues" element={<IssuesPage />} />
+          <Route path="/issues/:id" element={<IssuePage />} />
+        </Route>
+        <Route element={<OpsLayout />}>
+          <Route path="/ops" element={<RunsPage />} />
+          <Route path="/ops/runs/:id" element={<RunPage />} />
+          <Route path="/ops/eval" element={<EvalPage />} />
+          <Route path="/ops/try" element={<TryPage />} />
+        </Route>
+      </Routes>
     </BrowserRouter>
   )
 }

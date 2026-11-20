@@ -57,6 +57,33 @@ def recalls_for(con: sqlite3.Connection, v: Vehicle, as_of: str, comps: list[str
     return ordered[:MAX_RECALLS], len(ordered)
 
 
+def recall_model_years(con: sqlite3.Connection, campnos: list[str], make: str, model: str) -> dict[str, list[str]]:
+    """Which model years of this make/model each recall covers (for 'your 2024 IONIQ 5 is covered: 2022-2024')."""
+    if not campnos:
+        return {}
+    rows = con.execute(f"""SELECT DISTINCT campno, year FROM recall_vehicles WHERE make = ? AND model = ?
+                           AND campno IN ({",".join("?" * len(campnos))}) ORDER BY year""", (make, model, *campnos))
+    out: dict[str, list[str]] = {}
+    for campno, year in rows:
+        out.setdefault(campno, []).append(year)
+    return out
+
+
+def recalls_other_years(con: sqlite3.Connection, v: Vehicle, comps: list[str], as_of: str) -> list[dict]:
+    """Recalls on the same make/model and component but other model years, filed before as_of. Context for a
+    possible recall-scope gap (e.g. the ICCU recall covers 2022-2024; this complaint is a 2027). Not shown to the AI."""
+    if not comps:
+        return []
+    rows = con.execute(
+        f"""SELECT r.campno, r.filed, r.defect, group_concat(DISTINCT rv.year) AS years
+            FROM recall_vehicles rv JOIN recalls r USING (campno)
+            WHERE rv.make = ? AND rv.model = ? AND rv.comp IN ({",".join("?" * len(comps))}) AND r.filed < ?
+              AND r.campno NOT IN (SELECT campno FROM recall_vehicles WHERE make = ? AND model = ? AND year = ?)
+            GROUP BY r.campno ORDER BY r.filed DESC LIMIT 50""",
+        (v.make, v.model, *comps, as_of, v.make, v.model, v.year)).fetchall()
+    return [{**dict(r), "years": sorted(r["years"].split(","))} for r in rows]
+
+
 def investigations_for(con: sqlite3.Connection, v: Vehicle, as_of: str) -> list[dict]:
     rows = con.execute(
         """SELECT DISTINCT i.* FROM investigation_vehicles iv JOIN investigations i USING (action)

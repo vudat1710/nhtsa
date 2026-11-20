@@ -38,7 +38,9 @@ def gather(con: sqlite3.Connection, c: Complaint, it: Intake) -> Evidence:
         same_component=bool(set(r["comps"]) & set(comps)), defect=r["defect"] or "",
         consequence=r["consequence"] or "", remedy=r["remedy"] or "") for r in rows]
     link_replacements(recalls)
-
+    years = queries.recall_model_years(con, [r.campno for r in recalls], c.make, c.model)
+    for r in recalls:
+        r.model_years = years.get(r.campno, [])
     dates = earlier_complaint_dates(con, v, comps, c.received, c.odino)
     for r in recalls:
         r.complaints_since = sum(d >= r.filed for d in dates) if r.same_component else 0

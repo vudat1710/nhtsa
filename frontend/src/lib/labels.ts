@@ -46,6 +46,10 @@ export const STEP: Record<string, string> = {
   decide: 'Decide: rules set the outcome and confidence',
 }
 
+export const STATUS: Record<string, string> = {
+  new: 'New', suggested: 'To do', waiting: 'Waiting for owner', resolved: 'Resolved', escalated: 'Escalated',
+}
+
 export const ISSUE: Record<string, string> = {
   unknown_recall: 'Cited a recall that is not a candidate',
   quote_not_found: 'A quote is not in the source text',

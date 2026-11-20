@@ -1,0 +1,46 @@
+{
+ "type": "chat_response",
+ "messages": [
+  {
+   "type": "message",
+   "role": "assistant",
+   "contents": [
+    {
+     "type": "text_reasoning",
+     "text": "",
+     "protected_data": "gAAAAABq_-AvKTLRlCxOF93GBhrNaU44xwqJVnQ4eKa9kKUwmP5EovCZfqUxLNb5yl53boTlWkwNk3UxJJRMu9oirendQhv9qJ0ieUYuuxEkqsO2LtH8i-bn0zxGfBydhR80kIkZHYiszndevSIHjlZyT9h2aIc5MCU-iQnoydGin9Lw0TqnNwTE3tJud8WTQwteqlCagyy34n5DkNXNoMwQO9LqoaLqFRHXO0meellZq-GfLYLDtjtsrqgDjfArMlutrxa9RSCoFfwTv5iFQJrLUqUytUZ6Cw2SvjGcPxLTd33Ssr2ybOZGSofZeL-NIKrIz-Rap5IAT2maTY5dXoa4yXCTNTW5Fq7CQ6XimmTY00IJ7Aa7cYgeJyfdJSD1lLsvMkAI6PHVyh-p1RwfK3JDGw6uPXeoVH8_KyTIUctsIiWF-0u2G0bsltmDxh8OW8nvKCszDCailSWQ67jVxHeqMEYsN-umpsCN4qmJN4BfFHt66bCqfeRqak_OnjwkYl6c1fZu421lnFMhSLTrFDU7uu-Thyhrj7tc2EG8TDyizAIcj-14eEHCwa8rHbaBjfLOUmf2ZdOw04o85NsWpkGP6l3jtuGkB3ZjdKVm1Cfy-Nh7T_aaQt8c3onORTDNU7Ef8FFVlEvVz8960spykZpCU_G-Hd0FO4OpwZ29IIvt_wxq9_TNBW-KszjQOE3acyU45qSSVmg9YHdj_sAe6tUHdS8ugP-DuFtNTf2I3nTp8k_a4mxQM8KsHLgAGogBzGlJoKjHjUNxikA1RedgzYRsbvx1aB3WuVn93GeaHTXfCaMaU6Z21ev7M6pit-i4NZIcKOHIbr1AUJ7wauVm6bVjafNrmuCvT20A2Nd4QmeTolASvJo_B3hYnfhpQZCMMCxZuiuiVbiwtytLiI5CDWSzJy5KXRIAtsyLMc7liFPAjIVntgdruKZTpqkKHQjMZJggJb7pAeFtKYQW6Ig2sYHBa4ArqGfvyDvzypgHVvHpVQjF9CtnFmYzRN2YhZaFXNAOiXAoi0IzfT7H7_xw27q7OeX-szcgzXf75BsH0hRplJ1G_kERdK8LrTxdAewiLmweP-Yk-yjCF4Zsele4hcOLn52cQ88sB-bsUCLJSOkx_DNMfeHB1gHaqYCSYzbZF-VA4hdTIQ6-BBHegr3NSPJFdCIIp7kE5Y-sF0ikHBcK3mwtAnxFE1eMY49hhFNDGxa_lWuy4DV0NFvU4Ddl8tF1CRcXRw1Lr697aG3-ZoKU0a2tljsVH5bjeUOBy9KhPY4mhQ_mDQBD8r-YdoGXMpeoc1fEQhjAjtO7PjqlCe3p4w9m0Gu59iuDS56RLYCI3wjLQOZnPeR1Poua8l2BzZCi0J34bVfzcKsi-z98B43J4U-q_U68yJ_IMQw7rCw8hW5YUgKtu1xwrvIcnmwxGAGNuzLFfzIwHPLF2Ut9pEbo_30HdPPKH_c-3VdxTsWvffCHjeTR1IzOKhlXe7nmJCkUVWyYlPh5_PS332fBrUwa-tYjt15-MU0DTUZVdEADbNmEKj0wIixo8rIfzaEerGGrsEtogkVsFiTe4cUBh0d9ZQ1IA96n6ft5dKIUo3ukNIQNL5ntTUMQ03ADrYzUZe-5P2dvGOt4ls1VFsBM7S29LS-FsLnc02U5qw48HgHJj8hlAx9O1d7MYWoXqOf0n2Az7KA3OCcKCB2XX78EuWhwgdbyc7Tb0ewS72cLuQdIPbf-S8RnzzZ4JL-3j6jndQ-Pm-YMILuwoNVPqra3lGofrLdGyLSlVu3s3jah-2NBb6kwk6HGSyoxirtMxfynbiwu8veV-E-ETyzt4iDokIbopY42qUO9dUSS3vKZfA6zLzLrug1P8ptrhbijnv--3X7GPX2CgBinQBD7C6aqFWGFdKvwHQBs_PjRXLL64z85_SwGAJgvbQbbX2kF0fb5Fj2vcavknuta7-fEYFWZIJsgROZnBmNf4EudHYL35993Tc4rLwef8qxorQyEdu0snr6vxImelnrkXe6bwJHL69wcjo7X9GMWpMkWoCFzp57JLEP4I_2PjivJRZWQFvj1d76UG8Tn0VNPcwLAiCcjP6O0sNL8BAJWZ5HTs5m0FGlqKM6oYYy38ceHVJush4plUiBGDSOSjp69IYchBXesw8PLJ4fllQza-aE24edAZ0KKDydBaJToVUQE8n4lVH7tRMdyl_tv31x26ZhTw1c-n9n4dsqiA0cutf46CjoIzcYuDv1u9hDygYxaVUPz03FKzRd3qH10LDRYwGfBhAJrCcrqjlg-sXveIQrr-0pyOIYUlaVHIvm0JH1fWUk7IpP-sVUbPA7rMIj4EvMq1QwQYo5bg1frOZiPQG9spaoth4L0y5cKht-Pa6Phb1lV3WPh5t3-gukjrG56qTO3wjHEzFIAzXl5A_-sz_ttPFFD41_HSLw8KoZjApOpVZsydi70J77o5qYRJMeuzmt20HBk5LzlZklKrPbcwWLRYbqP7sbzTX21cRIc_wpxCVssW_9qa8vBAJF0uv3RABfc7rnyqRpZzsIhkbMCjlQf9tXAsXQ5_S9S_Be-SUDgMHdG7KfdErhS2xw6aZYF0nN8rciO5FVvaDmLyOrcejDg6LWen7MTooBYRmBmOptN0kcNjltLv6Zgfq70KMc2Q9TtTWcomMGj9s_Q3h7eV0f2YVLX2zT9FXpPwNCKGx3mV87hSCoaATHcXhTMQVwPv4r5zXHGYjak7JdQ_4ba5sr-oJ4GiRj_6zsXU_4GRRT18Gn0pKlNDmsS-L0X6y7Y2qVBmvnhLJOGGvAyhoqVuzhjIBbkCE5RlErWOj3rmIEoFl7-ZcI6NzokibWEp3HAapUNzkRwZqUv-qTZU_PKRoLR3W9F3uc-r2_UmP3h6q8O7LSzfMcH7kL6AqquOAalzBj6WJFbKj8pyuzRK0N9yPcS2Q_0gHNIuIYwpXJu9jbJH9m3D_JJi2wdegvvLInWv593r5pepSk156nPcn7g-WI5cqQ_AVtWi7pA3JrEXa67BtPpGYRddQEnfETk8jpv84sEHWC1Hq6oZRLjG7roebWo71BuJY2cIpe5zi_SpbYBZbwLBatsERY-L7rTFKCpS2FPqqfUM3JsM1fVee9mEbRxT-f3TljJrGKgzQvbGHiBpQLE4UWPgGUOKWglylvZRiFWLFJ7dFNsQSEkTUW0Uf-y8bFdBrh4lqZxeaudJWpiNqkWZtKyooWy0-5Cum_aBM0276bxYT0V1Yi3pWSkaBuHV5J3Ot84u2fVrqJT6I-c7OO7WYF20k2VOXwBTQ4k4hP60nDIVEv7cEoLnmzilp7QloDkkjeUG4VZfs6B81Oi1cO4Ucu66NDjSTC8lV3Scu2RPJx5-oO8rlDFt5lxJiqIkjmGRI78HUqgkmV313OuKoyMtf37ICzqWFpU7OO3lewqSOmSontnJ7xVq42-2LDask23t53aU478AXdm2GjzxQZOl8kMi5x2uvDD3sd321cq3PRYOl03jBDZa-xpnNrKEk2D_y4gnE56vTFny6D0-7V-mIX-mkerrg_m5QOQlyxdWl60k5Q5py_f_kvCuyi6ZANk7ym7Hqsf3KfMXrnx_fV9Y4TzWm1Yy0FlY-nVSffGWbR0lXZC5blc7aRGx2aCavW_sJ2g9GOoRAu1--7vyUG6K8ZDBJNPOJf289mw1LttNredDDutjulRdIuGGPElNC4be2Uy3Kp1Tr-PpN2K2w95SIqV2mq_3_iRMDSxJN-x7aUITvkq39ZWbPgMww5vJ030iQ6tMdUq0VipIPb52uFYgLK-Kf5VYssLr_7TkiQHSlsb54sjrWK1AAUX8Oi8zguNdP5yEneIdVnH7Yo0-satCWa2gurzFXefxImOwLAT2ZW0tydH0GGPMkZJbvTiU2ctJS-vjGfeI1G8SSMkei_6Gez4P2OugJ1ogLRztSRwIy-RaorjyFvZfEJwJSmKu_2mhkJeX72sPRPl12MA6nCAza1glU09UW315yO2gZA5zAxcMieqVXhFwdn8M3DGrmv86jsFMl3vjuQ-VfqGVZT8bsLOlk0Rg7XNJM3mV9JU8WGBiD0uYvHSr9HvRbkAWbBJ7e3IDyiMb0wAp5yt7NEVFHRBHA0Hgocs_6ZX6ZalY5RR1o9ATL57vzIIbj0n1C_PuIMycslc19UR2CxamINcaUXpYq54CHmDO4bXxwkDir3XOvYMPYDZLVPHkeeDgLPkTGXmJT2wds-x6JytVAwGco66ZPaC7-00x-eXZw==",
+     "id": "rs_08805ec47bd24459006affe028081c8197abaab971c3f04e61",
+     "additional_properties": {}
+    },
+    {
+     "type": "text",
+     "text": "{\n  \"checks\": [\n    {\n      \"campno\": \"20V668000\",\n      \"verdict\": \"same\",\n      \"complaint_quote\": \"sudden, uncommanded loss of motive power without any advance warning\",\n      \"recall_quote\": \"may progress to a loss of propulsion, increasing the risk of a crash\",\n      \"reason\": \"The reported sudden loss of motive power matches the recall's loss-of-propulsion consequence, without requiring the owner to establish its cause.\"\n    }\n  ],\n  \"proposed\": \"known_recall\",\n  \"similar\": [],\n  \"questions\": [],\n  \"summary\": \"The repeated loss of motive power matches the transmission recall's stated consequence. However, the simultaneous communication faults, erratic gauges, and limp-mode operation do not establish an accumulator defect; review recall completion and inspect for the recalled condition while continuing diagnosis of the electrical and transmission symptoms.\"\n}",
+     "additional_properties": {
+      "openai": {
+       "logprobs": []
+      },
+      "logprobs": []
+     }
+    }
+   ],
+   "message_id": "msg_08805ec47bd24459006affe02cb10081978cbe391d5c8467e6",
+   "additional_properties": {}
+  }
+ ],
+ "response_id": "resp_08805ec47bd24459006affe02716208197a5c9af16c37d4741",
+ "conversation_id": "resp_08805ec47bd24459006affe02716208197a5c9af16c37d4741",
+ "model": "gpt-6.1-sol-2026-09-29",
+ "created_at": "2026-11-20T05:52:39.000000Z",
+ "finish_reason": "stop",
+ "usage_details": {
+  "input_token_count": 2262,
+  "output_token_count": 385,
+  "total_token_count": 2647,
+  "openai.cache_write_tokens": 0,
+  "cache_creation_input_token_count": 0,
+  "openai.cached_input_tokens": 2259,
+  "cache_read_input_token_count": 2259,
+  "openai.reasoning_tokens": 190,
+  "reasoning_output_token_count": 190
+ }
+}

@@ -1,0 +1,50 @@
+{
+ "type": "chat_response",
+ "messages": [
+  {
+   "type": "message",
+   "role": "assistant",
+   "contents": [
+    {
+     "type": "text_reasoning",
+     "text": "",
+     "protected_data": "gAAAAABq_92dfZFTIudIA1N9HwPTCwbxnrxWb7_wj0b_FjktyqrGygNpFn8tM5EePdqel2H_hFLzY7lTkENTkjIGpir9XhGZOXPAMZAE0uvkj4pfGmiAY8w-3IiYIDuRF7MyDQ3S-pf8cnm8qD75e-pEQP2I_UtY-hizaBTxhh4_-yFYBEUQalC7bmEVpMeoRnTFXc7Afg9M8iu_j0nLbzV5kna0dT3BChjmoAc5XrRBIzkYKsnG2wEcSS8V9fNoKUeWUkatqaRW3kLve66peVen9RGiFUHPlSUAkWS093XOaSNXdA6PLTezr79Yeu0btwwcmjwHDYWpM6Xn8kKufSr6DUDWksfl3eVkWk3w9M1YaamQrPrFRawkQemxJyInXZCUEeSrGsEvrZ3r51hrmq8WQyty2UV5dTBDQ-SVEnATLN7H4XmISt7b1OKovleSPBeIXUVZwHR0eaXEai7LRyTcdYq5TE8iSLUBUpYUYfV-vPzd7VPj5y05IE4tupbU89CZXdRX1uLrzpwNUpO4RvZw8f71OsgWAxdlMvbsFEBWzLvwdHGoN1GO0-azIQ4EnkdWBk0n41WDJaBZbJN8L9YQE64cvWYfsouNoVINcx2kZKmuQPiEvVh4sMFRB9lR9-j7BMZCI9y-8Ublm4unvE5iskLyubQPsII9pqlyT6sFBWY7QQCub32_pypaYipf6h_I143iLy2_HFy8Ai_kDt_-F_adRLSLQRDvke6gTrP6AlocwsMJ-YcnnZP030r4OGta4pp5MwbuEpcdxmATNRREIGo98KnrDB2Py1nMU5a0UQhiSEVtKhkeMjiD15UoEXvMD23dkEf4DxMyqt2Fr_K-MZTpR4Oy7v13jzMuQtnsoifwJAKasXMyp1srfQIyqR40ZeBJ4yuGxix3vcdJw6mFmiVQGDngcOQgpgS5efYpfISGcENvVacUxRNwR5rv3VP5IcmZFTtko1h0E39eM00rrZ0CyNDc9JXXR5AMmNEpuxV3aLX2V_YVnw9GYyinpBnF05lSMbtKzgGyWi5537tyKNTpL4kJyQgdO0xhW9TG-bekqWJBhEVrKBc_KYZwtdZk1BSUDI3KjfDNVVaPCQt10XXDQt6jzY_y5N5DJeEWqOR60QXqYG60qvnRK52UR9K7ynMiqbdGoZQFyZ8yDF6wJ4fL0WLLtEHsr14K9hu3BEF2QCTBROI0huDqJfsW40VnoVen9h0dd97SSHWyvyLAjAr00Hqi1GbuxKJwPJcsF-kb6VjKaVB3iu20e2uAzRgfWT0AqqDq-1qJG6coKbOFoDP9mzRhKI3e3cINzhGI9t2omHw-71M8jg0_jPOw_x9-qhwfnxjrOk-xBwEZ7CNvnUuKCj_xPcxg2D2nHBEOZS2WTNpD_nwTaLKJhyi1gbVsxjxliZvpsPp8vnWESo7uNXvHKCmo521wdckOmv0h9v7BPU6t0VcmyrGgDtPw2tVarBQInwcaaATrZUiQtXnWdyksPMLyDU_Y1ePLXosSI9KcsLLtvT4=",
+     "id": "rs_07548f15cecd8dcf006affdd9be16c81969e49ea8a26c8c436",
+     "additional_properties": {}
+    },
+    {
+     "type": "function_call",
+     "call_id": "call_pyXvy5wdV920M1TkPD0syRAh",
+     "name": "search_complaints",
+     "arguments": "{\"query\":\"XC90 T8 battery cooling pump intermittent electrical signal, wiring short at connector, BECM faults and check-engine light\"}",
+     "status": "completed",
+     "hosted": false,
+     "additional_properties": {
+      "openai": {
+       "item_id": "fc_07548f15cecd8dcf006affdd9c24e48196925aa38f70cc847e"
+      },
+      "fc_id": "fc_07548f15cecd8dcf006affdd9c24e48196925aa38f70cc847e",
+      "status": "completed"
+     }
+    }
+   ],
+   "additional_properties": {}
+  }
+ ],
+ "response_id": "resp_07548f15cecd8dcf006affdd9acc508196b71c55de068560e5",
+ "conversation_id": "resp_07548f15cecd8dcf006affdd9acc508196b71c55de068560e5",
+ "model": "gpt-6.1-sol-2026-09-29",
+ "created_at": "2026-11-20T05:41:46.000000Z",
+ "finish_reason": "tool_calls",
+ "usage_details": {
+  "input_token_count": 3055,
+  "output_token_count": 56,
+  "total_token_count": 3111,
+  "openai.cache_write_tokens": 761,
+  "cache_creation_input_token_count": 761,
+  "openai.cached_input_tokens": 2291,
+  "cache_read_input_token_count": 2291,
+  "openai.reasoning_tokens": 11,
+  "reasoning_output_token_count": 11
+ }
+}

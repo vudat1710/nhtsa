@@ -95,6 +95,9 @@ def test_partial_or_short_text_asks_for_info(case):
     c, it, ev = case
     it.flags.append("short_text")
     assert decide(c, it, ev, judgment(SAME_868), "ai_verified").outcome == "needs_info"
+    # regression (test set C): "car broke" with no matching recall must not be escalated as a new defect
+    d = decide(c, it, ev, judgment(proposed="possible_new"), "ai_verified")
+    assert (d.outcome, d.escalate) == ("needs_info", False)
 
 
 def test_same_part_different_failure_is_escalated(case):

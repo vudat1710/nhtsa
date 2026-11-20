@@ -1,4 +1,6 @@
-import type { CaseView, Complaint, EvalReport, QueueItem, Result, Review, ReviewItem, RunEvent } from './types'
+import type {
+  ActionId, Complaint, EmergingIssue, EvalReport, InboxItem, Result, RunEvent, RunSummary, Ticket, TicketStatus,
+} from './types'
 
 async function get<T>(path: string): Promise<T> {
   const r = await fetch(`/api${path}`)
@@ -6,36 +8,54 @@ async function get<T>(path: string): Promise<T> {
   return r.json() as Promise<T>
 }
 
-export const api = {
-  queue: () => get<QueueItem[]>('/queue'),
-  case: (odino: number) => get<CaseView>(`/cases/${odino}`),
-  result: (id: string) => get<Result>(`/results/${id}`),
-  complaint: (odino: number) => get<Complaint>(`/complaints/${odino}`),
-  reviews: () => get<ReviewItem[]>('/reviews'),
-  evals: () => get<EvalReport[]>('/evals'),
-  health: () => get<{ llm_mode: string; model: string | null; live_model: boolean }>('/health'),
-  review: async (resultId: string, body: Omit<Review, 'result_id' | 'created_at' | 'reviewer'>) => {
-    const r = await fetch(`/api/results/${resultId}/review`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...body, result_id: resultId }),
-    })
-    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`)
-    return r.json() as Promise<Review>
+async function post<T>(path: string, body: unknown): Promise<T> {
+  const r = await fetch(`/api${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  if (!r.ok) {
+    const text = await r.text()
+    let detail = text
+    try { detail = JSON.parse(text).detail ?? text } catch { /* not JSON */ }
+    throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail))
+  }
+  return r.json() as Promise<T>
+}
+
+export interface ActionBody {
+  action: ActionId; campno?: string | null; issue_id?: number | null; issue_title?: string | null
+  issue_kind?: string | null; issue_comp?: string | null; message?: string | null; reason?: string; disagrees?: boolean
+}
+
+/** The analyst's workspace. */
+export const workspace = {
+  inbox: () => get<InboxItem[]>('/inbox'),
+  ticket: (odino: number) => get<Ticket>(`/tickets/${odino}`),
+  act: (odino: number, body: ActionBody) => post<{ status: TicketStatus }>(`/tickets/${odino}/actions`, body),
+  issues: () => get<EmergingIssue[]>('/issues'),
+  issue: (id: number) => get<EmergingIssue>(`/issues/${id}`),
+  check: (odino: number, onEvent: (e: RunEvent) => void) => streamEvents(`/api/tickets/${odino}/check`, undefined, onEvent),
+}
+
+/** The operations portal. */
+export const ops = {
+  health: () => get<{ llm_mode: string; model: string | null; live_model: boolean }>('/ops/health'),
+  runs: () => get<RunSummary[]>('/ops/runs'),
+  run: (id: string) => get<Result>(`/ops/runs/${id}`),
+  complaint: (odino: number) => get<Complaint>(`/ops/complaints/${odino}`),
+  evals: () => get<EvalReport[]>('/ops/evals'),
+  drill: (target: number | Complaint, opts: { useLlm: boolean; fault: string | null }, onEvent: (e: RunEvent) => void) => {
+    const params = new URLSearchParams({ use_llm: String(opts.useLlm) })
+    if (opts.fault) params.set('fault', opts.fault)
+    return typeof target === 'number'
+      ? streamEvents(`/api/ops/drill/${target}?${params}`, undefined, onEvent)
+      : streamEvents(`/api/ops/try?${params}`, target, onEvent)
   },
 }
 
-export interface RunOptions { useLlm: boolean; fault: string | null }
-
-/** Run a case (stored complaint by id, or a typed complaint) and call onEvent for each progress event. */
-export async function runCase(target: number | Complaint, opts: RunOptions, onEvent: (e: RunEvent) => void) {
-  const params = new URLSearchParams({ use_llm: String(opts.useLlm) })
-  if (opts.fault) params.set('fault', opts.fault)
-  const typed = typeof target !== 'number'
-  const url = typed ? `/api/complaints/run?${params}` : `/api/cases/${target}/run?${params}`
+/** POST and read Server-Sent Events until the stream ends. */
+async function streamEvents(url: string, body: unknown, onEvent: (e: RunEvent) => void) {
   const r = await fetch(url, {
     method: 'POST',
-    headers: typed ? { 'Content-Type': 'application/json' } : undefined,
-    body: typed ? JSON.stringify(target) : undefined,
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
   })
   if (!r.ok || !r.body) throw new Error(`${r.status} ${await r.text()}`)
   const reader = r.body.getReader()

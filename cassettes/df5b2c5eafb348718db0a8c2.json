@@ -1,0 +1,46 @@
+{
+ "type": "chat_response",
+ "messages": [
+  {
+   "type": "message",
+   "role": "assistant",
+   "contents": [
+    {
+     "type": "text_reasoning",
+     "text": "",
+     "protected_data": "gAAAAABq_93xYX2KjBk13dYgjvf28fi9B-aX9tUGM2tT30r0ZykFrHPobYZHCxab59RHQLt8-NRaPFb1ENZnwdUVH_-7qvCwGIAKBLSKOaWWuHVCNDjzMyYCoEAkH0ld_hGFhldpEiDDLLLhgnUfs0BYsr_LzjbqIjYNyVeYD4fVFnypdyAGTNTKgYIi-W3KbMK-GdYqIq5Bl6XO0WIr5tZpB7WCxXdAfyymCjeGSZcHpRqd-PNz2fpAbbnVaHDfEsdyzGiVUd5wLe0VcFvAbZsacTziLC-WLnmNXSqXRCWbtBDS_DskPtx3r5D_Ud6Z6xBeIhZWv64TRuHok_ZUq7tbMzKXb6juz0u0iyL7x017MiU3QM_oMExfuCxsoU7ufq7vzq2C-xnLpkST1JXV1Mcj9hHJlJ2d96dKPEu4mfJ6IUwGmwnLR6eSiskbpfnVcZC4R40qASK-9gAsDgjmQHHxpYPknE4WbN9DVgQ1uGE6OrlQCf8XWR0gP_k7eSPEooBoYrvRwGRiUvE1eEOEIT5cQkAJq7-jPWG1_0nwV7ud8k6JuJPil-qR_AzFXsbU097sEOn7EMJRSjdu2hGGE6lQ6PkjPJz3hfGv3p102sQ4YfZQuzmaIlONyIi-0vNibBCMMWJOrhOwHJuI5EU7PbFt3KVTeX42Dkdu0dx-W7euF3RELxwTgB6RWc-LV3y-CpMfM1JoNzt2Dm_jgke8t33_5jUyWFE2rigM1rSFUKMr4YESnR9Kz3ZRfbr7HzAzTCbAXED_xYxQgnr1YxqlXP8UqrERCeX0bMdPrwbrWjh5HuSZZB02fOHelK3DqMy0pdGeWRNr5pWlKjNEkMtECfNHmiDBSGoYMZ9KgsVwtsVuwiYhuno26uBhmrzInbvuzrFwoiskUVhyXLWEJv-5VoMbx-avKe1S2JrbKPq1G6bD5bB-5SP_yTbcd615xAakNj-4JFsLWh7hgh0gk0ZPfiqZYKUA7khq3HFoA7P2txxiUuRroBIXVPCNJyvBONX9dnGAvZR4rrEPRe71B0vLgLVZ0cAxGDykz38UK3uvhCOPt2hvLXl0fgBOQAdLvVvLAo2LfUpp1E_r9xBbiXVNhT-TwL6Dy5PlrniscwWwqt5_q5AYcAtacNBugVH0KhN7BY81WlGpheutnhAIfnG2VnIlsA6yXnU_2UaGiXa4hbztjf0x8ImOlH69NBaPimi4iBql8Vy1RdO4ROesf_53ynI8u3XJtakdp37t2S93Um5OpRNCwS5HH2GweAMNPkjpPp380HmcsdsaksFhkRzdMn98lRaw9nKxQnf3PrTcgyRqyeCevCLyz5SD4qAmQiodMF5rLHZhgLEJ5rgQWhHqiBuLtDuaaAQeYqUd5Yly7f1WzWChbPpPtOTncsDzHcnqs9FL7sAB4cO0CgQjqA3H7mqnhyNDTVT9Zq_sySM1fuQ9U0OhzzGmpIfmuovj6PFRjGYmOx0qk1_GA0tH4By1IU4hf5wNyanFE81oIANg2-uNfi94djEDgX1ncnyI1mHWPtf7Am7tXoAG_UMIm3fyx7J_2yLAlSH5oLtSjN5u8vj4P0dKZasGNN8Dd9xQSsSMdao83pGkodxN3wAuxIcVGW2pvTz38gJhr3lsINunJLMd-UoHwuS7HKRt_bNAkkLO5preoaCvYCctadbHRfYTeb3wYZcs9yEfbmaIcOA8tWu7a-5P4pjGiGCtDuwGblKPNhNyW8KJyjU_6AX3uJgIcWl2RVhfhN6P8PIrN_cxCIaRsFTc_s9ocPu8w0pXp7be12kVJ163W6IisyNlrTI4xLBhKdxwDx_M-YKgqaRfsZDmEvecXhVvpWoEtu1ShToBW3mof_vfMOAklEMwLt3dfMQ4_xAn5vmWePg3VLwoo7GpzwNozGDCw5qt5nHVxert6reF9RXHv2ThzJB6RMnWUAzjCLsyeEN6cO0bvFcq3e_MvCdGsC8bmv7Dix9gZ3mt_wfSIwyVd1PDB3OndEQxbdx9tar-JcQJTSVmDRou0wdQHBa5ymDQre5wt5EcTjKWA_XeM2gt-0LKUZrx_fBQcLBS9JkvuY9f5Swm9iXGAKfi8ilXjonuRHroWX8q_lps7pwxYJVi24BIzH4kzE5bCd12o4RpBSCagGPS-5dZFIvudWyJNuV60-mQzJnjdTo099q4FRX-I4YvFpdt6Pme6wYRe9gGqjVgu65j2yX7QlYOXFBP8LTwxOOeveJ6tYuwGFKB0Vso4pVe2jkPnpMXCDNqd1pm4VjgGYI-sAqQ_d_-S-6snE73cXtnxBwhuP3wbIFBDN-lYWZ0iJURrdwxr9g8uzQS-jK2CvqMMbik9b81M3Ol7BSA0QBSS8wS3TDckHl8w2EQpqfRNmh8cLlMVmw_dhk6T11qIoPjCG0cQoWPnA0S6giQeR0=",
+     "id": "rs_05d2bc2e1e814d4c006affddea963881978d2dd5b96577a74a",
+     "additional_properties": {}
+    },
+    {
+     "type": "text",
+     "text": "{\n  \"checks\": [\n    {\n      \"campno\": \"20V343000\",\n      \"verdict\": \"partial\",\n      \"complaint_quote\": \"making loud mechanical grinding and knocking noises underneath the vehicle\",\n      \"recall_quote\": \"may cause some input spline teeth to wear off\",\n      \"reason\": \"The reported PTU noises are compatible with internal wear, but the complaint does not establish the recalled spline failure or report actual loss of drive or Park function.\"\n    }\n  ],\n  \"proposed\": \"needs_info\",\n  \"questions\": [\n    \"Has the vehicle actually lost drive power or rolled while shifted into Park?\",\n    \"Has any inspection identified input spline wear or another source of the grinding and knocking?\"\n  ],\n  \"similar\": [\n    {\n      \"odino\": 11686915,\n      \"quote\": \"it was diagnosed with a power transfer unit failure.\"\n    },\n    {\n      \"odino\": 11758385,\n      \"quote\": \"The sudden internal mechanical failure of the PTU stripped the drive splines while operating the vehicle.\"\n    }\n  ],\n  \"summary\": \"The owner reports mechanical PTU noises without an illuminated warning light and says the dealer and manufacturer refused inspection. The noises could relate to the PTU spline-wear recall, but loss of drive and rollaway are described as risks rather than events that occurred. Obtain an inspection finding and clarify any actual loss of drive or Park function before confirming the recall match.\"\n}",
+     "additional_properties": {
+      "openai": {
+       "logprobs": []
+      },
+      "logprobs": []
+     }
+    }
+   ],
+   "message_id": "msg_05d2bc2e1e814d4c006affddecc2808197aec5fb03041882d1",
+   "additional_properties": {}
+  }
+ ],
+ "response_id": "resp_05d2bc2e1e814d4c006affdde97d208197ad0c7db30bd305c4",
+ "conversation_id": "resp_05d2bc2e1e814d4c006affdde97d208197ad0c7db30bd305c4",
+ "model": "gpt-6.1-sol-2026-09-29",
+ "created_at": "2026-11-20T05:43:05.000000Z",
+ "finish_reason": "stop",
+ "usage_details": {
+  "input_token_count": 5633,
+  "output_token_count": 383,
+  "total_token_count": 6016,
+  "openai.cache_write_tokens": 678,
+  "cache_creation_input_token_count": 678,
+  "openai.cached_input_tokens": 4952,
+  "cache_read_input_token_count": 4952,
+  "openai.reasoning_tokens": 74,
+  "reasoning_output_token_count": 74
+ }
+}

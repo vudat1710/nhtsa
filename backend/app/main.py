@@ -1,17 +1,13 @@
-"""FastAPI app: the analyst's queue and case files, engineer reviews, evaluation reports.
+"""FastAPI app. Two audiences, two routers:
+- /api/...      the analyst's workspace (api/workspace.py)
+- /api/ops/...  the operations portal: runs, audit trails, failure drills, evaluation (api/ops.py)
 
     uv run uvicorn app.main:app --app-dir backend --port 8000
 """
 from fastapi import FastAPI
 
-from app.api import cases, deps, evals, reviews
+from app.api import ops, workspace
 
 app = FastAPI(title="Recall Match")
-for module in (cases, reviews, evals):
-    app.include_router(module.router, prefix="/api")
-
-
-@app.get("/api/health")
-def health() -> dict:
-    setup = deps.llm()
-    return {"llm_mode": setup.cassette_mode, "model": setup.model_name or None, "live_model": bool(setup.model_name)}
+app.include_router(workspace.router, prefix="/api")
+app.include_router(ops.router, prefix="/api")

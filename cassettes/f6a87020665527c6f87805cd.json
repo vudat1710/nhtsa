@@ -1,0 +1,43 @@
+{
+ "type": "chat_response",
+ "messages": [
+  {
+   "type": "message",
+   "role": "assistant",
+   "contents": [
+    {
+     "type": "function_call",
+     "call_id": "call_0eilo0iURWoLmU60bGDowYFL",
+     "name": "search_complaints",
+     "arguments": "{\"query\":\"Airbags failed to deploy in rear impact followed by front impact into a truck, with severe hood and dashboard damage.\"}",
+     "status": "completed",
+     "hosted": false,
+     "additional_properties": {
+      "openai": {
+       "item_id": "fc_022475980320488b006affe0163ff881979ee134840380efe5"
+      },
+      "fc_id": "fc_022475980320488b006affe0163ff881979ee134840380efe5",
+      "status": "completed"
+     }
+    }
+   ],
+   "additional_properties": {}
+  }
+ ],
+ "response_id": "resp_022475980320488b006affe01541888197b54f6f7abefb6df2",
+ "conversation_id": "resp_022475980320488b006affe01541888197b54f6f7abefb6df2",
+ "model": "gpt-6.1-sol-2026-09-29",
+ "created_at": "2026-11-20T05:52:21.000000Z",
+ "finish_reason": "tool_calls",
+ "usage_details": {
+  "input_token_count": 1631,
+  "output_token_count": 42,
+  "total_token_count": 1673,
+  "openai.cache_write_tokens": 0,
+  "cache_creation_input_token_count": 0,
+  "openai.cached_input_tokens": 1628,
+  "cache_read_input_token_count": 1628,
+  "openai.reasoning_tokens": 0,
+  "reasoning_output_token_count": 0
+ }
+}

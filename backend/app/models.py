@@ -45,6 +45,7 @@ class RecallItem(BaseModel):
     remedy: str
     replaced_by: str | None = None    # another candidate that replaced this recall (parsed from the remedy text)
     complaints_since: int = 0         # earlier complaints on this vehicle + component filed after this recall
+    model_years: list[str] = []       # model years of this make/model the recall covers (shown to the analyst only)
 
 
 class InvestigationItem(BaseModel):

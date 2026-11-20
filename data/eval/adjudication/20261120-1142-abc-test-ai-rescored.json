@@ -1,0 +1,404 @@
+{
+ "run": "20261120-1142-abc-test-ai-rescored",
+ "seed": 11,
+ "groups": {
+  "A": {
+   "disagreements": 138,
+   "cases": [
+    {
+     "id": "A103",
+     "odino": 11469237,
+     "ai": "related_different",
+     "ai_campno": null,
+     "owner_campno": "14V002000",
+     "verdict": "ai_right",
+     "note": "EVAP leak code + stall; recall is a cracked fuel-line damper with fuel odor/leak, none reported"
+    },
+    {
+     "id": "A112",
+     "odino": 11751369,
+     "ai": "related_different",
+     "ai_campno": null,
+     "owner_campno": "23V905000",
+     "verdict": "ai_right",
+     "note": "engine destroyed by a botched recall repair (cooling leak); not the recall's oil-pressure failure"
+    },
+    {
+     "id": "A122",
+     "odino": 11484392,
+     "ai": "possible_new",
+     "ai_campno": null,
+     "owner_campno": "21V198000",
+     "verdict": "owner_right",
+     "note": "remedy access: no failure described, owner cannot get the recall repair; the cited recall applies, AI should not escalate as new"
+    },
+    {
+     "id": "A135",
+     "odino": 11447199,
+     "ai": "needs_info",
+     "ai_campno": "16V642000",
+     "owner_campno": "16V642000",
+     "verdict": "unclear",
+     "note": "headlight warning message vs side-marker software; plausible link, too vague"
+    },
+    {
+     "id": "A139",
+     "odino": 11459257,
+     "ai": "related_different",
+     "ai_campno": null,
+     "owner_campno": "19V075000",
+     "verdict": "ai_right",
+     "note": "downshift into third gear vs recall's first gear; owner says VIN not in recall"
+    },
+    {
+     "id": "A147",
+     "odino": 11671565,
+     "ai": "known_recall",
+     "ai_campno": "23V302000",
+     "owner_campno": "20V343000",
+     "verdict": "unclear",
+     "note": "two PTU recalls fit the PTU failure; AI picked the other one"
+    },
+    {
+     "id": "A180",
+     "odino": 11637282,
+     "ai": "related_different",
+     "ai_campno": null,
+     "owner_campno": "24V608000",
+     "verdict": "ai_right",
+     "note": "water pump/thermostat failure vs water-pump connector short circuit"
+    },
+    {
+     "id": "A195",
+     "odino": 11663648,
+     "ai": "related_different",
+     "ai_campno": null,
+     "owner_campno": "23V334000",
+     "verdict": "ai_right",
+     "note": "air bags deployed while reversing vs inflator rupture during deployment"
+    },
+    {
+     "id": "A198",
+     "odino": 11743986,
+     "ai": "needs_info",
+     "ai_campno": "26V363000",
+     "owner_campno": "26V363000",
+     "verdict": "owner_right",
+     "note": "remedy access: no failure described, owner cannot get the recall repair; the cited recall applies, AI should not escalate as new"
+    },
+    {
+     "id": "A202",
+     "odino": 11757380,
+     "ai": "needs_info",
+     "ai_campno": "26V237000",
+     "owner_campno": "26V237000",
+     "verdict": "ai_right",
+     "note": "'transmission failure' with no symptom; asking for details is right"
+    },
+    {
+     "id": "A220",
+     "odino": 11691601,
+     "ai": "known_recall",
+     "ai_campno": "20V437000",
+     "owner_campno": "18V795000",
+     "verdict": "unclear",
+     "note": "two sliding-door latch recalls fit; owner says VIN not in the cited one"
+    },
+    {
+     "id": "A246",
+     "odino": 11694472,
+     "ai": "known_recall",
+     "ai_campno": "25V404000",
+     "owner_campno": "22V333000",
+     "verdict": "unclear",
+     "note": "several unrelated symptoms (doors, stall, brakes); AI and owner each match one"
+    },
+    {
+     "id": "A257",
+     "odino": 11613711,
+     "ai": "known_recall",
+     "ai_campno": "15V599000",
+     "owner_campno": "13V248000",
+     "verdict": "unclear",
+     "note": "two door-module recalls with the same symptom; AI picked the other one"
+    },
+    {
+     "id": "A261",
+     "odino": 11688366,
+     "ai": "related_different",
+     "ai_campno": null,
+     "owner_campno": "24V104000",
+     "verdict": "ai_right",
+     "note": "unintended acceleration while braking vs loss of brake assist"
+    },
+    {
+     "id": "A262",
+     "odino": 11630560,
+     "ai": "needs_info",
+     "ai_campno": "24V720000",
+     "owner_campno": "24V720000",
+     "verdict": "ai_right",
+     "note": "'battery failed to hold charge' vs high-voltage battery fire; asking for details is right"
+    },
+    {
+     "id": "A269",
+     "odino": 11753207,
+     "ai": "related_different",
+     "ai_campno": null,
+     "owner_campno": "25V674000",
+     "verdict": "ai_right",
+     "note": "won't shift into second gear vs shifter cable detaching (loss of Park)"
+    },
+    {
+     "id": "A273",
+     "odino": 11678474,
+     "ai": "needs_info",
+     "ai_campno": "17V209000",
+     "owner_campno": "17V209000",
+     "verdict": "ai_right",
+     "note": "smoke + coolant odor, VIN not in recall; needs details before linking"
+    },
+    {
+     "id": "A281",
+     "odino": 11710456,
+     "ai": "related_different",
+     "ai_campno": null,
+     "owner_campno": "24V700000",
+     "verdict": "unclear",
+     "note": "dealer tied cell imbalance to the recall; recall text is about overheating while fast charging"
+    },
+    {
+     "id": "A298",
+     "odino": 11722271,
+     "ai": "needs_info",
+     "ai_campno": "22V746000",
+     "owner_campno": "25V796000",
+     "verdict": "unclear",
+     "note": "dealer linked failure-to-accelerate to the fuel-tank recall; text does not show it"
+    },
+    {
+     "id": "A320",
+     "odino": 11742723,
+     "ai": "possible_new",
+     "ai_campno": null,
+     "owner_campno": "26V328000",
+     "verdict": "owner_right",
+     "note": "remedy access: no failure described, owner cannot get the recall repair; the cited recall applies, AI should not escalate as new"
+    },
+    {
+     "id": "A345",
+     "odino": 11460019,
+     "ai": "needs_info",
+     "ai_campno": "14V182000",
+     "owner_campno": "14V182000",
+     "verdict": "unclear",
+     "note": "transmission oil cooler replacement suggests the cooler-seal recall; symptoms are engine oil"
+    },
+    {
+     "id": "A347",
+     "odino": 11774495,
+     "ai": "related_different",
+     "ai_campno": null,
+     "owner_campno": "22V875000",
+     "verdict": "ai_right",
+     "note": "door harness failure vs dash-side connector corrosion (remedy already done)"
+    },
+    {
+     "id": "A348",
+     "odino": 11708796,
+     "ai": "needs_info",
+     "ai_campno": "24V031000",
+     "owner_campno": "24V031000",
+     "verdict": "owner_right",
+     "note": "remedy access: no failure described, owner cannot get the recall repair; the cited recall applies, AI should not escalate as new"
+    },
+    {
+     "id": "A353",
+     "odino": 11550395,
+     "ai": "known_recall",
+     "ai_campno": "23V010000",
+     "owner_campno": "19V348000",
+     "verdict": "unclear",
+     "note": "loss of power then sudden acceleration; owner's VIN not in cited recall; AI's pick plausible"
+    },
+    {
+     "id": "A356",
+     "odino": 11505015,
+     "ai": "needs_info",
+     "ai_campno": "15V005000",
+     "owner_campno": "14V525000",
+     "verdict": "unclear",
+     "note": "stall + EVAP code, VIN not in recall; several fuel recalls compatible"
+    },
+    {
+     "id": "A378",
+     "odino": 11629009,
+     "ai": "known_recall",
+     "ai_campno": "20V550000",
+     "owner_campno": "24V330000",
+     "verdict": "unclear",
+     "note": "stuck in gear vs shift to neutral; 'powertrain inactive' suggests hybrid HPCM; both plausible"
+    },
+    {
+     "id": "A384",
+     "odino": 11654196,
+     "ai": "known_recall",
+     "ai_campno": "16V746000",
+     "owner_campno": "23V707000",
+     "verdict": "ai_right",
+     "note": "mechanic diagnosed the fuel pump; AI matched the fuel pump recall, owner's VANOS recall was already repaired"
+    },
+    {
+     "id": "A387",
+     "odino": 11757496,
+     "ai": "possible_new",
+     "ai_campno": null,
+     "owner_campno": "25V552000",
+     "verdict": "owner_right",
+     "note": "remedy access: no failure described, owner cannot get the recall repair; the cited recall applies, AI should not escalate as new"
+    },
+    {
+     "id": "A388",
+     "odino": 11720370,
+     "ai": "possible_new",
+     "ai_campno": null,
+     "owner_campno": "25V595000",
+     "verdict": "owner_right",
+     "note": "remedy access: no failure described, owner cannot get the recall repair; the cited recall applies, AI should not escalate as new"
+    },
+    {
+     "id": "A398",
+     "odino": 11684920,
+     "ai": "possible_new",
+     "ai_campno": null,
+     "owner_campno": "24V064000",
+     "verdict": "owner_right",
+     "note": "remedy access: no failure described, owner cannot get the recall repair; the cited recall applies, AI should not escalate as new"
+    }
+   ]
+  },
+  "B": {
+   "disagreements": 13,
+   "cases": [
+    {
+     "id": "B096",
+     "odino": 11472950,
+     "ai": "known_recall",
+     "ai_campno": "21V873000",
+     "owner_campno": null,
+     "verdict": "unclear",
+     "note": "air bags did not deploy in a rear-side impact; may not have been a deployment event"
+    },
+    {
+     "id": "B104",
+     "odino": 11514364,
+     "ai": "known_recall",
+     "ai_campno": "13V114000",
+     "owner_campno": null,
+     "verdict": "owner_right",
+     "note": "dealer diagnosed a failed HECU (ABS module); stop-lamp-switch recall matched only on a warning light"
+    },
+    {
+     "id": "B151",
+     "odino": 11645124,
+     "ai": "known_recall",
+     "ai_campno": "24V720000",
+     "owner_campno": null,
+     "verdict": "owner_right",
+     "note": "fire originated in the engine; the later engine-debris fire recall fits, not the HV battery recall"
+    },
+    {
+     "id": "B181",
+     "odino": 11617392,
+     "ai": "known_recall",
+     "ai_campno": "24V480000",
+     "owner_campno": null,
+     "verdict": "ai_right",
+     "note": "backup camera going black = camera recall"
+    },
+    {
+     "id": "B188",
+     "odino": 11479098,
+     "ai": "known_recall",
+     "ai_campno": "20V390000",
+     "owner_campno": null,
+     "verdict": "ai_right",
+     "note": "delayed brake release during automatic braking = modulator valve release timing"
+    },
+    {
+     "id": "B199",
+     "odino": 11663058,
+     "ai": "known_recall",
+     "ai_campno": "23V588000",
+     "owner_campno": null,
+     "verdict": "unclear",
+     "note": "loss of drive power fits the transmission recall's symptom; the later ICM software recall also fits"
+    },
+    {
+     "id": "B200",
+     "odino": 11652950,
+     "ai": "known_recall",
+     "ai_campno": "23V263000",
+     "owner_campno": null,
+     "verdict": "unclear",
+     "note": "stall fits the HPFP consequence but the recall is diesel-only; engine unknown"
+    },
+    {
+     "id": "B203",
+     "odino": 11645759,
+     "ai": "known_recall",
+     "ai_campno": "23V588000",
+     "owner_campno": null,
+     "verdict": "owner_right",
+     "note": "loss-of-communication codes and ICM replacement point to the later ICM software recall"
+    },
+    {
+     "id": "B233",
+     "odino": 11452051,
+     "ai": "known_recall",
+     "ai_campno": "21V972000",
+     "owner_campno": null,
+     "verdict": "ai_right",
+     "note": "rolled after Park selected = park-lock software recall"
+    },
+    {
+     "id": "B236",
+     "odino": 11478818,
+     "ai": "known_recall",
+     "ai_campno": "21V972000",
+     "owner_campno": null,
+     "verdict": "ai_right",
+     "note": "rolled away in Park = park-lock software recall"
+    },
+    {
+     "id": "B243",
+     "odino": 11516732,
+     "ai": "known_recall",
+     "ai_campno": "11V258000",
+     "owner_campno": null,
+     "verdict": "unclear",
+     "note": "loss of motive power without the recall's whining noise; weak symptom match"
+    },
+    {
+     "id": "B249",
+     "odino": 11497364,
+     "ai": "known_recall",
+     "ai_campno": "21V035000",
+     "owner_campno": null,
+     "verdict": "ai_right",
+     "note": "center screen and backup camera going blank = display (MCU) recall"
+    },
+    {
+     "id": "B251",
+     "odino": 11499562,
+     "ai": "known_recall",
+     "ai_campno": "16V682000",
+     "owner_campno": null,
+     "verdict": "ai_right",
+     "note": "trailer tongue supports failed = drawbar fracture recall"
+    }
+   ]
+  }
+ },
+ "adjudicator": "built-in assistant (draft); to be spot-checked by the project owner"
+}

@@ -24,7 +24,7 @@ COMPLAINTS = [  # odino, received, crash, fire, injured, comp, text
     (2, "2024-06-01", 1, 0, 1, "ELECTRICAL SYSTEM", "Stop vehicle immediately warning, ICCU replaced"),
     (3, "2025-02-01", 0, 0, 0, "ELECTRICAL SYSTEM",
      "ICCU failed again after the recall repair, the car lost all drive power on the freeway"),
-    (4, "2025-02-01", 0, 0, 0, "AIR BAGS", "airbag light on"),
+    (4, "2025-02-01", 0, 0, 0, "AIR BAGS", "The airbag warning light came on and stays on, even after restarting"),
     *[(5 + i, f"2024-12-0{i + 1}", 0, 0, 0, "ELECTRICAL SYSTEM", "power system failure, ICCU replaced by dealer")
       for i in range(5)],
 ]

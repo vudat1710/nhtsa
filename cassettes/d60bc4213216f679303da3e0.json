@@ -1,0 +1,39 @@
+{
+ "type": "chat_response",
+ "messages": [
+  {
+   "type": "message",
+   "role": "assistant",
+   "contents": [
+    {
+     "type": "text",
+     "text": "{\n  \"checks\": [\n    {\n      \"campno\": \"22V382000\",\n      \"verdict\": \"same\",\n      \"complaint_quote\": \"Backup camara is not working\",\n      \"recall_quote\": \"A rearview camera or reverse light that is disabled\",\n      \"reason\": \"The owner's nonworking backup camera matches the disabled rearview camera described in this recall.\"\n    }\n  ],\n  \"proposed\": \"known_recall\",\n  \"similar\": [],\n  \"questions\": [],\n  \"summary\": \"The reported backup camera failure matches the camera-disablement symptom in the candidate PCM recall. Confirm the vehicle's recall applicability and repair status; the complaint does not establish the underlying cause.\"\n}",
+     "additional_properties": {
+      "openai": {
+       "logprobs": []
+      },
+      "logprobs": []
+     }
+    }
+   ],
+   "message_id": "msg_06ef1c080100ffad006affe024b57c8194b514f946fd0bce4c",
+   "additional_properties": {}
+  }
+ ],
+ "response_id": "resp_06ef1c080100ffad006affe02356388194b286183a939574a0",
+ "conversation_id": "resp_06ef1c080100ffad006affe02356388194b286183a939574a0",
+ "model": "gpt-6.1-sol-2026-09-29",
+ "created_at": "2026-11-20T05:52:35.000000Z",
+ "finish_reason": "stop",
+ "usage_details": {
+  "input_token_count": 1975,
+  "output_token_count": 151,
+  "total_token_count": 2126,
+  "openai.cache_write_tokens": 0,
+  "cache_creation_input_token_count": 0,
+  "openai.cached_input_tokens": 1972,
+  "cache_read_input_token_count": 1972,
+  "openai.reasoning_tokens": 0,
+  "reasoning_output_token_count": 0
+ }
+}

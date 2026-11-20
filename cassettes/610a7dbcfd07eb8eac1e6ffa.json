@@ -1,0 +1,46 @@
+{
+ "type": "chat_response",
+ "messages": [
+  {
+   "type": "message",
+   "role": "assistant",
+   "contents": [
+    {
+     "type": "text_reasoning",
+     "text": "",
+     "protected_data": "gAAAAABq_-BNf8-W3oEEEujWeMv1a0T_EGBVuScwliEx8XvT45O-99Y8u1RJtZruUxbmwyaT2ioyScNEmz2wKpKwnKtkLWk938C2joW9fCIoGN6pOQ5TJvEJEWd5zv8352-Uhzg43skQuKfUYLKCx5pWOH0IiF6vXbilFg9TGp48iIaEXdWYqWGKkcppTQPpyUnA0BwKwpGH_UTKAFUJnNqPldTPDOv-0NVpMydQyI9wNp9xGK6Uli_lxWs1dMSkLcMoP5AvM72B4cdpWlsEvS9MmVq_mPPvDeO02PksKl59P7lVcD-I8BHQ83EIZLdb_eodCLRdnI-CJ0sMT86lz2VLyGVkQSTEkB5N2OMFg42lVAQbWSlyxJrS5GlfcgH9S7XhdQs7eYoV4LW0ZSepg8aS4ILefDsI636nHB59FGt9rxjFClAACajrhkJcfCBZXgvxlvOTsR9yKBf7uLbsvYGKQxNTjC2k4MOxDOpVCqCUdavGNoN9vXf7haJtnBWXDHqL0QB8v8OlVZv3x4psbqpThnKXWMTaKenU24FUEzoS1basspga83xIp3Vcr7oqZZvNXZp6Vi7hU7uQhsvzEnowKsQmIUCBJKzLuAU5F-Z6Wb6Q2-3ARtXKMEuByZSRvZasOLOCVA6ILypErR4s-MpM6JAROUMZHRdB-TXI_JbQ6d1HE2hkaJXP45j9NJDUu5DPXOOaAoJeruDVF5UOOXmPWvrHMHZjIKDsAmKCQZE6UQBM3Rz4I80x6Nk8XNKRaUHriJV4u-QxEH2oVjnaat4ZL85P5JXX_6t3IHMZmQesncbg77RD3CHaPx_j7ro114trMghbAlRt7UYMlMoyp3cU4RVfalY7wuMjApZpeU2PS3DXQ1gplK-E40GXcNzy1pRo23vHshx64uCZ1awZVrfSdMiTTZJEXZCdICja37cKq5UmLDO9VywsT2OUndFWagEidVOH2K8k-wWBv3yGMaewYWqP4FNP93n3asqLj9c2gNFQuy7kPq2QCG--SNnHw7_yiOoJxjCrhuhca7t1CFVWeATRocq0EWHT4kB0RywYrUePyGyvSOdyfD_kLQzJY_iSLB-5v6ac8ct1NjEnNGhsxp6_z-f_J1QF_UF_jghvUG0nVMbaOC7giBxOQZfJutbGjF8PlcQfUrfEiUjSq72EhD8pQLuKSWAyDwFNgEWCjLzGyN1YQFPckP8q8OCe43KiqHovUBg1vfVU3LuWc5vnTvQeew1WwaWMOVh6GbtGJQSZ9SSRx6qMkKR2dmIpFV8aOJjju8-gzuM5HZmEF0CvoZYK31X6QnZndbJb3QxNCczlmVfKpbEz1twgK28A6mDA31gJDR23dOH_bX9MX28EhiH6RwMdEOau1fHp4CoanFrulOem-DDgL74k2S4wcbA1pjYuyMMxWaAMuCIqDm5bJQalCTR181p0gbCpJbIYhou9Wlv_Ane-XxVaG_wwfy0UvwjlUxi68TnBx81YFarNd2EJ73TSf1CkQRI7PEM1Q82o17QKBL7LI9dA72WkcXwFL3GaQ3zXnl-8zzdQfwsqC42uDtM6_cpMMCR9LUBke4VOhyU88jDwZ28-Vrwg66UzVZlgNnEzKTpZ6ajnF0qE4Y34Naf4rCRf87cZmpztf5OuhCFuNUkSiAAaKEmx5pXtHnSyHouUkR_w6kHSY9Vhx-rQxvSNF5msXwODjSloo-eFVMeBrxS7dXZuqsRPhaCSO8D6BVatYGIzEuYPmc0ygH4d_GLSyAlaEtpsMbWQUeTr01yjbUk0CW3AvJaXMKuZ0-2e7Dec3mW44yi1FOfR1OYKSPLLmF5N1lw2njFwGeD8e9Ak-s5eQ28ZdKWQvLdMiv9LQvRZpzS1lmDrjPYiRZBZ6Khrs0L2edzo7knSDb2xAuheKAmQjOTLjkMlMTnvnOwSzYw0XTWc64rV6xJ3BQiGCC85oacdQf-ehJ7TEDz_ucpakV-pnZDQMcth2rLCWeV5I4o5cnn55AAfmUwXV4HWD583lz2to8zXGB16oCiy6rVS7UAn9JHp5_40XZZE9ei2Jr3_LKfQpGYCPQqAe0xHN5jJ83izsfuea6BlIC8lrvGiiYcKkv2Iwd1rJIj41-LtVtfw97blo-GEM7xV123EMHfIiN0iRSyAPoczn7mhv_8Vp6qmUEiYLnxh5M_dB4V_zVvq-aSxgI__nI35kjM9aaGEtMaonZfbRsdFS7zRYBhCEXgdYyL3hAoQpJWXYg8_u2pS7po9rqNXjhsB6rqhQFxkE4v-golKPemL0vynm5M10PuLmnl8ZuhQfxErLaczvIoRzJHvBXxW5l8VD1Xdy0YGTW0xlibx5NwQZ1PHcAYnGOubSthZ0xIecg08kQWpqigXXLteRRcRoV4TOLoy_FENpg==",
+     "id": "rs_08689352bf5b8db4006affe046d5008193b130130b9e6b478a",
+     "additional_properties": {}
+    },
+    {
+     "type": "text",
+     "text": "{\n  \"checks\": [\n    {\n      \"campno\": \"24V797000\",\n      \"verdict\": \"different\",\n      \"complaint_quote\": \"car very roughly shifts into limp mode (4th gear) and reverse does not work\",\n      \"recall_quote\": \"The transmission control valve may fail and cause the rear wheels to lock-up.\",\n      \"reason\": \"The complaint describes transmission shifting failures, limp mode and loss of reverse, rather than the rear-wheel lock-up described by this recall.\"\n    }\n  ],\n  \"proposed\": \"related_different\",\n  \"questions\": [],\n  \"similar\": [\n    {\n      \"odino\": 11765656,\n      \"quote\": \"After stopping, the vehicle would not shift into reverse and entered limp mode.\"\n    },\n    {\n      \"odino\": 11721408,\n      \"quote\": \"The vehicle was able to go into park but upon shifting back into drive, it did not change gears.\"\n    },\n    {\n      \"odino\": 11584718,\n      \"quote\": \"each time the \\\"transmission\\\" error occurred the GM car went into what they call the \\\"limp\\\" mode.\"\n    }\n  ],\n  \"summary\": \"The owner reports rising RPM without normal forward motion, harsh shifting into limp mode, loss of reverse and a dealer-reported P0776 code; these symptoms do not match the candidate transmission recall's rear-wheel lock-up failure. Earlier complaints describe similar shifting restrictions and limp mode, supporting review of this transmission failure separately from the listed recall.\"\n}",
+     "additional_properties": {
+      "openai": {
+       "logprobs": []
+      },
+      "logprobs": []
+     }
+    }
+   ],
+   "message_id": "msg_08689352bf5b8db4006affe048c7f4819388bbeee450b4c339",
+   "additional_properties": {}
+  }
+ ],
+ "response_id": "resp_08689352bf5b8db4006affe0458d7481938708500f4b70c7b3",
+ "conversation_id": "resp_08689352bf5b8db4006affe0458d7481938708500f4b70c7b3",
+ "model": "gpt-6.1-sol-2026-09-29",
+ "created_at": "2026-11-20T05:53:09.000000Z",
+ "finish_reason": "stop",
+ "usage_details": {
+  "input_token_count": 6378,
+  "output_token_count": 397,
+  "total_token_count": 6775,
+  "openai.cache_write_tokens": 734,
+  "cache_creation_input_token_count": 734,
+  "openai.cached_input_tokens": 5641,
+  "cache_read_input_token_count": 5641,
+  "openai.reasoning_tokens": 70,
+  "reasoning_output_token_count": 70
+ }
+}
