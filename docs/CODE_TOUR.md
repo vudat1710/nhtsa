@@ -14,6 +14,7 @@ backend/app/
   data/                  NHTSA data access only. No decisions.
     fetch.py · ingest.py download; flat files → data/nhtsa.db (explicit schema, text repair, full-text index)
     queries.py           read-only queries; the as_of rule (no look-ahead) lives here and only here
+    report.py            static HTML walkthrough: raw files → DB → one complaint through every step (docs/data_report.html)
 
   pipeline/              one complaint → one decision (the system's view)
     workflow.py          the MAF graph: order of steps, repair loop, fallback edge. No logic of its own

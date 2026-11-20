@@ -27,6 +27,7 @@ uv run python -m app.data.fetch          # ~380 MB of NHTSA flat files -> data/r
 uv run python -m app.data.ingest         # -> data/nhtsa.db (~550 MB, ~1 min)
 uv run pytest                            # 62 tests, no network, no model
 uv run python -m app.store.reset         # fresh workspace; on a fresh clone, loads the inbox's stored AI results
+uv run python -m app.data.report         # -> docs/data_report.html: raw files -> DB -> one complaint through every step
 
 uv run uvicorn app.main:app --app-dir backend --port 8000
 cd frontend; npm install; npm run dev    # http://localhost:5173  (operations portal: /ops)

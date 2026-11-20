@@ -43,17 +43,26 @@ def recalls_for(con: sqlite3.Connection, v: Vehicle, as_of: str, comps: list[str
         """SELECT r.*, rv.component, rv.comp FROM recall_vehicles rv JOIN recalls r USING (campno)
            WHERE rv.make = ? AND rv.model = ? AND rv.year = ? AND r.filed < ?""",
         (v.make, v.model, v.year, as_of)).fetchall()
-    by_campno: dict[str, dict] = {}
-    for r in rows:  # one row per (recall, component); component names can contain commas, so group here, not in SQL
-        rec = by_campno.setdefault(r["campno"], {**dict(r), "components": [], "comps": []})
-        for key, value in (("components", r["component"]), ("comps", r["comp"])):
-            if value not in rec[key]:
-                rec[key].append(value)
-    out = [{k: v for k, v in rec.items() if k not in ("component", "comp")} for rec in by_campno.values()]
-    same = [r for r in out if set(r["comps"]) & set(comps)]
-    other = [r for r in out if not set(r["comps"]) & set(comps)]
-    ordered = sorted(same, key=lambda r: r["filed"], reverse=True) + sorted(other, key=lambda r: r["filed"],
-                                                                            reverse=True)
+
+    # SQL returns one row per (recall, component); merge them into one record per recall. Done here rather than with
+    # SQL group_concat because component names can contain commas.
+    recalls: dict[str, dict] = {}
+    for row in rows:
+        rec = recalls.get(row["campno"])
+        if rec is None:
+            rec = {key: row[key] for key in row.keys() if key not in ("component", "comp")}
+            rec["components"], rec["comps"] = [], []
+            recalls[row["campno"]] = rec
+        if row["component"] not in rec["components"]:
+            rec["components"].append(row["component"])
+        if row["comp"] not in rec["comps"]:
+            rec["comps"].append(row["comp"])
+
+    def shares_component(rec: dict) -> bool:
+        return bool(set(rec["comps"]) & set(comps))
+
+    # Same-component recalls first, then newest first within each group.
+    ordered = sorted(recalls.values(), key=lambda rec: (shares_component(rec), rec["filed"]), reverse=True)
     return ordered[:MAX_RECALLS], len(ordered)
 
 
