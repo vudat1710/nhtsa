@@ -12,9 +12,11 @@ backend/app/
   main.py                FastAPI app: /api (workspace) and /api/ops (operations portal)
 
   data/                  NHTSA data access only. No decisions.
-    fetch.py · ingest.py download; flat files → data/nhtsa.db (explicit schema, text repair, full-text index)
+    fetch.py · ingest.py download; flat files → data/nhtsa.db (explicit schema, NHTSA's CMPL_TYPE, one vehicle per
+                         complaint, text repair, full-text index)
     queries.py           read-only queries; the as_of rule (no look-ahead) lives here and only here
-    report.py            static HTML walkthrough: raw files → DB → one complaint through every step (docs/data_report.html)
+    report.py            static HTML walkthrough: raw files → DB → one complaint through every step → what app.db
+                         stores, with a sample of every table (docs/data_report.html)
 
   pipeline/              one complaint → one decision (the system's view)
     workflow.py          the MAF graph: order of steps, repair loop, fallback edge. No logic of its own
@@ -53,7 +55,8 @@ backend/app/
 
   eval/                  build_sets.py (frozen real-data sets) · run.py (score + report + full results)
                          rescore.py (re-apply rules to stored answers) · adjudicate.py (who was right?)
-                         ask_eval.py (follow-up questions)
+                         ask_eval.py (follow-up questions) · trajectory.py (did each run follow the workflow's
+                         rules? no labels needed)
 
 backend/tests/           one file per area; conftest.py is a tiny NHTSA world (same schema)
 frontend/src/
@@ -64,9 +67,10 @@ frontend/src/
                          evaluation: for the people who build and run it
   shared/ · lib/         badges, quote highlighting, plain-word labels, liveTrail (progress events → steps)
 data/                    inbox_results.jsonl.gz (stored AI results for the inbox, so no model is needed to look)
-data/eval/               frozen sets, demo.json (pinned inbox tickets), ask_questions.json, runs/ reports/ results/
-                         adjudication/
-docs/                    BRIEF.md, DATA_CARD.md, this file
+data/eval/               frozen v2 sets (owner-written), demo.json (pinned inbox tickets), ask_questions.json,
+                         runs/ reports/ results/ trajectory/; archive_v1/ (replaced sets, see DATA_CARD)
+docs/                    BRIEF.md, DATA_CARD.md, DATA_MODEL.md (both databases + the stored Result, as diagrams),
+                         this file
 ```
 
 ## One ticket, traced

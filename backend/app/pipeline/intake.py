@@ -8,6 +8,9 @@ from app.models import Complaint, Intake
 
 # NHTSA campaign numbers as owners write them: 24V868, 24V-868, 24 V 868, 24V868000
 RECALL_NO = re.compile(r"\b(\d{2})\s?-?\s?V\s?-?\s?(\d{3})(?:\s?-?\s?000)?\b", re.I)
+# What is masked: the number plus a short bracketed note right after it, because hotline staff write
+# "NHTSA Campaign Number: 16V248000 (Power Train)" and the bracket would still name the recall's component.
+MASKED = re.compile(RECALL_NO.pattern + r"(?:\s*\([^()\n]{1,60}\))?", re.I)
 MASK = "[recall no. removed]"
 SHORT_TEXT = 50  # characters after masking; below this a complaint rarely says what failed and how
 
@@ -23,8 +26,9 @@ def cited_recalls(text: str) -> list[str]:
 
 
 def mask_recall_numbers(text: str) -> str:
-    """Remove cited recall numbers so the answer cannot leak in and the complaint cannot steer the match by number."""
-    return RECALL_NO.sub(MASK, text or "")
+    """Remove cited recall numbers (and a bracketed note right after one) so the answer cannot leak in and the
+    complaint cannot steer the match by number."""
+    return MASKED.sub(MASK, text or "")
 
 
 def intake(complaint: Complaint) -> Intake:

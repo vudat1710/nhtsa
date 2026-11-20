@@ -49,8 +49,13 @@ export function EvalPage() {
     <>
       <div className="page-head">
         <h1>Can you trust it?</h1>
-        <p className="muted">Frozen test sets built only from real NHTSA records (see docs/DATA_CARD.md). Prompt {ai?.prompt} · model {ai?.model || '–'} · run {ai?.name}</p>
+        <p className="muted">Frozen test sets built only from owner-written NHTSA complaints (see docs/DATA_CARD.md). {ai ? <>Prompt {ai.prompt} · model {ai.model || '–'} · run {ai.name}</> : <>Rules baseline run {base?.name}.</>}</p>
       </div>
+      {!ai && (
+        <section className="card">
+          <p className="small"><strong>AI results pending.</strong> The test sets were rebuilt (v2) after finding that 70% of the previous set A were NHTSA hotline transcripts, not owner-written complaints, and that a bracketed note after the recall number leaked the answer. The AI run on v2 needs the live model; v1 results are archived in data/eval/archive_v1/.</p>
+        </section>
+      )}
       <section className="card">
         <h3>AI vs rules baseline</h3>
         <p className="small muted">Baseline = “newest recall on the same component”, no reading of the text. Set A: the owner cited a recall (number hidden). Owners are sometimes wrong, so “picks the cited recall” is agreement with the owner, not accuracy. Set B: no matching recall existed yet; one was filed within a year.</p>
@@ -68,8 +73,7 @@ export function EvalPage() {
       {ai?.adjudication && (
         <section className="card">
           <h3>When the AI disagreed, who was right?</h3>
-          <p className="small muted">A person read each case (data/eval/adjudication/{ai.name}.md) and judged whether the AI's answer or the owner's recall was right.</p>
-          <table className="metrics"><thead><tr><th></th><th>AI right</th><th>Owner right</th><th>Unclear</th></tr></thead><tbody>
+          <p className="small muted">Draft verdicts written by the AI assistant (data/eval/adjudication/{ai.name}.md), not yet reviewed by a person: an AI grading the AI, so           not an accuracy measure.</p>          <table className="metrics"><thead><tr><th></th><th>AI right</th><th>Owner right</th><th>Unclear</th></tr></thead><tbody>
             <tr><td>A · random {ai.adjudication.A.adjudicated} of {ai.adjudication.A.disagreements} disagreements</td><td className="ok-text">{ai.adjudication.A.ai_right}</td><td>{ai.adjudication.A.owner_right}</td><td>{ai.adjudication.A.unclear}</td></tr>
             <tr><td>B · all {ai.adjudication.B.adjudicated} “known recall” claims</td><td className="ok-text">{ai.adjudication.B.ai_right}</td><td>{ai.adjudication.B.owner_right}</td><td>{ai.adjudication.B.unclear}</td></tr>
           </tbody></table>

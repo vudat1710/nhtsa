@@ -1,8 +1,11 @@
 """Build data/nhtsa.db from the NHTSA flat files in data/raw (download with `python -m app.data.fetch`).
 
+Field meanings follow NHTSA's own descriptions, which ship with the data: data/raw/CMPL.txt, RCL.txt, INV.txt.
+
 Tables (text is kept exactly as published, only mis-decoded UTF-8 is repaired, because quotes are verified verbatim):
-  complaints(odino, make, model, year, received, failed, crash, fire, injured, deaths, miles, state, source, text)
-  complaint_components(odino, component, comp)       one row per component the owner selected
+  complaints(odino, make, model, year, received, failed, crash, fire, injured, deaths, miles, state, source,
+             cmpl_type, vehicles, text)
+  complaint_components(odino, component, comp)       one row per component the owner selected (for its vehicle)
   recalls(campno, filed, influenced_by, manufacturer, units, defect, consequence, remedy)
   recall_vehicles(campno, make, model, year, component, comp)
   investigations(action, opened, closed, campno, subject, summary)
@@ -21,9 +24,10 @@ ROOT = Path(__file__).resolve().parents[3]
 RAW = ROOT / "data" / "raw"
 DB = ROOT / "data" / "nhtsa.db"
 COMPLAINTS_FROM = "2020-01-01"
+HOTLINE = "EVOQ"  # CMPL_TYPE for complaints taken by NHTSA's hotline (CMPL.txt: "EVOQ = HOTLINE VOQ")
 
 CMPL = ["CMPLID", "ODINO", "MFR_NAME", "MAKETXT", "MODELTXT", "YEARTXT", "CRASH", "FAILDATE", "FIRE", "INJURED",
-        "DEATHS", "COMPDESC", "CITY", "STATE", "VIN", "DATEA", "LDATE", "MILES", "OCCURENCES", "CDESCR"]
+        "DEATHS", "COMPDESC", "CITY", "STATE", "VIN", "DATEA", "LDATE", "MILES", "OCCURENCES", "CDESCR", "CMPL_TYPE"]
 RCL = ["RECORD_ID", "CAMPNO", "MAKETXT", "MODELTXT", "YEARTXT", "MFGCAMPNO", "COMPNAME", "MFGNAME", "BGMAN", "ENDMAN",
        "RCLTYPECD", "POTAFF", "ODATE", "INFLUENCED_BY", "MFGTXT", "RCDATE", "DATEA", "RPNO", "FMVSS", "DESC_DEFECT",
        "CONEQUENCE_DEFECT", "CORRECTIVE_ACTION"]
@@ -31,7 +35,8 @@ INV = ["ACTION", "MAKE", "MODEL", "YEAR", "COMPNAME", "MFR_NAME", "ODATE", "CDAT
 
 SCHEMA = """
 CREATE TABLE complaints (odino INTEGER PRIMARY KEY, make TEXT, model TEXT, year TEXT, received TEXT, failed TEXT,
-  crash INTEGER, fire INTEGER, injured INTEGER, deaths INTEGER, miles REAL, state TEXT, source TEXT, text TEXT);
+  crash INTEGER, fire INTEGER, injured INTEGER, deaths INTEGER, miles REAL, state TEXT, source TEXT, cmpl_type TEXT,
+  vehicles INTEGER, text TEXT);
 CREATE TABLE complaint_components (odino INTEGER, component TEXT, comp TEXT);
 CREATE TABLE recalls (campno TEXT PRIMARY KEY, filed TEXT, influenced_by TEXT, manufacturer TEXT, units REAL,
   defect TEXT, consequence TEXT, remedy TEXT);
@@ -80,12 +85,19 @@ def num(s: pd.Series) -> pd.Series:
 
 
 def build_complaints(con: sqlite3.Connection) -> None:
-    rows = read_flat("FLAT_CMPL.zip", CMPL)  # one row per complaint x component
+    rows = read_flat("FLAT_CMPL.zip", CMPL)  # one row per complaint x component (CMPL.txt, ODINO)
     rows["received"] = iso(rows.LDATE)
     rows = rows[rows.received >= COMPLAINTS_FROM]
-    first = rows.drop_duplicates("ODINO")  # one row per complaint
+    first = rows.drop_duplicates("ODINO")  # one row per complaint: its first line
     text = first.CDESCR.map(fix_text)
-    is_hotline = first.CDESCR.str.startswith("TL*")  # hotline call transcripts start with "TL*"
+    is_hotline = first.CMPL_TYPE == HOTLINE
+
+    # NHTSA documents ODINO repeating once per component. About 1% of complaints also name more than one vehicle or
+    # product on their lines. The system judges one vehicle per complaint, so a complaint keeps its first line's
+    # vehicle and only that vehicle's components; `vehicles` records how many it named.
+    vehicle_columns = ["MAKETXT", "MODELTXT", "YEARTXT"]
+    vehicles_named = rows.drop_duplicates(["ODINO", *vehicle_columns]).groupby("ODINO").size()
+    own_vehicle_lines = rows.merge(first[["ODINO", *vehicle_columns]], on=["ODINO", *vehicle_columns])
 
     complaints = pd.DataFrame({
         "odino": first.ODINO.astype(int),
@@ -101,20 +113,23 @@ def build_complaints(con: sqlite3.Connection) -> None:
         "miles": pd.to_numeric(first.MILES, errors="coerce"),
         "state": first.STATE,
         "source": is_hotline.map({True: "hotline", False: "owner"}),
+        "cmpl_type": first.CMPL_TYPE,
+        "vehicles": first.ODINO.map(vehicles_named).astype(int),
         "text": text,
     })
     save(con, "complaints", complaints)
 
     components = pd.DataFrame({
-        "odino": rows.ODINO.astype(int),
-        "component": rows.COMPDESC,
-        "comp": top(rows.COMPDESC),
+        "odino": own_vehicle_lines.ODINO.astype(int),
+        "component": own_vehicle_lines.COMPDESC,
+        "comp": top(own_vehicle_lines.COMPDESC),
     })
     save(con, "complaint_components", components.drop_duplicates())
 
     repaired = (text != first.CDESCR).sum()
-    print(f"complaints {len(first):,} (since {COMPLAINTS_FROM}), component rows {len(rows):,}, "
-          f"text repaired {repaired:,}")
+    multi_vehicle = (complaints.vehicles > 1).sum()
+    print(f"complaints {len(first):,} (since {COMPLAINTS_FROM}), component rows {len(own_vehicle_lines):,}, "
+          f"text repaired {repaired:,}, hotline {is_hotline.sum():,}, naming several vehicles {multi_vehicle:,}")
 
 
 def build_recalls(con: sqlite3.Connection) -> None:
@@ -148,7 +163,9 @@ def build_recalls(con: sqlite3.Connection) -> None:
 
 def build_investigations(con: sqlite3.Connection) -> None:
     rows = read_flat("FLAT_INV.zip", INV)  # one row per investigation x vehicle
-    rows = rows[rows.MAKE != ""]  # a few administrative rows have no vehicle, date or subject
+    # 1,278 investigations (mostly 1970s-80s defect petitions) name no vehicle at all; they could never match a
+    # complaint's vehicle, so they are left out.
+    rows = rows[rows.MAKE != ""]
     first = rows.drop_duplicates("ACTION")  # one row per investigation
 
     investigations = pd.DataFrame({

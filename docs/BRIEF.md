@@ -1,79 +1,50 @@
 # Recall Match: product brief
 
-**One line.** For each vehicle-safety complaint, tell the field-quality analyst whether it is a known recall, the same
-part failing differently, a possible new defect, or too vague, with every claim traced to a checked quote.
+**One line.** For each vehicle-safety complaint, tell the field-quality analyst whether it is a known recall, a
+different failure of the same part, a possible new defect, or too vague, with every claim backed by a checkable quote.
 
-## Target users
+## Target users and pain points
 
-- **Field-quality analyst (primary)** at an automaker or large supplier: triages hundreds of owner complaints a week
-  (NHTSA receives ~100,000 a year).
-- **Product-safety engineer (secondary)**: receives escalations; decides whether to open an investigation.
-- **Safety/compliance lead**: needs to trust that nothing new is being missed, and to show regulators why.
+**Field-quality analysts** at an automaker or supplier triage hundreds of owner complaints a week;
+**product-safety engineers** receive their escalations.
 
-## Pain points
-
-1. **Matching is slow and inconsistent.** Each complaint must be compared against every recall on that exact vehicle
-   (median 6, up to 40+), written in engineering language, while owners describe symptoms ("lost power", "light came
-   on").
-2. **The easy shortcut is dangerous.** "Same vehicle + same component = known recall" is confidently wrong about 1 in
-   5 times on real data, and cannot tell opposite failures apart (air bag *deploys unexpectedly* vs *does not deploy*).
-   A new defect wrongly filed as "known" is the costliest error: it is the one that becomes a crash and a recall.
-3. **Signals hide in the noise.** Complaints that continue after a remedy, or a cluster of similar complaints with no
-   recall, are what engineering needs to see first, and they are buried.
-4. **AI answers are hard to trust.** A fluent summary without checkable sources is not usable for safety decisions.
+1. **Matching is slow.** Each complaint must be compared with every recall on that exact vehicle (median 6), written in
+   engineering language, while owners describe symptoms.
+2. **The shortcut is dangerous.** "Same vehicle + same component = known recall" names a different recall than the
+   owner cited 21% of the time on owner-written complaints, and cannot tell opposite failures apart (air bag deploys unexpectedly vs not at all).
+   A new defect filed as "known" is the costliest error.
+3. **AI answers are hard to trust** without sources the analyst can check.
 
 ## Solution and why
 
-A workspace that suggests the **next action** for each complaint (not a chatbot), backed by checkable evidence:
-
-- **Code finds the evidence**: only recalls covering that exact vehicle, filed before the complaint arrived; earlier
-  complaint counts; investigations. The AI cannot cite anything else.
-- **The AI does the reading**: it compares the complaint with each candidate recall and must back every judgment with
-  word-for-word quotes from both. It may search earlier complaints for the same failure.
-- **Code checks everything** (ids, quotes, that a quote doesn't drop a "no", numbers), then **rules decide** the
-  outcome and confidence. One repair, then a labelled rules-only fallback.
-- **The analyst acts in one click**: link the recall and send a reply drafted *from the recall's own text*; flag a
-  remedy that isn't holding; escalate to an emerging issue *only with a stated reason*; record and watch single
-  reports; or ask the owner the AI's questions. Disagreeing asks for one line of why. Builders audit every run in a
-  separate operations portal.
-- **The analyst can see how it got there and ask follow-ups**: the agent's steps (including what it chose to search
-  for) and a case-scoped assistant whose quotes are checked and which says "not in the records" instead of guessing.
-
-*Why this design:* the costly error is a false "known recall", so that decision sits in code; every claim is
-checkable in seconds; engineers' time is protected by escalating only with a reason.
+A workspace that suggests the **next action** per complaint, not a chatbot. **Code finds the evidence** (only recalls
+on that vehicle filed *before* the complaint; earlier complaint counts). **The AI reads**: it compares the complaint
+with each candidate recall, quoting both word for word, and may search earlier complaints. **Code checks, rules
+decide**: ids, quotes (including a dropped "no") and numbers are verified; one repair turn, then a labelled rules-only
+fallback. **The analyst acts in one click** (link the recall with a reply drafted from its own text, flag a failing
+remedy, escalate with a stated reason, or ask the owner), sees how the agent investigated, and can ask follow-ups
+answered only from the case. *Why:* the costly error stays in code, and every claim is checkable in seconds.
 
 ## Success criteria
 
-| | Metric | Target | Prototype result (frozen real-data test sets) |
-|---|---|---|---|
-| Safety | Names a recall other than the owner's (set A) | Well below the rules baseline (19%) | **7%** [5–10] |
-| Usefulness | "Known recall" answers that match the owner's recall | > baseline (79%) | **88%** [83–92] |
-| Trust | "High confidence" answers that are right | ≥ 90% | **94%** [88–97] |
-| Trust | Final answers with every quote/id/number verified | 100% | 100% by construction; 1 of 563 first answers needed a repair |
-| Escalation | No-recall-yet complaints escalated or sent back to the owner (set B) | ≥ 90% | 95% |
-| Robustness | Stress cases (unknown year/part, two words, injected instructions) | All | 25/26 |
-| Trust | Follow-up answers: quotes verified, "not in the records" instead of guessing | All | 21/21 questions |
-| Cost | Per complaint | Report | ~5,400 tokens, ~13 s |
-| In production | Analyst override rate · time to triage · share of escalations engineers confirm · new defects found before a recall | Baseline, then improve | Logged from day one (every action stored) |
+**No ground truth** says which recall is right (set A's label is the *owner's* citation), so results are split into
+objective checks and agreement with the owner (468 frozen owner-written test cases):
 
-Hand check of disagreements: in 30 sampled cases where the AI disagreed with the owner, the AI was right 12 times,
-the owner 7, unclear 11; all 7 owner-right cases were "can't get the recall repair" complaints (next step below).
+| Metric | Target | Result (AI · rules baseline) |
+|---|---|---|
+| **Objective:** final answers with every id, quote, number verified | 100% | 100% (0 of 463 needed a repair, 0 fallbacks) |
+| Objective: workflow rules hold (path, evidence, tool use, trail) | All | 20/20 invariants, all 468 runs; ~10 s each |
+| Objective: claims a known recall when none existed on the owner's part | Low | 5% (7/142) · 0% |
+| Objective: stress cases (unknown year/part, 2 words, injected instructions) | All | 26/26 · 21/26 |
+| **Agreement with owner:** names a recall other than the owner's | Below baseline | **8%** [5–12] · 21% |
+| Agreement: "known recall" answers that are the owner's recall | Above baseline | **86%** · 66% |
+| Agreement: "high confidence" answers matching the label | ≥ 90% | **95%** (59/62) |
+| **In production:** override rate, time to triage, escalations engineers confirm | Improve on baseline | All actions and override reasons logged |
 
-## Assumptions
+## Assumptions and limitations
 
-- Complaints are tagged with make/model/year as NHTSA spells them (production: VIN decode).
-- Recall text (defect, consequence, remedy) describes the failure well enough to compare with owner symptoms.
-- An analyst reviews every answer; the tool prioritizes and explains, it does not close cases alone.
-- Public NHTSA data is a fair stand-in for an automaker's own complaint and warranty feeds.
-
-## Limitations
-
-- **Remedy-access complaints** ("dealer can't do the recall repair", no failure described) are escalated or sent back
-  instead of linked to the cited recall: the main finding of the hand check, and the next thing to build.
-- **Labels.** "Known recall" labels exist only where the owner cited a recall (owners are sometimes wrong); "new
-  defect" labels are noisy (~65% the same failure on hand check). Analyst and engineer actions should replace both.
-- **Coverage.** Complaints from 2020, recalls from 2010; no repair records, so "complaints after the remedy" cannot
-  distinguish a failed fix from an unrepaired car.
-- **Throughput.** ~13 s per complaint at our model quota; bulk triage needs a higher quota or a cheaper first pass.
-- **Not built:** automatic clustering of escalations, alerting, multi-language complaints, VIN decoding; run-to-run
-  stability not yet measured.
+- **Assumes** NHTSA make/model/year spelling (production: VIN decode), recall text that describes the failure, and an
+  analyst reviewing every suggestion; public NHTSA data stands in for an automaker's own complaint feeds.
+- **No accuracy number yet.** Next: a blind sample labelled by two people; analyst overrides as ongoing labels.
+- **Next rule:** "dealer can't do the recall repair" complaints (no failure) are escalated, not linked to the recall.
+- **Data gaps:** complaints since 2020, recalls since 2010, no repair records; overlapping component categories.

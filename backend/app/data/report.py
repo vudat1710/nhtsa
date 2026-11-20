@@ -3,12 +3,15 @@
     NHTSA flat files (data/raw) -> ingest.py -> nhtsa.db -> intake -> evidence -> judge (AI) -> verify -> decide
     -> stored run (app.db) -> analyst suggestion
 
-Uses only local files and the stored AI runs of the demo tickets (no model, no network). Run after ingest + reset:
+Uses only local files and the stored AI runs of the demo tickets (no model). The data-model diagrams come from
+docs/DATA_MODEL.md and are drawn by mermaid, loaded from a CDN (offline they show as text). Run after ingest + reset:
     uv run python -m app.data.report            # -> docs/data_report.html
 """
 import argparse
 import json
+import shutil
 import sqlite3
+import tempfile
 import time
 import zipfile
 from html import escape
@@ -18,14 +21,19 @@ from app.ai.prompt import case_message
 from app.api import deps
 from app.api.workspace import related_for
 from app.config import get_settings
+from app.data import queries
 from app.data.ingest import CMPL, COMPLAINTS_FROM, RAW, RCL, ROOT, fix_text
 from app.models import Result
 from app.pipeline.decide import baseline
 from app.pipeline.intake import MASK
+from app.store.results import Store
+from app.workspace.actions import ActionRequest, apply
 from app.workspace.suggest import suggest
 
 OUT = ROOT / "docs" / "data_report.html"
 DEMO = ROOT / "data" / "eval" / "demo.json"
+DATA_MODEL = ROOT / "docs" / "DATA_MODEL.md"
+WORKSPACE_TABLES = ["results", "tickets", "issues", "issue_complaints", "actions", "questions"]
 CELL_MAX = 220
 
 
@@ -89,6 +97,44 @@ def mark(text: str, needles: list[str]) -> H:
 
 def mb(path: Path) -> str:
     return f"{path.stat().st_size / 1e6:,.1f} MB"
+
+
+def diagram(name: str) -> H:
+    """The mermaid diagram marked '%% diagram: <name>' in docs/DATA_MODEL.md (one source for the doc and the report)."""
+    blocks = DATA_MODEL.read_text(encoding="utf-8").split("```mermaid")[1:]
+    for block in blocks:
+        source = block.split("```")[0].strip()
+        if source.startswith(f"%% diagram: {name}"):
+            return H(f'<pre class="mermaid">{escape(source)}</pre>')
+    raise ValueError(f"no diagram named {name!r} in {DATA_MODEL}")
+
+
+def sample(con: sqlite3.Connection, sql: str, args: tuple = ()) -> H:
+    """A query's result as a table, headed by its column names."""
+    cursor = con.execute(sql, args)
+    headers = [column[0] for column in cursor.description]
+    rows = [list(row) for row in cursor.fetchall()]
+    if not rows:
+        return H('<p class="dim">(no rows)</p>')
+    return table(headers, rows)
+
+
+def outline(value, name: str, open_: bool = False) -> H:
+    """A JSON value as a collapsible tree: objects and lists open one level at a time, lists show their first 3 items,
+    long text is cut."""
+    open_attr = " open" if open_ else ""
+    if isinstance(value, dict):
+        items = "".join(f"<li>{outline(item, key)}</li>" for key, item in value.items())
+        size = f"{{{len(value)} fields}}"
+    elif isinstance(value, list) and value:
+        items = "".join(f"<li>{outline(item, f'[{index}]')}</li>" for index, item in enumerate(value[:3]))
+        if len(value) > 3:
+            items += f'<li class="dim">… {len(value) - 3} more</li>'
+        size = f"[{len(value)} items]"
+    else:
+        return H(f"<b>{escape(name)}</b>: {h(json.dumps(value, ensure_ascii=False))}")
+    return H(f'<details{open_attr}><summary><b>{escape(name)}</b> <span class="dim">{size}</span></summary>'
+             f'<ul class="outline">{items}</ul></details>')
 
 
 # ---------------------------------------------------------------------------------------------------------- raw files
@@ -221,7 +267,10 @@ def section_ingest() -> H:
         ["Top-level component", "AIR BAGS:FRONTAL", "component = AIR BAGS:FRONTAL, comp = AIR BAGS"],
         ["Dates to ISO", "20240318", "2024-03-18 (compares correctly as text)"],
         ["Flags to integers", "CRASH = 'Y'", "crash = 1"],
-        ["Hotline transcripts marked", "CDESCR starts with 'TL*'", "source = 'hotline' (else 'owner')"],
+        ["Who wrote it, from NHTSA's own field", "CMPL_TYPE = 'EVOQ' (hotline)", "cmpl_type kept; source = 'hotline' "
+         "(else 'owner')"],
+        ["One vehicle per complaint", "ODINO lines naming 2+ vehicles (1.1%)", "first vehicle and its components; "
+         "vehicles = how many were named"],
         ["Text repair only", "â€œInsufficientâ€", "“Insufficient”; nothing else in the text is edited"],
         ["One recall row + one row per covered vehicle", "CAMPNO repeated", "recalls + recall_vehicles"],
         ["Full-text index", "complaints.text", "complaints_fts (SQLite FTS5) for the AI's search tool"],
@@ -232,7 +281,8 @@ def section_ingest() -> H:
              + table(["Step", "Raw", "In nhtsa.db"], rows) + "</section>")
 
 
-def section_db(con: sqlite3.Connection, main_run: Result) -> H:
+def section_db(con: sqlite3.Connection, runs: list[tuple[dict, Result]]) -> H:
+    main_run = runs[0][1]
     complaint = main_run.complaint
 
     # Every table: row count and columns.
@@ -242,45 +292,75 @@ def section_db(con: sqlite3.Connection, main_run: Result) -> H:
         columns = [info[1] for info in con.execute(f"PRAGMA table_info({table_name})")]
         row_count = con.execute(f"SELECT count(*) FROM {table_name}").fetchone()[0]
         table_rows.append([table_name, f"{row_count:,}", ", ".join(columns)])
+    table_rows.append(["complaints_fts", "(index)", "text: FTS5 full-text index over complaints.text, rowid = odino"])
     tables_table = table(["Table", "Rows", "Columns"], table_rows)
     complaint_span = con.execute("SELECT min(received), max(received) FROM complaints").fetchone()
     recall_span = con.execute("SELECT min(filed), max(filed) FROM recalls").fetchone()
 
-    def sample(sql: str, args: tuple) -> H:
-        """The query result as a table, headed by its column names."""
-        cursor = con.execute(sql, args)
-        headers = [column[0] for column in cursor.description]
-        return table(headers, [list(row) for row in cursor.fetchall()])
-
-    # The main case's own records, as stored in the database.
+    # The main case's own records, as stored in the database: one sample from every table.
     odino = complaint.odino
     parts = [
         f"<h3>complaints (ODINO {odino})</h3>",
-        sample("SELECT * FROM complaints WHERE odino = ?", (odino,)),
+        sample(con, "SELECT * FROM complaints WHERE odino = ?", (odino,)),
         "<h3>complaint_components</h3>",
-        sample("SELECT * FROM complaint_components WHERE odino = ?", (odino,)),
+        sample(con, "SELECT * FROM complaint_components WHERE odino = ?", (odino,)),
     ]
     campno = main_run.decision.campno
     if campno:
         parts.append(f"<h3>recalls ({campno})</h3>")
-        parts.append(sample("SELECT * FROM recalls WHERE campno = ?", (campno,)))
+        parts.append(sample(con, "SELECT * FROM recalls WHERE campno = ?", (campno,)))
         parts.append(f"<h3>recall_vehicles ({campno}, {complaint.make} {complaint.model} only)</h3>")
-        parts.append(sample("SELECT * FROM recall_vehicles WHERE campno = ? AND make = ? AND model = ? ORDER BY year",
-                            (campno, complaint.make, complaint.model)))
+        parts.append(sample(con, "SELECT * FROM recall_vehicles WHERE campno = ? AND make = ? AND model = ? "
+                                 "ORDER BY year", (campno, complaint.make, complaint.model)))
     parts.append(f"<h3>investigations ({complaint.make} {complaint.model})</h3>")
-    parts.append(sample("""SELECT DISTINCT i.action, i.opened, i.closed, i.campno, i.subject FROM investigations i
-                           JOIN investigation_vehicles v USING (action) WHERE v.make = ? AND v.model = ?
-                           ORDER BY i.opened DESC LIMIT 3""", (complaint.make, complaint.model)))
+    parts.append(sample(con, """SELECT DISTINCT i.action, i.opened, i.closed, i.campno, i.subject FROM investigations i
+                                JOIN investigation_vehicles v USING (action) WHERE v.make = ? AND v.model = ?
+                                ORDER BY i.opened DESC LIMIT 3""", (complaint.make, complaint.model)))
+    parts.append("<h3>investigation_vehicles (the newest of those investigations)</h3>")
+    parts.append(sample(con, """SELECT * FROM investigation_vehicles WHERE action = (
+                                  SELECT i.action FROM investigations i JOIN investigation_vehicles v USING (action)
+                                  WHERE v.make = ? AND v.model = ? ORDER BY i.opened DESC LIMIT 1) LIMIT 6""",
+                        (complaint.make, complaint.model)))
+    parts.append(fts_sample(con, runs))
     samples = "".join(parts)
 
+    joins = table(["Join", "How", "Used for"], [
+        ["complaints → complaint_components", "odino", "the owner's components (comps = top level)"],
+        ["recalls → recall_vehicles", "campno", "which make/model/year/component a recall covers"],
+        ["complaints ⇢ recall_vehicles", "same make + model + year, recall filed before received",
+         "candidate recalls (queries.recalls_for)"],
+        ["complaints ⇢ complaints", "same make + model + year + comp, received before",
+         "earlier-complaint counts, the agent's search"],
+        ["investigations ⇢ recalls", "investigations.campno, when it matches a recall (often another format)",
+         "context only"],
+    ])
     db_size = mb(get_settings().db_path)
     date_ranges = (f"Complaints received {complaint_span[0]} to {complaint_span[1]}; "
                    f"recalls filed {recall_span[0]} to {recall_span[1]}.")
     return H(f"""<section><h2>3 · The database (<code>data/nhtsa.db</code>, {db_size})</h2>
 <p>{date_ranges} The app opens it read-only.
-Analyst work and AI runs live in a separate file (<code>data/app.db</code>).</p>
-{tables_table}
-<p>The same records, now in the database, for the demo complaint below:</p>{samples}</section>""")
+Analyst work and AI runs live in a separate file (<code>data/app.db</code>, section 5).</p>
+{diagram("nhtsa")}
+<p>Solid lines are keys inside the file; dashed lines are joins made at query time. Every dashed join carries the
+<b>as_of</b> rule: only records dated strictly before the complaint was received.</p>
+{joins}{tables_table}
+<p>One sample from every table: the records behind the demo complaint below.</p>{samples}</section>""")
+
+
+def fts_sample(con: sqlite3.Connection, runs: list[tuple[dict, Result]]) -> H:
+    """What the agent's search tool returned in a demo run: complaints_fts, as the agent uses it."""
+    for _, run in runs:
+        if not run.tool_calls:
+            continue
+        query = str(run.tool_calls[0].get("arguments", {}).get("query", ""))
+        complaint = run.complaint
+        vehicle = queries.Vehicle(complaint.make, complaint.model, complaint.year)
+        hits = queries.search_complaints(con, vehicle, query, complaint.received, exclude=complaint.odino)
+        rows = [[hit["odino"], hit["received"], hit["snippet"]] for hit in hits]
+        return H(f"<h3>complaints_fts (the agent's search in complaint {complaint.odino}: “{escape(query)}”)</h3>"
+                 f"<p class='dim'>Same vehicle, received before {complaint.received}, ranked by bm25; "
+                 "[brackets] mark the matched words.</p>" + table(["odino", "received", "snippet"], rows))
+    return H("")
 
 
 def section_case(case: dict, run: Result) -> H:
@@ -448,6 +528,88 @@ def section_case(case: dict, run: Result) -> H:
 {badge(decision.outcome, decision.outcome)}</summary><p>{escape(case['story'])}</p>{hindsight}{body}</details>""")
 
 
+def demo_workspace(runs: list[tuple[dict, Result]]) -> tuple[Path, Store]:
+    """A throwaway copy of app.db with the demo tickets worked through, so the workspace tables have real rows to show
+    without touching the real workspace: the suggested action on each ticket, except D2 where the analyst disagrees
+    (records and watches instead of escalating, and says why)."""
+    folder = Path(tempfile.mkdtemp(prefix="report-"))
+    path = folder / "app.db"
+    shutil.copy(get_settings().app_db_path, path)
+    store = Store(path)
+    for case, run in runs:
+        if case["id"] == "D2":
+            request = ActionRequest(action="monitor", disagrees=True,
+                                    reason="Demo: engineering already tracks air bag non-deployment on this model")
+        else:
+            suggestion = suggest(run, store.tickets, related_for(run))
+            primary = next(action for action in suggestion.actions if action.primary)
+            request = ActionRequest(action=primary.id, campno=primary.campno, issue_id=primary.issue_id,
+                                    issue_title=primary.issue_title, issue_kind=primary.issue_kind,
+                                    issue_comp=primary.issue_comp, message=primary.message)
+        apply(store.tickets, run, request)
+    return folder, store
+
+
+def section_app(runs: list[tuple[dict, Result]]) -> H:
+    """data/app.db: what the system did (results) and what people did with it (the workspace tables)."""
+    app_path = get_settings().app_db_path
+    real = sqlite3.connect(f"file:{app_path}?mode=ro", uri=True)
+
+    # Every table in the real file, with what uses it.
+    table_rows = []
+    names = [row[0] for row in real.execute(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name != 'sqlite_sequence' ORDER BY name")]
+    for name in names:
+        columns = [info[1] for info in real.execute(f"PRAGMA table_info([{name}])")]
+        row_count = real.execute(f"SELECT count(*) FROM [{name}]").fetchone()[0]
+        if name not in WORKSPACE_TABLES:
+            name = H(f"{escape(name)} <span class='dim'>(left from an earlier version; not used by the code)</span>")
+        table_rows.append([name, f"{row_count:,}", ", ".join(columns)])
+    tables_table = table(["Table", "Rows (your file)", "Columns"], table_rows)
+    by_label = sample(real, "SELECT label, count(*) AS runs, min(created_at) AS first, max(created_at) AS last "
+                            "FROM results GROUP BY label ORDER BY last DESC")
+    results_rows = sample(real, "SELECT id, odino, label, created_at, outcome, confidence, escalate, source, "
+                                "length(body) AS body_chars FROM results WHERE label = 'queue' "
+                                "ORDER BY created_at DESC LIMIT 4")
+    real.close()
+
+    # The workspace tables, filled by replaying the demo actions on a copy.
+    folder, store = demo_workspace(runs)
+    try:
+        workspace = [
+            "<h3>tickets</h3>", sample(store.con, "SELECT * FROM tickets ORDER BY odino"),
+            "<h3>issues</h3>", sample(store.con, "SELECT * FROM issues ORDER BY id"),
+            "<h3>issue_complaints</h3>", sample(store.con, "SELECT * FROM issue_complaints ORDER BY issue_id"),
+            "<h3>actions</h3>", sample(store.con, "SELECT * FROM actions ORDER BY id"),
+        ]
+    finally:
+        store.con.close()
+        shutil.rmtree(folder, ignore_errors=True)
+    workspace.append("<h3>questions</h3><p class='dim'>One row per follow-up question; <code>body</code> is the whole "
+                     "Turn as JSON (question, answer with citations, verified, issues, searches, result_id). Empty "
+                     "until an analyst asks.</p>")
+
+    main_run = runs[0][1]
+    body = json.loads(main_run.model_dump_json())
+    return H(f"""<section><h2>5 · What the app stores (<code>data/app.db</code>, {mb(app_path)})</h2>
+<p>Everything the system did (<b>results</b>, append-only, one row per run) and everything people did with it
+(<b>tickets, issues, issue_complaints, actions, questions</b>). NHTSA records are referred to by their public ids
+(<code>odino</code>, <code>campno</code>); there are no constraints across the two files (dashed lines).
+<code>python -m app.store.reset</code> clears the people's tables and keeps the runs.</p>
+{diagram("app")}{tables_table}
+<h3>results: runs by label</h3>{by_label}
+<h3>results: the newest workspace runs</h3>
+<p class="dim">The listing columns are copies of fields in <code>body</code>, so runs can be listed without parsing
+JSON.</p>{results_rows}
+<h3>The workspace tables after working the four demo tickets</h3>
+<p class="dim">Replayed by this report on a temporary copy of app.db (your workspace is not touched): the suggested
+action on D1, D3 and D4; on D2 the analyst records and watches instead of escalating, so the log shows a
+<i>disagreed</i> row with the reason.</p>{"".join(workspace)}
+<h3>results.body: one stored run (D1), field by field</h3>
+{diagram("result")}
+<div class="outline-root">{outline(body, "Result", open_=True)}</div></section>""")
+
+
 CSS = """
 body{font:14px/1.5 system-ui,Segoe UI,sans-serif;margin:0;color:#1d2433;background:#f6f7f9}
 main{max-width:1200px;margin:0 auto;padding:24px}
@@ -476,6 +638,9 @@ code{background:#eef1f5;padding:1px 4px;border-radius:3px}
 font-size:13px;line-height:22px}
 .card{border:1px solid #e2e5ea;border-radius:6px;padding:10px 14px;background:#fffdf5}
 .headline{font-weight:600;font-size:15px}details>summary{cursor:pointer}
+pre.mermaid{background:#fff;color:#1d2433;max-height:none;border:1px solid #e2e5ea;text-align:center}
+.outline-root{font-size:13px;font-family:Consolas,monospace}ul.outline{list-style:none;margin:2px 0;padding-left:18px}
+ul.outline li{margin:1px 0;overflow-wrap:anywhere}
 """
 
 
@@ -512,18 +677,22 @@ def main() -> None:
     if not args.no_raw:
         sections.append(section_raw(main_run, cmpl_rows, rcl_rows, repair))
     sections.append(section_ingest())
-    sections.append(section_db(con, main_run))
+    sections.append(section_db(con, runs))
     cases_html = "".join(section_case(case, run) for case, run in runs)
     sections.append(H("<section><h2>4 · One complaint through the pipeline</h2><p>Real complaints from the demo inbox, "
                       "with their stored AI runs. Each step shows its actual input/output. Highlighted in the text: "
                       f"<mark>{escape(MASK)}</mark> and the exact words the AI quoted (verified).</p>"
                       + cases_html + "</section>"))
+    sections.append(section_app(runs))
     content = "".join(sections)
 
+    mermaid = ('<script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/'
+               'mermaid.esm.min.mjs"; mermaid.initialize({startOnLoad: true, theme: "neutral"});</script>')
     page = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Recall Match: the data</title>
-<style>{CSS}</style></head><body><main><h1>Recall Match: how the data flows</h1>
+<style>{CSS}</style>{mermaid}</head><body><main><h1>Recall Match: how the data flows</h1>
 <p class="dim">Generated by <code>python -m app.data.report</code> from data/raw, data/nhtsa.db and the stored runs in
-data/app.db. Static snapshot: no model or server needed to view it.</p>{content}</main></body></html>"""
+data/app.db. Static snapshot: no model or server needed to view it (the diagrams load mermaid from a CDN; offline
+they show as text, also in docs/DATA_MODEL.md).</p>{content}</main></body></html>"""
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(page, encoding="utf-8")
     print(f"wrote {args.out} ({args.out.stat().st_size / 1e3:,.0f} KB) in {time.time() - started:.0f}s")

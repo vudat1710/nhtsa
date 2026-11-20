@@ -3,7 +3,7 @@ import pytest
 
 from app.models import Complaint
 from app.pipeline.evidence import gather
-from app.pipeline.intake import MASK, cited_recalls, intake
+from app.pipeline.intake import MASK, cited_recalls, intake, mask_recall_numbers
 
 
 @pytest.mark.parametrize("written", ["24V868", "24V-868", "24 V 868", "24v868000", "24V-868-000"])
@@ -12,6 +12,13 @@ def test_recall_numbers_are_masked_however_written(written):
     c = Complaint(make="X", model="Y", year="2024", received="2025-01-01",
                   text=f"I had recall {written} done but the car still stalls on the highway")
     assert intake(c).text == f"I had recall {MASK} done but the car still stalls on the highway"
+
+
+def test_masking_also_removes_the_component_named_after_the_number():
+    """Hotline staff write the recall's component in brackets after its number: that would leak the answer."""
+    text = "The contact related the failure to NHTSA Campaign Number: 16V248000 (Power Train). It stalled."
+    assert mask_recall_numbers(text) == f"The contact related the failure to NHTSA Campaign Number: {MASK}. It stalled."
+    assert mask_recall_numbers("Recall 24V868 done (twice)") == f"Recall {MASK} done (twice)"  # only right after
 
 
 def test_flags():
