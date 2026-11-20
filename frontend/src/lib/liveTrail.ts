@@ -20,7 +20,10 @@ export function liveLine(e: RunEvent): { icon: string; text: string } | null {
     case 'judgment':
       return { icon: '⚖', text: e.checks.length ? e.checks.map(c => `${c.campno.slice(0, 3)}-${c.campno.slice(3, 6)}: ${VERDICT[c.verdict]}`).join(' · ') : 'No recall describes this failure.' }
     case 'verify':
-      return e.issues.length ? { icon: '⚠', text: `Check failed: ${e.issues.map(i => i.message).join('; ').slice(0, 200)}` } : { icon: '✓', text: 'Every quote found word for word in its source.' }
+      if (e.issues.length) return { icon: '⚠', text: `Check failed: ${e.issues.map(i => i.message).join('; ').slice(0, 200)}` }
+      // no issues because there was no answer to check (the model failed): say so, don't claim quotes were checked
+      if (e.result === 'fallback') return { icon: '⚠', text: 'No AI answer to check: the rules will decide on their own.' }
+      return { icon: '✓', text: 'Every quote found word for word in its source.' }
     case 'error':
       return { icon: '⚠', text: `Error: ${e.message}` }
     default:

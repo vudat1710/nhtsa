@@ -27,6 +27,7 @@ uv run python -m app.data.fetch          # ~380 MB of NHTSA flat files -> data/r
 uv run python -m app.data.ingest         # -> data/nhtsa.db (~550 MB, ~1 min)
 uv run pytest                            # 79 tests, no network, no model
 uv run python -m app.store.reset         # fresh workspace; on a fresh clone, loads the inbox's stored AI results
+                                         #   --live: tickets start unchecked and are checked live when opened
 uv run python -m app.data.report         # -> docs/data_report.html: raw files -> DB -> one complaint through every
                                          #    step -> what app.db stores (diagrams: docs/DATA_MODEL.md)
 
