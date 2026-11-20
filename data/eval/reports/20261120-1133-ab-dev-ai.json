@@ -1,0 +1,181 @@
+{
+ "name": "20261120-1133-ab-dev-ai",
+ "set": "a,b",
+ "split": "dev",
+ "mode": "ai",
+ "prompt": "v3",
+ "model": "gpt-6.1-sol",
+ "metrics": {
+  "cases": 150,
+  "A_known_recall": {
+   "right_recall": {
+    "k": 58,
+    "n": 100,
+    "rate": 0.58,
+    "ci95": [
+     0.482,
+     0.672
+    ]
+   },
+   "answered_known": {
+    "k": 62,
+    "n": 100,
+    "rate": 0.62,
+    "ci95": [
+     0.522,
+     0.709
+    ]
+   },
+   "precision_when_known": {
+    "k": 58,
+    "n": 62,
+    "rate": 0.935,
+    "ci95": [
+     0.846,
+     0.975
+    ]
+   },
+   "wrong_recall": {
+    "k": 4,
+    "n": 100,
+    "rate": 0.04,
+    "ci95": [
+     0.016,
+     0.098
+    ]
+   },
+   "needs_info": {
+    "k": 24,
+    "n": 100,
+    "rate": 0.24,
+    "ci95": [
+     0.167,
+     0.332
+    ]
+   },
+   "escalated": {
+    "k": 14,
+    "n": 100,
+    "rate": 0.14,
+    "ci95": [
+     0.085,
+     0.221
+    ]
+   }
+  },
+  "B_no_recall_yet": {
+   "false_known_recall": {
+    "k": 1,
+    "n": 50,
+    "rate": 0.02,
+    "ci95": [
+     0.004,
+     0.105
+    ]
+   },
+   "escalated": {
+    "k": 47,
+    "n": 50,
+    "rate": 0.94,
+    "ci95": [
+     0.838,
+     0.979
+    ]
+   },
+   "needs_info": {
+    "k": 2,
+    "n": 50,
+    "rate": 0.04,
+    "ci95": [
+     0.011,
+     0.135
+    ]
+   },
+   "median_days_before_later_recall": 113
+  },
+  "false_known_recall_A_and_B": {
+   "k": 5,
+   "n": 150,
+   "rate": 0.033,
+   "ci95": [
+    0.014,
+    0.076
+   ]
+  },
+  "calibration": {
+   "high": {
+    "k": 38,
+    "n": 39,
+    "rate": 0.974,
+    "ci95": [
+     0.868,
+     0.995
+    ]
+   },
+   "medium": {
+    "k": 69,
+    "n": 111,
+    "rate": 0.622,
+    "ci95": [
+     0.529,
+     0.706
+    ]
+   },
+   "low": {
+    "k": 0,
+    "n": 0,
+    "rate": null,
+    "ci95": [
+     0.0,
+     0.0
+    ]
+   }
+  },
+  "provenance": {
+   "first_answer_failed_verification": {
+    "k": 0,
+    "n": 150,
+    "rate": 0.0,
+    "ci95": [
+     0.0,
+     0.025
+    ]
+   },
+   "issue_codes": {},
+   "repaired": {
+    "k": 0,
+    "n": 150,
+    "rate": 0.0,
+    "ci95": [
+     0.0,
+     0.025
+    ]
+   },
+   "fallback": {
+    "k": 0,
+    "n": 150,
+    "rate": 0.0,
+    "ci95": [
+     0.0,
+     0.025
+    ]
+   },
+   "model_errors": {
+    "k": 0,
+    "n": 150,
+    "rate": 0.0,
+    "ci95": [
+     0.0,
+     0.025
+    ]
+   }
+  },
+  "operations": {
+   "latency_ms_p50": 13976,
+   "latency_ms_p95": 65898,
+   "input_tokens_per_case": 4894,
+   "output_tokens_per_case": 311,
+   "tool_calls_per_case": 0.58
+  }
+ }
+}

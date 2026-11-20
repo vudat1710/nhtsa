@@ -79,8 +79,8 @@ class Evidence(BaseModel):
 class RecallCheck(BaseModel):
     campno: str
     verdict: Literal["same", "partial", "different"] = Field(
-        description="same: the complaint describes this recall's failure; partial: consistent but the complaint lacks "
-                    "detail to confirm; different: related part, different failure")
+        description="same: the owner's symptoms match what this recall says happens; partial: compatible but too vague "
+                    "to tell; different: related part, different failure")
     complaint_quote: str = Field(description="exact words copied from the complaint")
     recall_quote: str = Field(description="exact words copied from this recall's defect, consequence or remedy")
     reason: str = Field(description="one plain sentence")

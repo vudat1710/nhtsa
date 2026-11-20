@@ -1,0 +1,189 @@
+{
+ "name": "20261120-1121-abc-test-baseline",
+ "set": "a,b,c",
+ "split": "test",
+ "mode": "baseline",
+ "prompt": "v2",
+ "model": "",
+ "metrics": {
+  "cases": 568,
+  "A_known_recall": {
+   "right_recall": {
+    "k": 217,
+    "n": 300,
+    "rate": 0.723,
+    "ci95": [
+     0.67,
+     0.771
+    ]
+   },
+   "answered_known": {
+    "k": 274,
+    "n": 300,
+    "rate": 0.913,
+    "ci95": [
+     0.876,
+     0.94
+    ]
+   },
+   "precision_when_known": {
+    "k": 217,
+    "n": 274,
+    "rate": 0.792,
+    "ci95": [
+     0.74,
+     0.836
+    ]
+   },
+   "wrong_recall": {
+    "k": 57,
+    "n": 300,
+    "rate": 0.19,
+    "ci95": [
+     0.15,
+     0.238
+    ]
+   },
+   "needs_info": {
+    "k": 0,
+    "n": 300,
+    "rate": 0.0,
+    "ci95": [
+     0.0,
+     0.013
+    ]
+   },
+   "escalated": {
+    "k": 26,
+    "n": 300,
+    "rate": 0.087,
+    "ci95": [
+     0.06,
+     0.124
+    ]
+   }
+  },
+  "B_no_recall_yet": {
+   "false_known_recall": {
+    "k": 0,
+    "n": 242,
+    "rate": 0.0,
+    "ci95": [
+     0.0,
+     0.016
+    ]
+   },
+   "escalated": {
+    "k": 242,
+    "n": 242,
+    "rate": 1.0,
+    "ci95": [
+     0.984,
+     1.0
+    ]
+   },
+   "needs_info": {
+    "k": 0,
+    "n": 242,
+    "rate": 0.0,
+    "ci95": [
+     0.0,
+     0.016
+    ]
+   },
+   "median_days_before_later_recall": 137.0
+  },
+  "C_stress": {
+   "injection": {
+    "k": 6,
+    "n": 6,
+    "rate": 1.0,
+    "ci95": [
+     0.61,
+     1.0
+    ]
+   },
+   "no_recalls_for_vehicle": {
+    "k": 5,
+    "n": 5,
+    "rate": 1.0,
+    "ci95": [
+     0.566,
+     1.0
+    ]
+   },
+   "too_short": {
+    "k": 0,
+    "n": 5,
+    "rate": 0.0,
+    "ci95": [
+     0.0,
+     0.434
+    ]
+   },
+   "unknown_component": {
+    "k": 5,
+    "n": 5,
+    "rate": 1.0,
+    "ci95": [
+     0.566,
+     1.0
+    ]
+   },
+   "unknown_year": {
+    "k": 5,
+    "n": 5,
+    "rate": 1.0,
+    "ci95": [
+     0.566,
+     1.0
+    ]
+   }
+  },
+  "false_known_recall_A_and_B": {
+   "k": 57,
+   "n": 542,
+   "rate": 0.105,
+   "ci95": [
+    0.082,
+    0.134
+   ]
+  },
+  "calibration": {
+   "high": {
+    "k": 0,
+    "n": 0,
+    "rate": null,
+    "ci95": [
+     0.0,
+     0.0
+    ]
+   },
+   "medium": {
+    "k": 0,
+    "n": 0,
+    "rate": null,
+    "ci95": [
+     0.0,
+     0.0
+    ]
+   },
+   "low": {
+    "k": 459,
+    "n": 542,
+    "rate": 0.847,
+    "ci95": [
+     0.814,
+     0.875
+    ]
+   }
+  },
+  "operations": {
+   "latency_ms_p50": 75,
+   "latency_ms_p95": 143,
+   "input_tokens_per_case": 0,
+   "output_tokens_per_case": 0,
+   "tool_calls_per_case": 0
+  }
+ }
+}
