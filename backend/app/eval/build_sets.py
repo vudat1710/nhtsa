@@ -17,9 +17,9 @@ from datetime import date
 
 import pandas as pd
 
-from app.data import db
+from app.data import queries
 from app.data.ingest import DB, ROOT
-from app.text import cited_recalls, mask_recall_numbers
+from app.pipeline.intake import cited_recalls, mask_recall_numbers
 
 OUT = ROOT / "data" / "eval"
 SEED = 7
@@ -61,8 +61,8 @@ def build_a(con: sqlite3.Connection, ro: sqlite3.Connection, rng: random.Random)
     print(f"A pool: {len(df):,} complaints citing one in-scope recall filed before them")
     rows, cut = [], 0
     for r in cap_per(df, "campno", rng).itertuples():
-        v = db.Vehicle(r.make, r.model, r.year)
-        cands, total = db.recalls_for(ro, v, r.received, sorted(r.comps))
+        v = queries.Vehicle(r.make, r.model, r.year)
+        cands, total = queries.recalls_for(ro, v, r.received, sorted(r.comps))
         ids = [c["campno"] for c in cands]
         if r.campno not in ids:
             cut += 1  # truth beyond the 15-candidate cap: the system cannot find it, so it is not a fair test
@@ -105,7 +105,7 @@ def build_b(con: sqlite3.Connection, rng: random.Random) -> list[dict]:
 def build_c(ro: sqlite3.Connection, a: list[dict], b: list[dict], rng: random.Random) -> list[dict]:
     """Stress cases carry a full complaint payload (not just an id) because the complaint itself is modified."""
     def payload(odino: int) -> dict:
-        c = db.complaint(ro, odino)
+        c = queries.complaint(ro, odino)
         return {k: c[k] for k in ("odino", "make", "model", "year", "received", "crash", "fire", "injured", "text",
                                   "components")}
 
@@ -144,7 +144,7 @@ def build_c(ro: sqlite3.Connection, a: list[dict], b: list[dict], rng: random.Ra
 
 
 def main() -> None:
-    con, ro = sqlite3.connect(DB), db.connect()
+    con, ro = sqlite3.connect(DB), queries.connect()
     # each set has its own random stream, so changing how one set is built never reshuffles another
     a = build_a(con, ro, random.Random(SEED))
     b = build_b(con, random.Random(SEED + 1))
