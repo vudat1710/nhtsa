@@ -6,6 +6,7 @@
 """
 import hashlib
 import json
+import os
 import re
 import time
 from collections.abc import Callable
@@ -46,6 +47,7 @@ class CassetteMiddleware(ChatMiddleware):
         if self.mode == "replay":
             if not path.exists():
                 raise LlmUnavailable("unavailable", f"no recording {path.name} (replay mode, no live model)")
+            os.utime(path)  # mark as used, so recordings no run needs any more can be pruned (eval/prune_cassettes.py)
             context.result = ChatResponse.from_dict(json.loads(path.read_text(encoding="utf-8")))
             return
         await call_next()
