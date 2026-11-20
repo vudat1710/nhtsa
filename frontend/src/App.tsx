@@ -3,7 +3,6 @@ import { BrowserRouter, NavLink, Outlet, Route, Routes } from 'react-router-dom'
 import { ops } from './api/client'
 import { EvalPage } from './ops/EvalPage'
 import { RunPage, RunsPage } from './ops/RunsPage'
-import { TryPage } from './ops/TryPage'
 import { InboxPage } from './workspace/InboxPage'
 import { IssuePage, IssuesPage } from './workspace/IssuesPage'
 import { TicketPage } from './workspace/TicketPage'
@@ -26,10 +25,10 @@ function WorkspaceLayout() {
 }
 
 function ModelStatus() {
-  const [h, setH] = useState<{ llm_mode: string; model: string | null } | null>(null)
+  const [h, setH] = useState<{ model: string | null } | null>(null)
   useEffect(() => { ops.health().then(setH).catch(() => setH(null)) }, [])
   if (!h) return <span className="small">API offline</span>
-  return <span className="small">{h.model ? `model ${h.model} · ${h.llm_mode}` : 'no model configured · replaying recordings'}</span>
+  return <span className="small">{h.model ? `model ${h.model}` : 'no model configured · rules only'}</span>
 }
 
 /** For the people who build and run the system: runs, audit trails, failure drills, evaluation. */
@@ -41,7 +40,6 @@ function OpsLayout() {
         <nav>
           <NavLink to="/ops" end>AI runs</NavLink>
           <NavLink to="/ops/eval">Evaluation</NavLink>
-          <NavLink to="/ops/try">Try a complaint</NavLink>
         </nav>
         <ModelStatus />
         <NavLink to="/" className="small">← Workspace</NavLink>
@@ -65,7 +63,6 @@ export function App() {
           <Route path="/ops" element={<RunsPage />} />
           <Route path="/ops/runs/:id" element={<RunPage />} />
           <Route path="/ops/eval" element={<EvalPage />} />
-          <Route path="/ops/try" element={<TryPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

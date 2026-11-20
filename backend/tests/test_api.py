@@ -139,10 +139,9 @@ def test_fallback_tells_the_analyst_to_check(client):
     assert "rules only" in client.get("/api/tickets/3").json()["suggestion"]["check_note"]
 
 
-def test_typed_complaint_in_the_sandbox(client):
-    client.turns.append(GOOD.replace("ICCU failed again after", "The ICCU failed again"))
-    body = {"make": "HYUNDAI", "model": "IONIQ 5", "year": "2024", "received": "2025-03-01",
-            "components": ["ELECTRICAL SYSTEM"], "text": "The ICCU failed again after the dealer visit and it stopped."}
-    done = events(client.post("/api/ops/try", json=body))[-1]
-    assert done["outcome"] == "known_recall"
-    assert client.get("/api/ops/health").json()["live_model"] is False
+def test_without_a_model_checks_use_the_rules_and_questions_are_off(client, monkeypatch):
+    monkeypatch.setattr(deps, "llm", lambda: None)
+    assert events(client.post("/api/tickets/3/check"))[-1]["type"] == "done"
+    assert "rules only" in client.get("/api/tickets/3").json()["suggestion"]["check_note"]
+    assert client.post("/api/tickets/3/ask", json={"question": "Was it repaired?"}).status_code == 503
+    assert client.get("/api/ops/health").json()["model"] is None

@@ -45,13 +45,10 @@ class Store:
         out = [Result.model_validate_json(row["body"]) for row in rows]
         return {r.complaint.odino: r for r in out}
 
-    def runs(self, label: str | None = None, limit: int = 200) -> list[dict]:
-        """Run summaries for the operations portal."""
-        sql, args = "SELECT label, body FROM results", ()
-        if label:
-            sql, args = sql + " WHERE label = ?", (label,)
+    def runs(self, limit: int = 200) -> list[dict]:
+        """Run summaries for the operations portal, newest first."""
         out = []
-        for row in self.con.execute(sql + " ORDER BY created_at DESC LIMIT ?", (*args, limit)):
+        for row in self.con.execute("SELECT label, body FROM results ORDER BY created_at DESC LIMIT ?", (limit,)):
             r = Result.model_validate_json(row["body"])
             first = r.attempts[0] if r.attempts else None
             out.append({"id": r.id, "odino": r.complaint.odino, "label": row["label"], "created_at": r.created_at,

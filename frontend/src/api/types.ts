@@ -126,14 +126,14 @@ export interface Ticket {
   questions: Turn[]
 }
 export interface TrailStep {
-  kind: 'read' | 'look' | 'think' | 'search' | 'compare' | 'check' | 'decide'
+  kind: 'read' | 'look' | 'search' | 'compare' | 'check' | 'decide'
   title: string; lines: string[]; quotes: QuotePair[]; status: 'ok' | 'warn' | 'info'
 }
 export interface Citation { kind: 'complaint' | 'recall' | 'earlier_complaint'; id: string; quote: string }
 export interface Turn {
   question: string
   answer: null | { answer: string; citations: Citation[]; scope: 'answered' | 'not_in_records' | 'out_of_scope'; recheck: boolean }
-  verified: boolean; issues: string[]; reasoning: string; searches: { query: string; results: number[] }[]
+  verified: boolean; issues: string[]; searches: { query: string; results: number[] }[]
   blocked?: boolean; error: string | null; result_id: string; at: string
 }
 export interface InboxItem {
@@ -176,7 +176,7 @@ export type RunEvent =
   | { type: 'intake'; flags: string[]; masked: number }
   | { type: 'evidence'; recalls: string[]; recalls_total: number; stats: Stats }
   | { type: 'tool_call'; tool: string; arguments: Record<string, unknown>; results: number[]; ms: number }
-  | { type: 'agent'; attempt: number; error: string | null; input_tokens: number; output_tokens: number; reasoning?: string }
+  | { type: 'agent'; attempt: number; error: string | null; input_tokens: number; output_tokens: number }
   | { type: 'verify'; attempt: number; result: string; issues: Issue[] }
   | { type: 'judgment'; checks: RecallCheck[]; similar: { odino: number; quote: string }[] }
   | { type: 'done'; result_id: string; outcome: Outcome }

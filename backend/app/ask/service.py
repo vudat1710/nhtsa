@@ -6,12 +6,11 @@ from agent_framework import Agent, Message
 from pydantic import BaseModel, ValidationError
 
 from app.ai.clients import LlmSetup
-from app.ai.middleware import CassetteMiddleware, ToolTraceMiddleware
+from app.ai.middleware import ToolTraceMiddleware
 from app.ai.tools import PREVIEW_CHARS, search_tool
 from app.ask.prompt import INSTRUCTIONS, AskAnswer, case_record, parse
 from app.ask.verify import check
 from app.models import Result
-from app.pipeline.judge import reasoning_of
 
 
 class Turn(BaseModel):
@@ -20,7 +19,6 @@ class Turn(BaseModel):
     answer: AskAnswer | None = None
     verified: bool = False
     issues: list[str] = []
-    reasoning: str = ""
     searches: list[dict] = []
     blocked: bool = False             # the provider's safety filter refused the question (answer written by code)
     error: str | None = None
@@ -46,11 +44,8 @@ async def ask(con: sqlite3.Connection, llm: LlmSetup, r: Result, history: list[T
     earlier = earlier_complaints(con, r)
     found: dict[int, str] = {o: e["full"] for o, e in earlier.items()}
     trace = ToolTraceMiddleware()
-    middleware: list = [CassetteMiddleware(llm.cassette_dir, llm.cassette_mode)] if llm.cassette_dir else []
-    middleware.append(trace)
     agent = Agent(client=llm.client, name="case_assistant", instructions=INSTRUCTIONS,
-                  tools=[search_tool(con, r.complaint, found)], middleware=middleware,
-                  default_options=llm.options or None)
+                  tools=[search_tool(con, r.complaint, found)], middleware=[trace])
     messages = [Message(role="user", contents=[case_record(r, {o: {k: v for k, v in e.items() if k != "full"}
                                                                    for o, e in earlier.items()}, related)])]
     for past in history:  # earlier questions on this ticket, so follow-ups make sense
@@ -61,7 +56,6 @@ async def ask(con: sqlite3.Connection, llm: LlmSetup, r: Result, history: list[T
     try:
         for attempt in (1, 2):
             resp = await agent.run(messages)
-            turn.reasoning = reasoning_of(resp)[:3000] or turn.reasoning
             try:
                 turn.answer = parse(resp.text or "")
                 turn.issues = check(turn.answer, r, found, question, related)

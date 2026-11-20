@@ -109,7 +109,6 @@ class Issue(BaseModel):
 class Attempt(BaseModel):
     n: int
     raw: str = ""
-    reasoning: str = ""               # the model's own summary of its reasoning, if it gave one (shown, never used)
     error: str | None = None
     issues: list[Issue] = []
     input_tokens: int = 0
@@ -117,7 +116,7 @@ class Attempt(BaseModel):
 
 
 class Decision(BaseModel):
-    """The final answer, set by rules (rules.py) from verified evidence. The AI proposes; this decides."""
+    """The final answer, set by rules (decide.py) from verified evidence. The AI proposes; this decides."""
     outcome: Outcome
     confidence: Confidence
     campno: str | None = None         # the matched recall, for known_recall

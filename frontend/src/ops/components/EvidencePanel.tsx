@@ -1,18 +1,9 @@
-import { useState } from 'react'
-import { ops } from '../../api/client'
 import type { Result } from '../../api/types'
-import { Quoted } from '../../shared/Quoted'
 
 /** Facts computed by code (never by the AI): earlier complaints, investigations, and complaints the AI cited. */
 export function EvidencePanel({ result }: { result: Result }) {
   const { stats, investigations } = result.evidence
   const similar = result.judgment?.similar ?? []
-  const [open, setOpen] = useState<Record<number, string>>({})
-  const toggle = async (odino: number) => {
-    if (open[odino]) { const { [odino]: _, ...rest } = open; setOpen(rest); return }
-    const c = await ops.complaint(odino)
-    setOpen({ ...open, [odino]: c.text })
-  }
   return (
     <section className="card">
       <h3>Evidence (computed from the records, before the complaint date)</h3>
@@ -24,13 +15,8 @@ export function EvidencePanel({ result }: { result: Result }) {
       </tbody></table>
       {similar.length > 0 && (
         <>
-          <h4>Earlier complaints the AI found describing the same failure</h4>
-          {similar.map(s => (
-            <div key={s.odino} className="similar">
-              <button className="link mono" onClick={() => toggle(s.odino)}>{s.odino}</button> “{s.quote}”
-              {open[s.odino] && <Quoted text={open[s.odino]} marks={[{ quote: s.quote, label: String(s.odino) }]} />}
-            </div>
-          ))}
+          <h4>Earlier complaints the AI found describing the same failure (quotes verified)</h4>
+          {similar.map(s => <div key={s.odino} className="similar"><span className="mono">{s.odino}</span> “{s.quote}”</div>)}
         </>
       )}
     </section>

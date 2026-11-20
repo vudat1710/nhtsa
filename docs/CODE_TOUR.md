@@ -26,8 +26,8 @@ backend/app/
   ai/                    everything about the model, nothing about recalls
     prompt.py            instructions (versioned, with the reason for each version), case/repair messages, parsing
     tools.py             search_complaints: the agent's only tool (read-only, as_of-bounded, async)
-    clients.py           live Azure OpenAI / offline / scripted (tests) clients + LlmSetup
-    middleware.py        record/replay (keyed on meaningful fields only), fault injection, tool-call trace
+    clients.py           live Azure OpenAI and scripted (tests) clients; no model configured -> None (rules only)
+    middleware.py        fault injection (failure drills), tool-call trace
 
   workspace/             the analyst's view of a decision. Pure code on a stored Result; no model calls
     suggest.py           what it is, why (in field-quality words), pattern, escalation reasons, actions
@@ -43,26 +43,28 @@ backend/app/
   store/                 data/app.db
     results.py           every AI run, whole (the audit record)
     tickets.py           what people did: ticket status, actions, emerging issues, questions asked
-    reset.py             clear what people did (keep runs) for a fresh demo
+    reset.py             clear what people did (keep runs); on a fresh clone, load data/inbox_results.jsonl.gz
 
   api/                   HTTP only; calls the layers above
     workspace.py         inbox, ticket (+ trail, questions), check (live progress), actions, ask, emerging issues
-    ops.py               runs, run detail, failure drills, sandbox, evaluation reports
+    ops.py               runs, run detail, failure drills, evaluation reports
     streaming.py · deps.py
 
   eval/                  build_sets.py (frozen real-data sets) · run.py (score + report + full results)
                          rescore.py (re-apply rules to stored answers) · adjudicate.py (who was right?)
-                         prune_cassettes.py (drop recordings no run uses) · ask_eval.py (follow-up questions)
+                         ask_eval.py (follow-up questions)
 
 backend/tests/           one file per area; conftest.py is a tiny NHTSA world (same schema)
 frontend/src/
   api/                   client.ts (workspace + ops clients, progress stream), types.ts (mirrors models.py)
   workspace/             Inbox, Ticket (SuggestionView + ActionPanel + TrailView + AskPanel), Emerging issues:
                          the analyst's product
-  ops/                   AI runs, run detail (decision, recall checks, evidence, audit trail), drills, sandbox,
+  ops/                   AI runs, run detail (decision, recall checks, evidence, audit trail), drills,
                          evaluation: for the people who build and run it
   shared/ · lib/         badges, quote highlighting, plain-word labels, liveTrail (progress events → steps)
-data/eval/               frozen sets, demo.json, runs/ reports/ results/ adjudication/
+data/                    inbox_results.jsonl.gz (stored AI results for the inbox, so no model is needed to look)
+data/eval/               frozen sets, demo.json (pinned inbox tickets), ask_questions.json, runs/ reports/ results/
+                         adjudication/
 docs/                    BRIEF.md, DATA_CARD.md, this file
 ```
 
@@ -95,6 +97,6 @@ The analyst opens the Honda Ridgeline ticket (`/tickets/11443328`):
 | Can the complaint text steer the AI? | `intake.py` (masking), `ai/prompt.py` rule 2, set C injection cases |
 | How is it evaluated, and can I reproduce it? | `eval/run.py`, `eval/rescore.py` (from committed results), `docs/DATA_CARD.md` |
 | Why is the search tool async? | `ai/tools.py` + `tests/test_workflow.py::test_concurrent_cases_share_the_connection_safely` |
-| Why are recordings keyed on some fields only? | `ai/middleware.py: cassette_key` + `tests/test_replay.py` |
-| How do you show the agent's thinking? Is it real? | `workspace/trail.py` (built from the stored run, not narrated by the model), `pipeline/workflow.py` (live `judgment`/`reasoning` events) |
+| Why did the drill need a regression test? | `ai/middleware.py: FaultMiddleware` keeps the response ids, or the repair turn loses the case (`tests/test_workflow.py::test_injected_fault_keeps_the_conversation_ids`) |
+| How do you show the agent's thinking? Is it real? | `workspace/trail.py` (built from the stored run, not narrated by the model), `pipeline/workflow.py` (live progress events) |
 | Can the follow-up assistant make things up? | `ask/verify.py` (quotes checked), `ask/prompt.py` rules, `eval/ask_eval.py`, `tests/test_ask_trail.py` |

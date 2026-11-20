@@ -97,7 +97,7 @@ class JudgeStep(Step):
         att, case.reply, case.model = await ask(self.res.judge, n, text, self.res.llm.model_name)
         case.attempts.append(att)
         self.res.emit({"type": "agent", "attempt": n, "error": att.error, "input_tokens": att.input_tokens,
-                       "output_tokens": att.output_tokens, "reasoning": att.reasoning})
+                       "output_tokens": att.output_tokens})
         await ctx.send_message(case)
 
 

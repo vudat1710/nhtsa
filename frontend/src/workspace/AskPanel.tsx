@@ -40,11 +40,6 @@ function Answer({ t }: { t: Turn }) {
             <li className={`trail-step ${t.verified ? 'ok' : 'warn'}`}><span className="trail-icon">{t.verified ? '✓' : '⚠'}</span><div>
               {t.verified ? `Every quote was found word for word in its source${a.citations.length ? '' : ' (no claims needing a source)'}.` : `Verification failed: ${t.issues.join('; ')}`}
             </div></li>
-            {t.reasoning && (
-              <li className="trail-step think"><span className="trail-icon">💭</span><div><strong>Its own summary of its reasoning</strong> (the model’s account, not evidence)
-                {t.reasoning.replace(/\*\*/g, '').split('\n\n').filter(Boolean).slice(0, 4).map((p, i) => <p key={i}>{p}</p>)}
-              </div></li>
-            )}
           </ol>
         </details>
       )}

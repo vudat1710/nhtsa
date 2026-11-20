@@ -13,7 +13,7 @@ def con():
 
 
 @lru_cache
-def llm() -> LlmSetup:
+def llm() -> LlmSetup | None:
     return setup_from_settings(get_settings())
 
 

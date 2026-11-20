@@ -1,7 +1,7 @@
 import type { TrailStep } from '../api/types'
 
 const ICON: Record<TrailStep['kind'], string> = {
-  read: '📄', look: '🗂', think: '💭', search: '🔎', compare: '⚖', check: '✓', decide: '➜',
+  read: '📄', look: '🗂', search: '🔎', compare: '⚖', check: '✓', decide: '➜',
 }
 
 /** How the agent investigated, step by step (stored trail from workspace/trail.py). */

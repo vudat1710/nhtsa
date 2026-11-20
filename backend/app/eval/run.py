@@ -1,7 +1,6 @@
 """Run the pipeline over a frozen set and score it.
 
-    uv run python -m app.eval.run --set demo
-    uv run python -m app.eval.run --set a --split test --mode ai          (needs a model, or recordings in cassettes/)
+    uv run python -m app.eval.run --set a --split test --mode ai          (needs a model)
     uv run python -m app.eval.run --set a,b,c --split test --mode baseline
 
 Each run writes data/eval/runs/<name>.jsonl (one scored line per case) and data/eval/reports/<name>.json (metrics),
@@ -27,15 +26,13 @@ ESCALATED = ("possible_new", "related_different")
 
 
 def load(name: str, split: str) -> list[dict]:
-    if name == "demo":
-        return json.loads((EVAL / "demo.json").read_text(encoding="utf-8"))["cases"]
     cases = json.loads((EVAL / f"set_{name}.json").read_text(encoding="utf-8"))["cases"]
     return [c for c in cases if c["split"] == split]
 
 
 def score(case: dict, r: Result) -> dict:
     """Per-case verdict. 'right' is the single yes/no used for calibration (is this answer correct?)."""
-    d, s = r.decision, case.get("set", "D")
+    d, s = r.decision, case["set"]
     out = {"id": case["id"], "set": s, "outcome": d.outcome, "campno": d.campno, "confidence": d.confidence,
            "source": d.source, "escalate": d.escalate, "flags": d.flags}
     if s == "A":
@@ -58,8 +55,6 @@ def score(case: dict, r: Result) -> dict:
             ok = d.outcome == truth
         out |= {"kind": kind, "right": ok, "wrong_known": d.outcome == "known_recall" and kind != "unknown_component"
                 and kind != "injection" and d.campno != case.get("truth_campno")}
-    else:  # demo
-        out["right"] = d.source == "fallback" if case["expect"] == "fallback" else d.outcome == case["expect"]
     first = r.attempts[0] if r.attempts else None
     out |= {"odino": r.complaint.odino, "attempts": len(r.attempts),
             "first_issues": [i.code for i in first.issues] if first else [],
@@ -148,12 +143,14 @@ def metrics(rows: list[dict]) -> dict:
 
 async def run_all(cases: list[dict], mode: str, concurrency: int, store: Store, label: str) -> list[dict]:
     con, llm = queries.connect(get_settings().db_path), setup_from_settings(get_settings())
+    if mode == "ai" and llm is None:
+        raise SystemExit("--mode ai needs a model: set NHTSA_AZURE_ENDPOINT and NHTSA_DEPLOYMENT")
     sem, rows, results = asyncio.Semaphore(concurrency), [], []
 
     async def one(case: dict) -> None:
         complaint = Complaint(**case["complaint"]) if "complaint" in case else queries.complaint(con, case["odino"])
         async with sem:
-            r = await run(con, complaint, llm, use_llm=mode == "ai", fault=case.get("fault"))
+            r = await run(con, complaint, llm, use_llm=mode == "ai")
         store.save(r, label)
         results.append(r)
         rows.append(score(case, r))
@@ -169,7 +166,7 @@ async def run_all(cases: list[dict], mode: str, concurrency: int, store: Store, 
 
 def main() -> None:
     p = argparse.ArgumentParser()
-    p.add_argument("--set", default="demo", help="demo | a | b | c, or a comma list like a,b,c")
+    p.add_argument("--set", default="a,b,c", help="a | b | c, or a comma list like a,b,c")
     p.add_argument("--split", default="test", choices=["test", "dev"])
     p.add_argument("--mode", default="ai", choices=["ai", "baseline"])
     p.add_argument("--limit", type=int, default=0)

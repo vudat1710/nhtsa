@@ -54,7 +54,8 @@ Baseline (pick the candidate recall with the same component; from the profiling 
   "known recall" claims, 6 were judged right (an existing recall on another component really fits), 3 wrong, 4 unclear.
 - **Prompt changes were made on the dev split only** (v1 → v2 negation rule, v2 → v3 "symptoms, not causes"); test sets
   were run once with v3. One rule bug found on test set C was fixed and the stored answers re-decided (5 changed).
-- A replay attempt at 12:13 was discarded: a recording-key bug made every tool-using case miss (fixed, regression test).
+- A replay attempt at 12:13 was discarded: a bug in the (since removed) answer recordings made every tool-using case
+  miss. No reported number comes from it.
 
 ## What the data cannot tell us (limitations)
 

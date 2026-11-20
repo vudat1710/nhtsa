@@ -1,10 +1,12 @@
 """The whole workflow with a scripted model: happy path, tool use, repair, fallback, and AI off."""
 import asyncio
 import json
+from types import SimpleNamespace
 
-from agent_framework import Content
+from agent_framework import ChatResponse, Content, Message
 
 from app.ai.clients import LlmSetup, ScriptedChatClient
+from app.ai.middleware import FaultMiddleware
 from app.pipeline.workflow import run
 
 GOOD = json.dumps({
@@ -76,8 +78,22 @@ def test_model_down_falls_back_without_retrying(con, iccu_complaint):
 
 
 def test_injected_fault_is_caught_by_the_verifier(con, iccu_complaint):
-    r, _, _ = go(con, iccu_complaint, [GOOD, GOOD], fault="unknown_recall")
-    assert r.attempts[0].issues[0].code == "unknown_recall" and r.decision.source == "ai_repaired"
+    r, _, _ = go(con, iccu_complaint, [GOOD, GOOD], fault="malformed_json")
+    assert r.attempts[0].issues[0].code == "malformed_output" and r.decision.source == "ai_repaired"
+
+
+def test_injected_fault_keeps_the_conversation_ids():
+    """Regression: the drill replaced the whole response, dropping the ids the Responses API session uses, so the
+    repair turn reached the model without the case."""
+    ctx = SimpleNamespace(result=ChatResponse(messages=[Message(role="assistant", contents=[GOOD])],
+                                              response_id="resp_1", conversation_id="resp_1"))
+
+    async def nothing():
+        return None
+
+    asyncio.run(FaultMiddleware("malformed_json").process(ctx, nothing))
+    assert ctx.result.conversation_id == "resp_1" and ctx.result.response_id == "resp_1"
+    assert ctx.result.text == GOOD[: len(GOOD) // 2]
 
 
 def test_unknown_year_skips_the_ai(con, iccu_complaint):

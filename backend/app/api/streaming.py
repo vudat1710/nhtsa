@@ -12,8 +12,8 @@ def sse(event: dict) -> str:
     return f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
 
-async def stream(complaint: Complaint, label: str, use_llm: bool = True, fault: str | None = None,
-                 on_done=None) -> AsyncIterator[str]:
+async def stream(complaint: Complaint, label: str, use_llm: bool = True,
+                 fault: str | None = None) -> AsyncIterator[str]:
     """Progress events as they happen, then {"type": "done", "result_id": ...}."""
     q: asyncio.Queue = asyncio.Queue()
     task = asyncio.create_task(run(deps.con(), complaint, deps.llm(), use_llm=use_llm, fault=fault,
@@ -27,6 +27,4 @@ async def stream(complaint: Complaint, label: str, use_llm: bool = True, fault: 
         yield sse({"type": "error", "message": str(exc)})
         return
     deps.store().save(r, label)
-    if on_done:
-        on_done(r)
     yield sse({"type": "done", "result_id": r.id, "outcome": r.decision.outcome})

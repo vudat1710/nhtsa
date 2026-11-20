@@ -16,12 +16,13 @@ export function liveLine(e: RunEvent): { icon: string; text: string } | null {
     case 'tool_call':
       return { icon: '🔎', text: `The agent decided to search earlier complaints for “${String(e.arguments.query ?? '')}” → ${e.results.length} found.` }
     case 'agent':
-      if (e.error) return { icon: '⚠', text: `The agent did not answer: ${e.error}` }
-      return e.reasoning ? { icon: '💭', text: `Its reasoning (own summary): ${e.reasoning.replace(/\*\*/g, '').slice(0, 400)}` } : null
+      return e.error ? { icon: '⚠', text: `The agent did not answer: ${e.error}` } : null
     case 'judgment':
       return { icon: '⚖', text: e.checks.length ? e.checks.map(c => `${c.campno.slice(0, 3)}-${c.campno.slice(3, 6)}: ${VERDICT[c.verdict]}`).join(' · ') : 'No recall describes this failure.' }
     case 'verify':
       return e.issues.length ? { icon: '⚠', text: `Check failed: ${e.issues.map(i => i.message).join('; ').slice(0, 200)}` } : { icon: '✓', text: 'Every quote found word for word in its source.' }
+    case 'error':
+      return { icon: '⚠', text: `Error: ${e.message}` }
     default:
       return null
   }

@@ -1,5 +1,5 @@
 {
- "name": "ask-20261120-1447",
+ "name": "ask-20261120-1505",
  "set": "ask",
  "split": "test",
  "mode": "ai",
@@ -33,9 +33,8 @@
    ]
   },
   "blocked_by_provider": 1,
-  "citations_per_answered": 3.3,
+  "citations_per_answered": 3.7,
   "used_search": 1,
-  "gave_reasoning_summary": 1,
-  "seconds_p50": 4.8
+  "seconds_p50": 5.2
  }
 }

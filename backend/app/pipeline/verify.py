@@ -42,10 +42,6 @@ def quote_problem(quote: str, source: str) -> str | None:
     return "starts or ends in the middle of a word"
 
 
-def quote_ok(quote: str, source: str) -> bool:
-    return quote_problem(quote, source) is None
-
-
 def recall_text(ev: Evidence, campno: str) -> str:
     r = ev.recall(campno)
     return f"{r.defect}\n{r.consequence}\n{r.remedy}" if r else ""

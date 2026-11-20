@@ -1,5 +1,5 @@
 import type {
-  ActionId, Complaint, EmergingIssue, EvalReport, InboxItem, Result, RunEvent, RunSummary, Ticket, TicketStatus, Turn,
+  ActionId, EmergingIssue, EvalReport, InboxItem, Result, RunEvent, RunSummary, Ticket, TicketStatus, Turn,
 } from './types'
 
 async function get<T>(path: string): Promise<T> {
@@ -31,33 +31,26 @@ export const workspace = {
   act: (odino: number, body: ActionBody) => post<{ status: TicketStatus }>(`/tickets/${odino}/actions`, body),
   issues: () => get<EmergingIssue[]>('/issues'),
   issue: (id: number) => get<EmergingIssue>(`/issues/${id}`),
-  check: (odino: number, onEvent: (e: RunEvent) => void) => streamEvents(`/api/tickets/${odino}/check`, undefined, onEvent),
+  check: (odino: number, onEvent: (e: RunEvent) => void) => streamEvents(`/api/tickets/${odino}/check`, onEvent),
   ask: (odino: number, question: string) => post<Turn>(`/tickets/${odino}/ask`, { question }),
 }
 
 /** The operations portal. */
 export const ops = {
-  health: () => get<{ llm_mode: string; model: string | null; live_model: boolean }>('/ops/health'),
+  health: () => get<{ model: string | null }>('/ops/health'),
   runs: () => get<RunSummary[]>('/ops/runs'),
   run: (id: string) => get<Result>(`/ops/runs/${id}`),
-  complaint: (odino: number) => get<Complaint>(`/ops/complaints/${odino}`),
   evals: () => get<EvalReport[]>('/ops/evals'),
-  drill: (target: number | Complaint, opts: { useLlm: boolean; fault: string | null }, onEvent: (e: RunEvent) => void) => {
+  drill: (odino: number, opts: { useLlm: boolean; fault: string | null }, onEvent: (e: RunEvent) => void) => {
     const params = new URLSearchParams({ use_llm: String(opts.useLlm) })
     if (opts.fault) params.set('fault', opts.fault)
-    return typeof target === 'number'
-      ? streamEvents(`/api/ops/drill/${target}?${params}`, undefined, onEvent)
-      : streamEvents(`/api/ops/try?${params}`, target, onEvent)
+    return streamEvents(`/api/ops/drill/${odino}?${params}`, onEvent)
   },
 }
 
 /** POST and read Server-Sent Events until the stream ends. */
-async function streamEvents(url: string, body: unknown, onEvent: (e: RunEvent) => void) {
-  const r = await fetch(url, {
-    method: 'POST',
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-  })
+async function streamEvents(url: string, onEvent: (e: RunEvent) => void) {
+  const r = await fetch(url, { method: 'POST' })
   if (!r.ok || !r.body) throw new Error(`${r.status} ${await r.text()}`)
   const reader = r.body.getReader()
   const decoder = new TextDecoder()

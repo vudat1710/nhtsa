@@ -25,16 +25,19 @@ Requires Python 3.12+, [uv](https://docs.astral.sh/uv/), Node 20+.
 uv sync
 uv run python -m app.data.fetch          # ~380 MB of NHTSA flat files -> data/raw
 uv run python -m app.data.ingest         # -> data/nhtsa.db (~550 MB, ~1 min)
-uv run pytest                            # 55 tests, no network, no model
+uv run pytest                            # 62 tests, no network, no model
+uv run python -m app.store.reset         # fresh workspace; on a fresh clone, loads the inbox's stored AI results
 
 uv run uvicorn app.main:app --app-dir backend --port 8000
 cd frontend; npm install; npm run dev    # http://localhost:5173  (operations portal: /ops)
 ```
 
-**No Azure needed** to try it: without `.env` the app replays recorded model answers (`cassettes/`) for the demo
-complaints; anything not recorded gets the rules-only suggestion, clearly marked "please check before acting".
-**With a model:** copy `.env.example` to `.env`, set `NHTSA_AZURE_ENDPOINT` and `NHTSA_DEPLOYMENT`, `az login` (Entra
-ID, no keys). `uv run python -m app.store.reset` clears what analysts did (keeps the AI runs) for a fresh demo.
+**No Azure needed** to try it: `reset` loads the stored AI results of the 19 inbox tickets
+(`data/inbox_results.jsonl.gz`), so every ticket opens with its checked suggestion and investigation trail. Without a
+model, a new check gets the rules-only suggestion, clearly marked "please check before acting", and follow-up
+questions are off. **With a model:** copy `.env.example` to `.env`, set `NHTSA_AZURE_ENDPOINT` and
+`NHTSA_DEPLOYMENT`, `az login` (Entra ID, no keys). `reset` clears what analysts did (keeps the AI runs) for a fresh
+demo.
 
 ## What the analyst does (the workspace)
 
@@ -48,14 +51,14 @@ ID, no keys). `uv run python -m app.store.reset` clears what analysts did (keeps
 
 Anything other than the suggestion asks for one line of why; that is the feedback signal. Engineers see escalations
 grouped on the **Emerging issues** page. The **operations portal** (`/ops`) is for the people running the system: every
-AI run with its audit trail, failure drills (break the model on purpose), a sandbox, and the evaluation.
+AI run with its audit trail, failure drills (model down, broken answer), and the evaluation.
 
 ### See how it got there, then ask about it
 
 - **How the agent investigated**: every ticket shows the steps in order, in analyst words: read the complaint → looked
   up what was known on that date → *decided to search* earlier complaints for "…" (the agent's own wording, and what it
   found) → compared with each recall (quotes) → checked every quote → decided by the rules. While a check runs, the
-  same steps appear live; "watch it again live" replays them. The steps are built by code from the stored run
+  same steps appear live; "watch it again live" re-runs the check. The steps are built by code from the stored run
   (`workspace/trail.py`), so they show what actually happened, not a story the model tells afterwards.
 - **Ask about this case**: follow-up questions ("Why doesn't that recall cover this?", "Have other owners reported the
   same failure?"). The assistant only sees this case's record and may search earlier complaints (same date limit).
@@ -63,9 +66,9 @@ AI run with its audit trail, failure drills (break the model on purpose), a sand
   (VIN, repair history), declines out-of-scope requests, and flags when new information (e.g. "it's actually a 2023")
   means the case should be **re-checked** rather than answered. Each answer has **How it answered**: the searches
   it ran, the quotes it used, the check result. Questions and answers are stored on the ticket.
-- *Model reasoning summaries:* the judge's evaluated settings use no reasoning tokens, so there is nothing to show.
-  The assistant's summaries appear only sometimes (1 of 21 eval questions), so "How it answered" is built by code
-  and a model summary is shown, labelled, only when one exists.
+- *Why not show the model's own reasoning?* We tried: the judge uses no reasoning tokens at its evaluated settings,
+  and the assistant returned a reasoning summary for 1 of 21 eval questions. A trail built from what the system
+  actually did is always there and can be checked; a model's account of itself is neither.
 
 ### Demo (real complaints, in the inbox)
 
@@ -75,7 +78,7 @@ AI run with its audit trail, failure drills (break the model on purpose), a sand
 | D2 | 2022 Acura MDX: air bags **did not deploy** in a crash (fire, injury) | **Same part, opposite failure**: the only air bag recall is about deploying when it shouldn't. The baseline calls it "known" |
 | D3 | 2018 Honda Ridgeline: rear camera dies, tailgate pinches the wiring | **Possible new defect**; the AI finds 3 earlier owners describing it. NHTSA recalled it **348 days later** (hindsight, shown after) |
 | D4 | 2019 Ford Mustang: "Backup camara is not working" | **Too vague**: names the probable recall, asks 3 questions |
-| D5 | D1 with the model unavailable (ops portal → failure drill) | Rules-only fallback, labelled; never a silent guess |
+| D5 | D1 in the ops portal → failure drill "model unavailable" / "broken answer" | Rules-only fallback, labelled / one repair turn, then the same verified answer; never a silent guess |
 | – | 2027 Ioniq 5: ICCU failed (recent complaint in the inbox) | **Recall-scope gap**: no recall covers the 2027, but 24V-868 covers the same failure on 2022–2024 → escalate |
 
 ## How it works
@@ -137,7 +140,7 @@ stored AI answers were re-decided (`app/eval/rescore.py`, 5 decisions changed), 
 **Follow-up questions** (`app/eval/ask_eval.py`, 21 questions over the 5 demo tickets, checked by code: scope,
 citations verified, "not in the records" when the records can't answer, re-check flag): **21/21 passed**, every
 answer's quotes verified (20/20; 1 injection request was blocked by the provider's safety filter and shown as such),
-4/4 "not in the records" when expected, 3.3 citations per answer, p50 4.8 s. Small set: it shows the guardrails work,
+4/4 "not in the records" when expected, 3.7 citations per answer, p50 5.2 s. Small set: it shows the guardrails work,
 not that answers are always the most useful.
 
 Reproduce: every run's full results are committed (`data/eval/results/*.jsonl.gz`), so

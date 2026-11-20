@@ -1,30 +1,29 @@
 """The operations portal (for the people who build and run the system, not the analyst): every AI run with its audit
-trail, failure drills, a sandbox for typed complaints, and the evaluation reports."""
+trail, failure drills, and the evaluation reports."""
 import json
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
+from app.ai.middleware import FaultMiddleware
 from app.api import deps
 from app.api.streaming import stream
 from app.data import queries
 from app.eval.run import EVAL
-from app.models import Complaint
 
 router = APIRouter(prefix="/ops")
 LABEL = "ops"     # runs made from the portal never change what the analyst sees
-FAULTS = ("llm_down", "malformed_json", "bad_quote", "unknown_recall", "malformed_json:always")
 
 
 @router.get("/health")
 def health() -> dict:
     setup = deps.llm()
-    return {"llm_mode": setup.cassette_mode, "model": setup.model_name or None, "live_model": bool(setup.model_name)}
+    return {"model": setup.model_name if setup else None}
 
 
 @router.get("/runs")
-def runs(label: str | None = None, limit: int = 200) -> list[dict]:
-    return deps.store().runs(label, limit)
+def runs(limit: int = 200) -> list[dict]:
+    return deps.store().runs(limit)
 
 
 @router.get("/runs/{result_id}")
@@ -35,36 +34,15 @@ def run_detail(result_id: str) -> dict:
     return r.model_dump()
 
 
-@router.get("/complaints/{odino}")
-def complaint(odino: int) -> dict:
-    c = queries.complaint(deps.con(), odino)
-    if c is None:
-        raise HTTPException(404, f"complaint {odino} not found")
-    return c.model_dump()
-
-
-def check_fault(fault: str | None) -> str | None:
-    if fault and fault not in FAULTS:
-        raise HTTPException(422, f"fault must be one of {FAULTS}")
-    return fault
-
-
 @router.post("/drill/{odino}")
 async def drill(odino: int, use_llm: bool = True, fault: str | None = None) -> StreamingResponse:
     """Run a stored complaint with the AI on/off or deliberately broken."""
+    if fault and fault not in FaultMiddleware.MODES:
+        raise HTTPException(422, f"fault must be one of {FaultMiddleware.MODES}")
     c = queries.complaint(deps.con(), odino)
     if c is None:
         raise HTTPException(404, f"complaint {odino} not found")
-    return StreamingResponse(stream(c, LABEL, use_llm, check_fault(fault)), media_type="text/event-stream")
-
-
-@router.post("/try")
-async def try_complaint(c: Complaint, use_llm: bool = True, fault: str | None = None) -> StreamingResponse:
-    """A complaint typed in (not in the NHTSA data). Same pipeline, same rules."""
-    if not c.text.strip():
-        raise HTTPException(422, "complaint text is empty")
-    return StreamingResponse(stream(c.model_copy(update={"odino": None}), LABEL, use_llm, check_fault(fault)),
-                             media_type="text/event-stream")
+    return StreamingResponse(stream(c, LABEL, use_llm, fault), media_type="text/event-stream")
 
 
 @router.get("/evals")
@@ -77,7 +55,7 @@ def evals() -> list[dict]:
     for f in files:
         rep = json.loads(f.read_text(encoding="utf-8"))
         key = (rep["set"], rep["split"], rep["mode"])
-        if key in seen or rep["set"] == "demo":
+        if key in seen:
             continue
         seen.add(key)
         adj = EVAL / "adjudication" / f"{rep['name']}.json"
@@ -91,11 +69,3 @@ def evals() -> list[dict]:
                 for group, g in data["groups"].items()}
         out.append(rep)
     return out
-
-
-@router.get("/evals/{name}/cases")
-def eval_cases(name: str) -> list[dict]:
-    path = EVAL / "runs" / f"{name}.jsonl"
-    if path.parent != EVAL / "runs" or not path.exists():
-        raise HTTPException(404, "run not found")
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]

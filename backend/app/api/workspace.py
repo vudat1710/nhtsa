@@ -1,7 +1,6 @@
 """The analyst's workspace: inbox, ticket (what it is, why, what to do), actions, and emerging issues.
 No model names, tokens or simulated failures here; those live in the operations portal (ops.py)."""
 import json
-from dataclasses import replace
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -10,7 +9,7 @@ from pydantic import BaseModel, Field
 from app.api import deps
 from app.api.streaming import stream
 from app.ask.service import Turn, ask
-from app.config import ROOT, get_settings
+from app.config import ROOT
 from app.data import queries
 from app.models import Complaint
 from app.workspace.actions import ActionError, ActionRequest, apply
@@ -27,7 +26,7 @@ def demo_cases() -> list[dict]:
 
 def inbox_ids(limit: int = 15) -> list[int]:
     """The demo complaints first, then a slice of real, recent owner complaints (a normal morning's inbox)."""
-    demo = [d["odino"] for d in demo_cases() if not d.get("fault")]
+    demo = [d["odino"] for d in demo_cases()]
     rows = deps.con().execute(
         """SELECT odino FROM complaints WHERE source = 'owner' AND year != '9999' AND length(text) > 200
            ORDER BY received DESC, odino DESC LIMIT ?""", (limit,)).fetchall()
@@ -46,12 +45,6 @@ def related_for(r) -> list[dict]:
 
 def suggestion(r) -> Suggestion:
     """The analyst's view of a stored run, with other-year recalls of the same part as context for unmatched ones."""
-    c = r.complaint
-    missing = [x.campno for x in r.evidence.recalls if not x.model_years]
-    if missing:  # runs stored before model years were part of the evidence
-        years = queries.recall_model_years(deps.con(), missing, c.make, c.model)
-        for x in r.evidence.recalls:
-            x.model_years = x.model_years or years.get(x.campno, [])
     return suggest(r, deps.store().tickets, related_for(r))
 
 
@@ -66,7 +59,7 @@ def complaint_or_404(odino: int) -> Complaint:
 def inbox() -> list[dict]:
     latest, tickets = deps.store().latest(LABEL), deps.store().tickets
     statuses = tickets.statuses()
-    demo = {d["odino"]: d["title"] for d in demo_cases() if not d.get("fault")}
+    demo = {d["odino"]: d["title"] for d in demo_cases()}
     items = []
     for odino in inbox_ids():
         c, r = complaint_or_404(odino), latest.get(odino)
@@ -89,7 +82,7 @@ def ticket(odino: int) -> dict:
     status = tickets.status(odino)
     if status["status"] == "new" and r:
         status["status"] = "suggested"
-    demo = next((d for d in demo_cases() if d["odino"] == odino and not d.get("fault")), None)
+    demo = next((d for d in demo_cases() if d["odino"] == odino), None)
     return {"complaint": c.model_dump(), "status": status, "history": [a.model_dump() for a in tickets.history(odino)],
             "suggestion": suggestion(r).model_dump() if r else None, "demo": demo,
             "trail": [s.model_dump() for s in trail(r)] if r else [],
@@ -106,12 +99,11 @@ async def ask_about(odino: int, q: Question) -> dict:
     r = deps.store().latest(LABEL).get(odino)
     if r is None:
         raise HTTPException(409, "check this ticket first")
+    llm = deps.llm()
+    if llm is None:
+        raise HTTPException(503, "no model configured (NHTSA_AZURE_ENDPOINT), so follow-up questions are off")
     tickets = deps.store().tickets
     history = [Turn.model_validate_json(x) for x in tickets.questions(odino)][-6:]
-    llm = deps.llm()
-    if llm.options:  # the follow-up assistant may reason a little; its summary is shown, labelled, never used
-        llm = replace(llm, options={"reasoning": {**llm.options.get("reasoning", {}),
-                                                  "effort": get_settings().ask_reasoning_effort}})
     turn = await ask(deps.con(), llm, r, history, q.question.strip(), related_for(r))
     tickets.add_question(odino, turn.model_dump_json())
     return turn.model_dump()

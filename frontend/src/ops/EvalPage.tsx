@@ -35,9 +35,10 @@ export function EvalPage() {
   const [reports, setReports] = useState<EvalReport[] | null>(null)
   useEffect(() => { ops.evals().then(setReports) }, [])
   if (!reports) return <p className="muted">Loading…</p>
-  const test = reports.filter(r => r.split === 'test')
+  const test = reports.filter(r => r.split === 'test' && r.set !== 'ask')
   const ai = test.find(r => r.mode === 'ai')
   const base = test.find(r => r.mode === 'baseline')
+  const asked = reports.find(r => r.set === 'ask')?.metrics as Record<string, RateStat | number> | undefined
   if (!ai && !base) return <p className="muted">No evaluation runs yet: <code>uv run python -m app.eval.run --set a,b,c</code></p>
   const get = (r: EvalReport | undefined, group: string, key: string) => {
     const m = r?.metrics as M | undefined
@@ -110,6 +111,18 @@ export function EvalPage() {
           <h3>Cost and speed (AI)</h3>
           <table className="metrics"><tbody>
             {Object.entries(am.operations).map(([k, v]) => <tr key={k}><td>{k.replaceAll('_', ' ')}</td><td>{String(v)}</td></tr>)}
+          </tbody></table>
+        </section>
+      )}
+      {asked && (
+        <section className="card">
+          <h3>Follow-up questions (“Ask about this case”)</h3>
+          <p className="small muted">Questions about the demo tickets (data/eval/ask_questions.json), checked by code: right scope, every quote verified, “not in the records” instead of a guess.</p>
+          <table className="metrics"><tbody>
+            <tr><td>Questions passed</td><Cell s={asked.passed} /></tr>
+            <tr><td>Answers with every quote verified (not blocked)</td><Cell s={asked.verified_when_not_blocked} /></tr>
+            <tr><td>Says “not in the records” when it should</td><Cell s={asked.says_not_in_records_when_expected} /></tr>
+            <tr><td>Blocked by the provider’s safety filter</td><Cell s={asked.blocked_by_provider} /></tr>
           </tbody></table>
         </section>
       )}

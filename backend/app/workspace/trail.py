@@ -1,8 +1,8 @@
 """How the agent investigated one complaint, told step by step in the analyst's words (from a stored Result).
 
 Every step is something the system did or observed: what it looked at, the agent's own search queries, its verdict
-and stated reason per recall, the verification result, and the rule that decided. The model's reasoning summary is
-included when it gave one, clearly labelled: it is the model's own account, not evidence.
+and stated reason per recall, the verification result, and the rule that decided. Nothing here is narrated by the
+model after the fact.
 """
 from typing import Literal
 
@@ -12,7 +12,7 @@ from app.models import Result
 from app.workspace.messages import display_campno, plain_defect
 from app.workspace.suggest import QuotePair, gist
 
-Kind = Literal["read", "look", "think", "search", "compare", "check", "decide"]
+Kind = Literal["read", "look", "search", "compare", "check", "decide"]
 
 
 class Step(BaseModel):
@@ -52,11 +52,6 @@ def trail(r: Result) -> list[Step]:
                                                        for i in ev.investigations[:3]))
     steps.append(Step(kind="look", title="Looked up what was known on that date", lines=look))
 
-    reasoning = next((a.reasoning for a in reversed(r.attempts) if a.reasoning), "")
-    if reasoning:
-        steps.append(Step(kind="think", title="The agent's reasoning (its own summary, not evidence)",
-                          lines=[p.replace("**", "") for p in reasoning.split("\n\n") if p.strip()][:6]))
-
     cited = {s.odino: s.quote for s in (j.similar if j else [])}
     for call in r.tool_calls:
         query = str(call.get("arguments", {}).get("query", ""))
@@ -81,8 +76,8 @@ def trail(r: Result) -> list[Step]:
                               lines=[a.error]))
         elif a.issues:
             steps.append(Step(kind="check", status="warn", title=f"Double-check failed (attempt {a.n})",
-                              lines=[i.message for i in a.issues][:4] + ["Sent back to the agent to correct."
-                                                                          if a.n == 1 else ""]))
+                              lines=[i.message for i in a.issues][:4] + (["Sent back to the agent to correct."]
+                                                                          if a.n == 1 else [])))
         else:
             n_quotes = 2 * len(j.checks) + len(j.similar) if j else 0
             steps.append(Step(kind="check", status="ok", title="Double-checked against the records",

@@ -1,4 +1,4 @@
-"""Evaluate the follow-up assistant on 20 questions about five checked tickets (data/eval/ask_questions.json).
+"""Evaluate the follow-up assistant on 21 questions about the demo tickets (data/eval/ask_questions.json).
 
     uv run python -m app.eval.ask_eval
 
@@ -10,13 +10,11 @@ import asyncio
 import json
 import statistics
 import time
-from dataclasses import replace
 from datetime import datetime
 
 from app.api import deps
 from app.api.workspace import related_for
 from app.ask.service import ask
-from app.config import get_settings
 from app.eval.run import EVAL, rate
 
 
@@ -30,7 +28,7 @@ def scored(q: dict, t, seconds: float) -> dict:
     passed = (t.blocked and q.get("blocked_ok", False)) or (scope_ok and recheck_ok and claim_ok and t.verified)
     return {"id": q["id"], "odino": q["odino"], "question": q["q"], "passed": passed, "blocked": t.blocked,
             "verified": t.verified, "scope": a.scope if a else None, "recheck": a.recheck if a else None,
-            "citations": len(a.citations) if a else 0, "searches": len(t.searches), "reasoning": bool(t.reasoning),
+            "citations": len(a.citations) if a else 0, "searches": len(t.searches),
             "issues": t.issues, "error": t.error, "answer": a.answer if a else None, "seconds": round(seconds, 1)}
 
 
@@ -38,8 +36,8 @@ async def main() -> None:
     qs = json.loads((EVAL / "ask_questions.json").read_text(encoding="utf-8"))["questions"]
     latest = deps.store().latest("queue")
     llm = deps.llm()
-    llm = replace(llm, options={"reasoning": {**llm.options.get("reasoning", {}),
-                                              "effort": get_settings().ask_reasoning_effort}}) if llm.options else llm
+    if llm is None:
+        raise SystemExit("needs a model: set NHTSA_AZURE_ENDPOINT and NHTSA_DEPLOYMENT")
     rows = []
     for q in qs:
         r = latest[q["odino"]]
@@ -59,7 +57,6 @@ async def main() -> None:
         "blocked_by_provider": sum(r["blocked"] for r in rows),
         "citations_per_answered": round(statistics.mean(r["citations"] for r in answered), 1) if answered else 0,
         "used_search": sum(r["searches"] > 0 for r in rows),
-        "gave_reasoning_summary": sum(r["reasoning"] for r in rows),
         "seconds_p50": statistics.median(r["seconds"] for r in rows),
     }
     name = f"ask-{datetime.now():%Y%m%d-%H%M}"

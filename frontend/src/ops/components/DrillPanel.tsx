@@ -1,41 +1,26 @@
 import { useState } from 'react'
 import { ops } from '../../api/client'
-import type { Complaint, RunEvent } from '../../api/types'
-import { ISSUE, STEP } from '../../lib/labels'
+import { liveLine } from '../../lib/liveTrail'
 
 const FAULTS: [string, string][] = [
   ['', 'No simulated failure'],
-  ['llm_down', 'Model unavailable'],
-  ['bad_quote', 'AI misquotes once (repair)'],
-  ['unknown_recall', 'AI cites a non-candidate recall once (repair)'],
-  ['malformed_json:always', 'AI answers garbage every time (fallback)'],
+  ['llm_down', 'Model unavailable (fallback to rules)'],
+  ['malformed_json', 'AI answers broken JSON once (repair)'],
 ]
-
-function describe(e: RunEvent): string | null {
-  switch (e.type) {
-    case 'step': return STEP[e.step] ?? e.step
-    case 'evidence': return `${e.recalls.length} candidate recall(s), ${e.stats.total} earlier similar complaints`
-    case 'tool_call': return `AI searched earlier complaints for “${String(e.arguments.query ?? '')}” → ${e.results.length} found`
-    case 'agent': return e.error ? `AI failed: ${e.error}` : `AI answered (${e.input_tokens + e.output_tokens} tokens)`
-    case 'verify': return e.issues.length ? `Verification: ${e.issues.map(i => ISSUE[i.code] ?? i.code).join('; ')} → ${e.result}` : 'Verification passed'
-    case 'error': return `Error: ${e.message}`
-    default: return null
-  }
-}
 
 /** Failure drills: run a complaint with the AI on/off or deliberately broken, and watch every step. Runs are stored
  *  under the 'ops' label, so they never change what the analyst sees. */
-export function DrillPanel({ target, onDone }: { target: number | Complaint; onDone: (resultId: string) => void }) {
+export function DrillPanel({ odino, onDone }: { odino: number; onDone: (resultId: string) => void }) {
   const [fault, setFault] = useState('')
   const [log, setLog] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const go = async (useLlm: boolean) => {
     setBusy(true); setLog([])
     try {
-      await ops.drill(target, { useLlm, fault: fault || null }, e => {
+      await ops.drill(odino, { useLlm, fault: fault || null }, e => {
         if (e.type === 'done') onDone(e.result_id)
-        const line = describe(e)
-        if (line) setLog(l => [...l, line])
+        const line = liveLine(e)
+        if (line) setLog(l => [...l, `${line.icon} ${line.text}`])
       })
     } catch (err) { setLog(l => [...l, `Error: ${String(err)}`]) } finally { setBusy(false) }
   }

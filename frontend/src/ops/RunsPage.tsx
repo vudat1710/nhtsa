@@ -69,7 +69,7 @@ export function RunPage() {
       <p><Link to="/ops">← AI runs</Link>{r.complaint.odino && <> · <Link to={`/tickets/${r.complaint.odino}`}>open in the workspace</Link></>}</p>
       <h1>Run {r.id}</h1>
       <p className="muted">Failure drill: re-run this complaint with the AI broken on purpose.</p>
-      <DrillPanel target={r.complaint.odino ?? r.complaint} onDone={newId => nav(`/ops/runs/${newId}`)} />
+      {r.complaint.odino && <DrillPanel odino={r.complaint.odino} onDone={newId => nav(`/ops/runs/${newId}`)} />}
       <div className="case-grid">
         <div>
           <ComplaintPanel complaint={r.complaint} intake={r.intake} judgment={r.judgment} active={focused} />

@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from agent_framework import Agent, AgentSession, Message
 
 from app.ai.clients import LlmSetup, LlmUnavailable
-from app.ai.middleware import CassetteMiddleware, FaultMiddleware, ToolTraceMiddleware
+from app.ai.middleware import FaultMiddleware, ToolTraceMiddleware
 from app.ai.prompt import INSTRUCTIONS
 from app.ai.tools import search_tool
 from app.models import Attempt, Complaint
@@ -28,21 +28,10 @@ def build_judge(con: sqlite3.Connection, complaint: Complaint, llm: LlmSetup, fa
                 on_tool_call: Callable[[dict], None]) -> Judge:
     found: dict[int, str] = {}
     trace = ToolTraceMiddleware(on_tool_call)
-    middleware: list = [FaultMiddleware(fault)] if fault else []
-    if llm.cassette_dir is not None:
-        middleware.append(CassetteMiddleware(llm.cassette_dir, llm.cassette_mode))
-    middleware.append(trace)
+    middleware = [FaultMiddleware(fault), trace] if fault else [trace]
     agent = Agent(client=llm.client, name="recall_judge", instructions=INSTRUCTIONS,
-                  tools=[search_tool(con, complaint, found)], middleware=middleware,
-                  default_options=llm.options or None)
+                  tools=[search_tool(con, complaint, found)], middleware=middleware)
     return Judge(agent, AgentSession(), trace, found)
-
-
-def reasoning_of(response) -> str:
-    """The model's reasoning summary, if it returned one (Responses API 'text_reasoning' content)."""
-    parts = [getattr(c, "text", "") or "" for m in getattr(response, "messages", []) for c in m.contents
-             if c.type == "text_reasoning"]
-    return "\n\n".join(p.strip() for p in parts if p.strip())
 
 
 async def ask(judge: Judge, n: int, text: str, model_name: str) -> tuple[Attempt, str, str]:
@@ -51,7 +40,7 @@ async def ask(judge: Judge, n: int, text: str, model_name: str) -> tuple[Attempt
         r = await judge.agent.run([Message(role="user", contents=[text])], session=judge.session)
         usage = getattr(r, "usage_details", None) or {}
         reply = r.text or ""
-        return (Attempt(n=n, raw=reply[:6000], reasoning=reasoning_of(r)[:4000],
+        return (Attempt(n=n, raw=reply[:6000],
                         input_tokens=usage.get("input_token_count") or 0,
                         output_tokens=usage.get("output_token_count") or 0),
                 reply, getattr(r, "model", "") or model_name)

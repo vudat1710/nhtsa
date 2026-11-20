@@ -1,7 +1,6 @@
-"""Model clients (MAF chat clients): live Azure OpenAI / Foundry, offline (replay only), scripted (tests), and the
-LlmSetup the pipeline receives (client + record/replay mode)."""
-from dataclasses import dataclass, field
-from pathlib import Path
+"""Model clients (MAF chat clients): live Azure OpenAI / Foundry, scripted (tests), and the LlmSetup the pipeline
+receives. No model configured -> no LlmSetup: the pipeline answers with the rules alone, labelled."""
+from dataclasses import dataclass
 from typing import Any
 
 from agent_framework import BaseChatClient, ChatMiddlewareLayer, ChatResponse, FunctionInvocationLayer, Message
@@ -11,23 +10,15 @@ from app.config import Settings
 
 @dataclass
 class LlmSetup:
-    client: Any                     # MAF chat client: live Azure OpenAI, OfflineChatClient or ScriptedChatClient
-    cassette_dir: Path | None = None
-    cassette_mode: str = "live"     # replay | record | live
+    client: Any                     # MAF chat client: live Azure OpenAI or ScriptedChatClient
     model_name: str = ""
-    options: dict = field(default_factory=dict)  # MAF default_options, e.g. {"reasoning": {"summary": "auto"}}
 
 
-def setup_from_settings(s: Settings) -> LlmSetup:
-    """Live model if configured, else offline (recorded answers only). Record mode needs a live model."""
-    configured = bool(s.azure_endpoint and s.deployment)
-    client = live_client(s.azure_endpoint, s.deployment, s.azure_api_version, s.max_tool_calls) if configured \
-        else OfflineChatClient()
-    mode = s.llm_mode.value if configured else "replay"
-    # a reasoning summary changes what the model reports, not what it decides; it is shown to people, never used
-    options = {"reasoning": {"summary": s.reasoning_summary}} if configured and s.reasoning_summary else {}
-    return LlmSetup(client=client, cassette_dir=s.cassette_dir, cassette_mode=mode,
-                    model_name=s.deployment if configured else "", options=options)
+def setup_from_settings(s: Settings) -> LlmSetup | None:
+    if not (s.azure_endpoint and s.deployment):
+        return None
+    return LlmSetup(client=live_client(s.azure_endpoint, s.deployment, s.azure_api_version, s.max_tool_calls),
+                    model_name=s.deployment)
 
 
 class LlmUnavailable(RuntimeError):
@@ -36,13 +27,6 @@ class LlmUnavailable(RuntimeError):
     def __init__(self, kind: str, message: str):
         super().__init__(message)
         self.kind = kind
-
-
-class OfflineChatClient(FunctionInvocationLayer, ChatMiddlewareLayer, BaseChatClient):
-    """No model configured: recorded answers still replay; anything else fails cleanly (-> fallback)."""
-
-    async def _inner_get_response(self, *, messages, stream, options, **kwargs):
-        raise LlmUnavailable("unavailable", "no model endpoint configured (NHTSA_AZURE_ENDPOINT)")
 
 
 class ScriptedChatClient(FunctionInvocationLayer, ChatMiddlewareLayer, BaseChatClient):

@@ -127,8 +127,6 @@ table.quotes td { padding: 6px 8px; background: #fafafa; border: 1px solid var(-
 .trail-step:first-child { border-top: 0; }
 .trail-step p { margin: 3px 0; color: #374151; }
 .trail-icon { width: 22px; flex: none; text-align: center; }
-.trail-step.think { background: #f8f7fc; border-radius: 6px; padding: 8px; }
-.trail-step.think p { color: #5b5480; font-style: italic; }
 .trail-step.warn strong { color: var(--warn); }
 .trail-card summary { cursor: pointer; font-weight: 600; }
 .trail-card summary .link { margin-left: 10px; font-weight: 400; }
