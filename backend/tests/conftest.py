@@ -55,15 +55,20 @@ def con(tmp_path):
     for campno, filed, comp, defect, consequence, remedy in RECALLS:
         w.execute("INSERT INTO recalls (campno, filed, influenced_by, defect, consequence, remedy) "
                   "VALUES (?, ?, 'ODI', ?, ?, ?)", (campno, filed, defect, consequence, remedy))
-        w.execute("INSERT INTO recall_vehicles VALUES (?, 'HYUNDAI', 'IONIQ 5', '2024', ?, ?)", (campno, comp + ":Y",
-                                                                                              comp))
+        built = ("2021-10-04", "2024-06-30") if campno == "24V868000" else (None, None)  # others: none published
+        if campno == "25V001000":
+            built = ("2024-05-01", "2023-01-01")  # published with the end before the start: treated as unpublished
+        w.execute("INSERT INTO recall_vehicles VALUES (?, 'HYUNDAI', 'IONIQ 5', '2024', ?, ?, ?, ?)",
+                  (campno, comp + ":Y", comp, *built))
     w.execute("INSERT INTO recall_vehicles VALUES ('24V868000', 'HYUNDAI', 'IONIQ 5', '2024', 'POWER TRAIN:A, B', "
-              "'POWER TRAIN')")
-    w.execute("INSERT INTO investigations VALUES ('PE23011', '2023-06-08', '2024-04-17', '24V204', 'Loss of power', "
-              "'')")
+              "'POWER TRAIN', '2022-01-01', '2024-10-09')")
+    w.execute("INSERT INTO investigations VALUES ('PE23011', '2023-06-08', '2024-04-17', 'Loss of power', '')")
+    # another manufacturer's line first, with its own recall: the Ioniq must not be shown Kia's recall
+    w.execute("INSERT INTO investigation_vehicles VALUES ('PE23011', 'KIA', 'EV6', '2024', 'ELECTRICAL SYSTEM', "
+              "'ELECTRICAL SYSTEM', '24V999000')")
     for comp in ("ELECTRICAL SYSTEM", "POWER TRAIN"):
-        w.execute("INSERT INTO investigation_vehicles VALUES ('PE23011', 'HYUNDAI', 'IONIQ 5', '2024', ?, ?)",
-                  (comp, comp))
+        w.execute("INSERT INTO investigation_vehicles VALUES ('PE23011', 'HYUNDAI', 'IONIQ 5', '2024', ?, ?, "
+                  "'24V204000')", (comp, comp))
     w.commit()
     w.close()
     return queries.connect(path)

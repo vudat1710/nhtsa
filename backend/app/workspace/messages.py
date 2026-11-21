@@ -1,6 +1,7 @@
 """Drafted messages, built only from the recall's own text and the complaint's own fields (templates, not AI), so a
 draft can never promise a remedy the recall does not state."""
 import re
+from datetime import date
 
 from app.models import Complaint, RecallItem
 
@@ -49,17 +50,36 @@ def covers(recall: RecallItem, complaint: Complaint) -> str:
     return f"{span} {complaint.make.title()} {complaint.model.title()}"
 
 
+def long_date(iso: str) -> str:
+    """'2021-10-04' -> 'October 4, 2021'."""
+    return date.fromisoformat(iso).strftime("%B %d, %Y").replace(" 0", " ")
+
+
+def build_window(recall: RecallItem, complaint: Complaint) -> str | None:
+    """'2024 models built October 4, 2021 – October 9, 2024' when NHTSA publishes build dates for this model year
+    (the dates are per model year, so they are labelled with the complaint's)."""
+    if not (recall.built_from and recall.built_to):
+        return None
+    return f"{complaint.year} models built {long_date(recall.built_from)} – {long_date(recall.built_to)}"
+
+
 def owner_recall_reply(complaint: Complaint, recall: RecallItem, after_remedy: bool) -> str:
+    """'May be covered', never 'is covered': a recall covers certain build dates, and only the VIN shows the car's."""
     vehicle = f"{complaint.year} {complaint.make.title()} {complaint.model.title()}"
+    window = build_window(recall, complaint)
+    scope = f"{covers(recall, complaint)} vehicles" + (f" ({window})" if window else "")
     lines = [
         f"Thank you for reporting this problem with your {vehicle}.",
         "",
-        f"Your vehicle is covered by safety recall {display_campno(recall.campno)}. What the recall says: "
-        f"{plain_defect(recall.defect)}",
+        f"Your vehicle may be covered by safety recall {display_campno(recall.campno)}, which includes certain "
+        f"{scope}. To confirm that your vehicle is included, enter its VIN at nhtsa.gov/recalls or ask an "
+        f"authorized {complaint.make.title()} dealer.",
+        "",
+        f"What the recall says: {plain_defect(recall.defect)}",
         "",
         f"The remedy: {recall.remedy.strip()}",
         "",
-        f"Please contact an authorized {complaint.make.title()} dealer to have the recall repair done.",
+        "If your vehicle is included, please contact the dealer to have the recall repair done.",
     ]
     if after_remedy:
         lines += ["", "If this recall repair was already done on your vehicle, please reply with the date of the "

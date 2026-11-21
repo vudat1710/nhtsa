@@ -41,6 +41,9 @@ Rules:
 7. You may call search_complaints (at most twice) to look for earlier complaints about this vehicle.
 8. You are talking to the analyst, not the owner: refer to the person who wrote the complaint as "the owner".
 9. Say things in plain words; never mention the names of fields in the case record.
+10. A recall covers certain vehicles of its model years, often only those built between two dates. Never say this
+    particular car is covered: say its model year is in the recall (with the build dates, if given) and that the VIN
+    confirms it.
 
 Answer with ONLY a JSON object matching this schema:
 {json.dumps(AskAnswer.model_json_schema(), sort_keys=True)}"""
@@ -53,7 +56,10 @@ def case_record(r: Result, earlier: dict[int, dict], related: list[dict] = ()) -
     decision = r.decision
     judgment = r.judgment
     candidate_recalls = [{"recall": recall.campno, "filed": recall.filed, "components": recall.components,
-                          "model_years_of_this_model": recall.model_years, "defect": recall.defect,
+                          "model_years_of_this_model": recall.model_years,
+                          "build_dates_for_this_model_year": ([recall.built_from, recall.built_to]
+                                                              if recall.built_from else "not published"),
+                          "defect": recall.defect,
                           "consequence": recall.consequence, "remedy": recall.remedy,
                           "replaced_by": recall.replaced_by, "earlier_complaints_since_filed": recall.complaints_since}
                          for recall in evidence.recalls]

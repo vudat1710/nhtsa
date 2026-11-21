@@ -97,7 +97,7 @@ export type ActionId = 'link_close' | 'request_info' | 'add_to_issue' | 'new_iss
 export interface QuotePair { owner: string; recall: string }
 export interface Why { text: string; quotes: QuotePair[]; owner_quotes: { odino: number; quote: string }[] }
 export interface RecallCard {
-  campno: string; display: string; filed: string; covers: string; problem: string; consequence: string
+  campno: string; display: string; filed: string; covers: string; built: string | null; problem: string; consequence: string
   remedy: string; units: number | null; replaced: string[]
 }
 export interface Pattern {

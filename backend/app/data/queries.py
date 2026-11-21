@@ -82,6 +82,20 @@ def recall_model_years(con: sqlite3.Connection, campnos: list[str], make: str, m
     return years_by_campno
 
 
+def recall_build_dates(con: sqlite3.Connection, campnos: list[str], v: Vehicle) -> dict[str, tuple[str, str]]:
+    """The build dates each recall covers for this exact vehicle (make, model, year), when NHTSA publishes them:
+    earliest start and latest end over the recall's lines. Recalls without published dates are left out, and so are
+    lines whose end is before their start (271 such lines are published)."""
+    if not campnos:
+        return {}
+    placeholders = ",".join("?" * len(campnos))
+    rows = con.execute(f"""SELECT campno, min(built_from), max(built_to) FROM recall_vehicles
+                           WHERE make = ? AND model = ? AND year = ? AND campno IN ({placeholders})
+                             AND built_from IS NOT NULL AND built_to IS NOT NULL AND built_to >= built_from
+                           GROUP BY campno""", (v.make, v.model, v.year, *campnos)).fetchall()
+    return {campno: (start, end) for campno, start, end in rows}
+
+
 def recalls_other_years(con: sqlite3.Connection, v: Vehicle, comps: list[str], as_of: str) -> list[dict]:
     """Recalls on the same make/model and component but other model years, filed before as_of. Context for a
     possible recall-scope gap (e.g. the ICCU recall covers 2022-2024; this complaint is a 2027). Not shown to the AI."""
@@ -105,10 +119,18 @@ def recalls_other_years(con: sqlite3.Connection, v: Vehicle, comps: list[str], a
 
 
 def investigations_for(con: sqlite3.Connection, v: Vehicle, as_of: str) -> list[dict]:
+    """Investigations on this vehicle opened before as_of. The recall each led to (campno) is taken from this vehicle's
+    own lines: an investigation covering several manufacturers can lead to a different recall for each.
+    The closing date and the resulting recall are only returned when they too are before as_of: an investigation
+    open on that date had no outcome yet."""
     rows = con.execute(
-        """SELECT DISTINCT i.* FROM investigation_vehicles iv JOIN investigations i USING (action)
-           WHERE iv.make = ? AND iv.model = ? AND iv.year = ? AND i.opened < ? ORDER BY i.opened DESC""",
-        (v.make, v.model, v.year, as_of)).fetchall()
+        """SELECT i.action, i.opened, CASE WHEN i.closed < ? THEN i.closed END AS closed, max(r.campno) AS campno,
+                  i.subject, i.summary
+           FROM investigation_vehicles iv JOIN investigations i USING (action)
+           LEFT JOIN recalls r ON r.campno = iv.campno AND r.filed < ?
+           WHERE iv.make = ? AND iv.model = ? AND iv.year = ? AND i.opened < ?
+           GROUP BY i.action ORDER BY i.opened DESC""",
+        (as_of, as_of, v.make, v.model, v.year, as_of)).fetchall()
     return [dict(row) for row in rows]
 
 

@@ -45,13 +45,17 @@ def test_check_gives_the_analyst_a_suggestion_in_their_terms(client):
     t = check(client)
     s = t["suggestion"]
     assert t["status"]["status"] == "suggested"
-    assert s["headline"].startswith("Covered by recall 24V-868")
+    assert s["headline"].startswith("Matches recall 24V-868")
     assert s["recall"]["covers"] == "2024 Hyundai Ioniq 5" and s["recall"]["replaced"] == ["24V-204"]
+    assert s["recall"]["built"] == "2024 models built October 4, 2021 – October 9, 2024"
+    assert "confirm with the VIN" in s["why"][0]["text"] and "is covered" not in s["why"][0]["text"]
     assert s["why"][1]["quotes"][0] == {"owner": "ICCU failed again after", "recall": "result in a loss of drive power"}
     assert "5 after it" in s["pattern"]["sentence"]  # 5 complaints after the remedy -> remedy concern
     primary = next(a for a in s["actions"] if a["primary"])
     assert primary["id"] == "link_close" and primary["issue_kind"] == "remedy_concern"
     assert "Dealers will inspect and replace the ICCU" in primary["message"]  # remedy text copied, not written
+    assert "may be covered" in primary["message"] and "nhtsa.gov/recalls" in primary["message"]
+    assert "is covered" not in primary["message"]  # only the VIN shows whether this car was built in range
     item = client.get("/api/inbox").json()[0]
     assert item["demo"] == "demo one" and item["suggestion"]["headline"] == s["headline"]
 

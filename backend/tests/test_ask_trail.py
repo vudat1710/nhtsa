@@ -2,7 +2,8 @@
 import asyncio
 import json
 
-from agent_framework import Content
+from agent_framework import ChatResponse, Content, Message
+from agent_framework.exceptions import ChatClientContentFilterException
 
 from app.ai.clients import LlmSetup, ScriptedChatClient
 from app.ask.service import ask
@@ -78,6 +79,27 @@ def test_follow_ups_see_earlier_questions(con, iccu_complaint):
                         question="And the dealer notes?", history=[first])
     texts = [m.text for m in client.seen[0]]
     assert "Why this recall?" in texts and "No repair history in the records." in texts and second.verified
+
+
+def test_assistant_asks_for_strict_output_and_reports_what_it_does_not_cover(con, iccu_complaint):
+    r = checked_result(con, iccu_complaint)
+    turn, client = go(con, r, [answer("No repair history in the records.", [], scope="not_in_records")])
+    assert client.options[0]["response_format"]["json_schema"]["strict"] is True and turn.verified
+
+    refusal = Content.from_text("I can't help with that.", additional_properties={"model_output_kind": "refusal"})
+    turn, client = go(con, r, [[refusal]])
+    assert turn.error.startswith("refused") and not turn.verified and len(client.seen) == 1
+    cut = ChatResponse(messages=[Message(role="assistant", contents=['{"answer": "The'])], finish_reason="length")
+    turn, _ = go(con, r, [cut])
+    assert turn.error.startswith("incomplete")
+    filtered = ChatResponse(messages=[Message(role="assistant", contents=[""])], finish_reason="content_filter")
+    turn, _ = go(con, r, [filtered])
+    assert turn.blocked and turn.answer.scope == "out_of_scope"
+
+    def blocked(messages):
+        raise ChatClientContentFilterException("filtered by the content management policy")
+    turn, _ = go(con, r, [blocked])
+    assert turn.blocked and turn.error is None
 
 
 def test_trail_tells_the_investigation_in_order(con, iccu_complaint):

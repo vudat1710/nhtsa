@@ -48,6 +48,8 @@ class RecallItem(BaseModel):
     replaced_by: str | None = None    # another candidate that replaced this recall (parsed from the remedy text)
     complaints_since: int = 0         # earlier complaints on this vehicle + component filed after this recall
     model_years: list[str] = []       # model years of this make/model the recall covers (shown to the analyst only)
+    built_from: str | None = None     # build dates the recall covers for this model year, when NHTSA publishes them;
+    built_to: str | None = None       # the VIN confirms whether a car falls inside (shown to people, not the judge)
 
 
 class InvestigationItem(BaseModel):

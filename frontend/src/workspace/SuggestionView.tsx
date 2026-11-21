@@ -37,7 +37,7 @@ export function SuggestionView({ s }: { s: Suggestion }) {
       )}
       {s.recall && (
         <details className="recall-card">
-          <summary>Recall {s.recall.display}: covers {s.recall.covers} · filed {s.recall.filed}{s.recall.units ? ` · ${s.recall.units.toLocaleString()} vehicles` : ''}</summary>
+          <summary>Recall {s.recall.display}: certain {s.recall.covers}{s.recall.built ? ` (${s.recall.built})` : ''} · filed {s.recall.filed}{s.recall.units ? ` · ${s.recall.units.toLocaleString()} vehicles` : ''}</summary>
           <h5>Problem</h5><p>{s.recall.problem}</p>
           <h5>Risk</h5><p>{s.recall.consequence}</p>
           <h5>Remedy</h5><p>{s.recall.remedy}</p>

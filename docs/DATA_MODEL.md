@@ -4,7 +4,7 @@ Two SQLite files, kept apart on purpose:
 
 | File | Written by | What it holds |
 |---|---|---|
-| `data/nhtsa.db` (~550 MB) | `python -m app.data.ingest`, once | NHTSA's public complaints, recalls and investigations. The app opens it **read-only**. |
+| `data/nhtsa.db` (~590 MB) | `python -m app.data.ingest`, once | NHTSA's public complaints, recalls and investigations. The app opens it **read-only**. |
 | `data/app.db` | the app, at run time | Every AI run (the audit record) and what analysts do with tickets. |
 
 There are no foreign-key constraints across the two files: `app.db` refers to NHTSA records by their public ids
@@ -21,7 +21,7 @@ erDiagram
     complaints ||--|| complaints_fts : "rowid = odino"
     recalls ||--|{ recall_vehicles : "campno"
     investigations ||--|{ investigation_vehicles : "action"
-    investigations }o..o| recalls : "campno (when it matches)"
+    investigation_vehicles }o..o| recalls : "campno (when it led to a recall)"
     complaints }o..o{ recall_vehicles : "candidates: same make+model+year, filed before received"
     complaints }o..o{ investigation_vehicles : "same make+model+year, opened before received"
 
@@ -40,7 +40,9 @@ erDiagram
         TEXT state
         TEXT source "hotline if cmpl_type = EVOQ, else owner"
         TEXT cmpl_type "NHTSA's CMPL_TYPE, as published"
-        INTEGER vehicles "vehicles the complaint named (1.1% more than 1)"
+        TEXT prod_type "V vehicle (T/E/C: tire/equipment/child seat only)"
+        INTEGER vehicles "vehicle lines (never more than 1)"
+        INTEGER other_products "tires/equipment/child seats also named"
         TEXT text "as published (encoding repaired)"
     }
     complaint_components {
@@ -57,6 +59,9 @@ erDiagram
         TEXT influenced_by
         TEXT manufacturer
         REAL units "vehicles affected"
+        TEXT recall_type "RCLTYPECD: V/E/T/C"
+        INTEGER do_not_drive "consumer advisory"
+        INTEGER park_outside "consumer advisory"
         TEXT defect
         TEXT consequence
         TEXT remedy
@@ -68,12 +73,13 @@ erDiagram
         TEXT year
         TEXT component
         TEXT comp
+        TEXT built_from "BGMAN, NULL if not published"
+        TEXT built_to "ENDMAN"
     }
     investigations {
         TEXT action PK "PE23011"
         TEXT opened
         TEXT closed
-        TEXT campno "loose link, often another format"
         TEXT subject
         TEXT summary
     }
@@ -84,12 +90,14 @@ erDiagram
         TEXT year
         TEXT component
         TEXT comp
+        TEXT campno "recall it led to, for this vehicle"
     }
 ```
 
-- **One row per complaint, recall or investigation**, plus one row per component (complaints: only the components of
-  the complaint's own, first-named vehicle) or per covered make × model × year × component (recalls, investigations).
-  Field meanings follow NHTSA's descriptions in `data/raw/CMPL.txt`, `RCL.txt`, `INV.txt`. Component names can contain commas, so grouping happens
+- **One row per complaint, recall or investigation**, plus one row per component (complaints: the components of the
+  product the complaint is judged on, its vehicle line when it has one) or per covered make × model × year ×
+  component (recalls, investigations). Field meanings follow NHTSA's descriptions in `docs/nhtsa/` (`CMPL.txt`,
+  `RCL.txt`, `INV.txt`); recalls come from both of NHTSA's recall files (before 2010 and from 2010). Component names can contain commas, so grouping happens
   in Python, not with SQL `group_concat`.
 - **The dashed joins are the core of the product.** A complaint's candidate recalls are the `recall_vehicles` rows with
   the same make, model and year whose recall was filed *strictly before* the complaint was received

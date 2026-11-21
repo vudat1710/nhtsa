@@ -4,7 +4,8 @@ Every set uses only owner-written complaints about one vehicle (OWNER_WRITTEN be
   - not taken by NHTSA's hotline (complaints.source, from NHTSA's CMPL_TYPE: EVOQ = hotline);
   - not typed by NHTSA staff in the hotline's transcript style ("The contact owns...", "TL*...": 1,622 non-hotline
     complaints are);
-  - naming a single vehicle (complaints.vehicles = 1).
+  - about one vehicle: judged on a vehicle line (complaints.prod_type = 'V', CMPL.txt PROD_TYPE) and naming no other
+    vehicle (complaints.vehicles = 1); a complaint may also name tires or a child seat.
 
 A  known recall   owner-written complaint (2022+) citing exactly one recall that covers the vehicle and was filed before
                   the complaint; not about parts availability; the text does not say the vehicle is NOT covered by it.
@@ -30,9 +31,10 @@ from app.pipeline.intake import cited_recalls, mask_recall_numbers
 
 OUT = ROOT / "data" / "eval"
 SEED = 7
-VERSION = 2  # v1 (archived in data/eval/archive_v1) included hotline transcripts; see docs/DATA_CARD.md
+VERSION = 3  # v1 included hotline transcripts, v2 judged some complaints on a tire/child-seat line and lacked
+             # pre-2010 recalls (both archived in data/eval/archive_v*); see docs/DATA_CARD.md
 PER_RECALL_CAP = 3  # keep one big recall (e.g. Takata) from dominating a set
-OWNER_WRITTEN = ("source = 'owner' AND vehicles = 1 AND ltrim(text) NOT LIKE 'The contact%' "
+OWNER_WRITTEN = ("source = 'owner' AND prod_type = 'V' AND vehicles = 1 AND ltrim(text) NOT LIKE 'The contact%' "
                  "AND ltrim(text) NOT LIKE 'TL*%'")
 REMEDY_ONLY = re.compile(r"parts? .{0,40}(?:not|un)available|no parts|no remedy|not yet available|takata|"
                          r"not (?:yet )?(?:issued|provided) a remedy|waiting for (?:the )?parts?", re.I)

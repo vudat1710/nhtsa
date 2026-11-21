@@ -5,12 +5,16 @@ from datetime import UTC, datetime
 from agent_framework import Agent, Message
 from pydantic import BaseModel, ValidationError
 
-from app.ai.clients import LlmSetup
+from app.ai.clients import LlmSetup, error_kind, no_answer, strict_format
 from app.ai.middleware import ToolTraceMiddleware
 from app.ai.tools import PREVIEW_CHARS, search_tool
 from app.ask.prompt import INSTRUCTIONS, AskAnswer, case_record, parse
 from app.ask.verify import check
 from app.models import Result
+
+ANSWER_FORMAT = strict_format(AskAnswer)  # the provider constrains completed, non-refusal answers to this schema
+BLOCKED = AskAnswer(answer="This question was blocked by the AI provider's safety filter, so it was not answered. "
+                           "The case and its suggestion are unchanged.", scope="out_of_scope")
 
 
 class Turn(BaseModel):
@@ -48,7 +52,8 @@ async def ask(con: sqlite3.Connection, llm: LlmSetup, r: Result, history: list[T
     found: dict[int, str] = {odino: complaint["full"] for odino, complaint in earlier.items()}
     trace = ToolTraceMiddleware()
     agent = Agent(client=llm.client, name="case_assistant", instructions=INSTRUCTIONS,
-                  tools=[search_tool(con, r.complaint, found)], middleware=[trace])
+                  tools=[search_tool(con, r.complaint, found)], middleware=[trace],
+                  default_options={"response_format": ANSWER_FORMAT})
 
     # The case record shows the agent only a preview of each earlier complaint, not the full text.
     earlier_previews = {}
@@ -64,6 +69,13 @@ async def ask(con: sqlite3.Connection, llm: LlmSetup, r: Result, history: list[T
     try:
         for attempt in (1, 2):  # the first answer, and one repair if it fails verification
             resp = await agent.run(messages)
+            problem = no_answer(resp)  # refused, cut off or filtered: strict output does not cover these
+            if problem and problem.startswith("content_filter"):
+                turn.blocked, turn.verified, turn.answer = True, True, BLOCKED
+                break
+            if problem:
+                turn.error = problem
+                break
             try:
                 turn.answer = parse(resp.text or "")
                 turn.issues = check(turn.answer, r, found, question, related)
@@ -80,13 +92,9 @@ async def ask(con: sqlite3.Connection, llm: LlmSetup, r: Result, history: list[T
                 messages.append(Message(role="assistant", contents=[resp.text or ""]))
                 messages.append(Message(role="user", contents=[repair_request]))
     except Exception as exc:  # outage, provider error: the analyst sees that the assistant is unavailable
-        if "content management policy" in str(exc) or "content_filter" in str(exc):
+        if error_kind(exc) == "content_filter" or "content management policy" in str(exc):
             # the provider's safety filter blocked the question itself (e.g. an attempt to override the rules)
-            turn.blocked = True
-            turn.verified = True
-            turn.answer = AskAnswer(answer="This question was blocked by the AI provider's safety filter, so it was "
-                                           "not answered. The case and its suggestion are unchanged.",
-                                    scope="out_of_scope")
+            turn.blocked, turn.verified, turn.answer = True, True, BLOCKED
         else:
             turn.error = str(exc)[:300]
     turn.searches = [{"query": call["arguments"].get("query", ""), "results": call["results"]}

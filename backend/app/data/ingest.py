@@ -1,15 +1,18 @@
 """Build data/nhtsa.db from the NHTSA flat files in data/raw (download with `python -m app.data.fetch`).
 
-Field meanings follow NHTSA's own descriptions, which ship with the data: data/raw/CMPL.txt, RCL.txt, INV.txt.
+Field positions and meanings follow NHTSA's descriptions, kept in docs/nhtsa/ (CMPL.txt, RCL.txt, INV.txt). Each flat
+file has one line per record x vehicle/product x component and no header; the split into two tables per file below is
+ours: fields that are the same on every line of a record go in the first table, the rest in the second.
 
 Tables (text is kept exactly as published, only mis-decoded UTF-8 is repaired, because quotes are verified verbatim):
   complaints(odino, make, model, year, received, failed, crash, fire, injured, deaths, miles, state, source,
-             cmpl_type, vehicles, text)
-  complaint_components(odino, component, comp)       one row per component the owner selected (for its vehicle)
-  recalls(campno, filed, influenced_by, manufacturer, units, defect, consequence, remedy)
-  recall_vehicles(campno, make, model, year, component, comp)
-  investigations(action, opened, closed, campno, subject, summary)
-  investigation_vehicles(action, make, model, year, component, comp)
+             cmpl_type, prod_type, vehicles, other_products, text)
+  complaint_components(odino, component, comp)       the components the owner selected for the judged product
+  recalls(campno, filed, influenced_by, manufacturer, units, recall_type, do_not_drive, park_outside,
+          defect, consequence, remedy)               all recalls: FLAT_RCL_PRE_2010 + FLAT_RCL_POST_2010
+  recall_vehicles(campno, make, model, year, component, comp, built_from, built_to)
+  investigations(action, opened, closed, subject, summary)
+  investigation_vehicles(action, make, model, year, component, comp, campno)
   complaints_fts                                      full-text index over complaints.text
 `comp` = top-level component ("AIR BAGS:FRONTAL" -> "AIR BAGS"); dates are ISO strings so they compare as text.
 """
@@ -24,35 +27,50 @@ ROOT = Path(__file__).resolve().parents[3]
 RAW = ROOT / "data" / "raw"
 DB = ROOT / "data" / "nhtsa.db"
 COMPLAINTS_FROM = "2020-01-01"
-HOTLINE = "EVOQ"  # CMPL_TYPE for complaints taken by NHTSA's hotline (CMPL.txt: "EVOQ = HOTLINE VOQ")
+HOTLINE = "EVOQ"   # CMPL_TYPE for complaints taken by NHTSA's hotline (CMPL.txt: "EVOQ = HOTLINE VOQ")
+VEHICLE = "V"      # PROD_TYPE / RCLTYPECD for a vehicle (others: T tires, E equipment, C child restraint)
+RECALL_FILES = ["FLAT_RCL_PRE_2010.zip", "FLAT_RCL_POST_2010.zip"]  # same 29 fields; no recall is in both
 
+# Every documented field, in file order (the files have no header row).
 CMPL = ["CMPLID", "ODINO", "MFR_NAME", "MAKETXT", "MODELTXT", "YEARTXT", "CRASH", "FAILDATE", "FIRE", "INJURED",
-        "DEATHS", "COMPDESC", "CITY", "STATE", "VIN", "DATEA", "LDATE", "MILES", "OCCURENCES", "CDESCR", "CMPL_TYPE"]
+        "DEATHS", "COMPDESC", "CITY", "STATE", "VIN", "DATEA", "LDATE", "MILES", "OCCURENCES", "CDESCR", "CMPL_TYPE",
+        "POLICE_RPT_YN", "PURCH_DT", "ORIG_OWNER_YN", "ANTI_BRAKES_YN", "CRUISE_CONT_YN", "NUM_CYLS", "DRIVE_TRAIN",
+        "FUEL_SYS", "FUEL_TYPE", "TRANS_TYPE", "VEH_SPEED", "DOT", "TIRE_SIZE", "LOC_OF_TIRE", "TIRE_FAIL_TYPE",
+        "ORIG_EQUIP_YN", "MANUF_DT", "SEAT_TYPE", "RESTRAINT_TYPE", "DEALER_NAME", "DEALER_TEL", "DEALER_CITY",
+        "DEALER_STATE", "DEALER_ZIP", "PROD_TYPE", "REPAIRED_YN", "MEDICAL_ATTN", "VEHICLES_TOWED_YN",
+        "STATE_OF_INCIDENT", "VEHICLE_OPERATOR"]
 RCL = ["RECORD_ID", "CAMPNO", "MAKETXT", "MODELTXT", "YEARTXT", "MFGCAMPNO", "COMPNAME", "MFGNAME", "BGMAN", "ENDMAN",
        "RCLTYPECD", "POTAFF", "ODATE", "INFLUENCED_BY", "MFGTXT", "RCDATE", "DATEA", "RPNO", "FMVSS", "DESC_DEFECT",
-       "CONEQUENCE_DEFECT", "CORRECTIVE_ACTION"]
+       "CONEQUENCE_DEFECT", "CORRECTIVE_ACTION", "NOTES", "RCL_CMPT_ID", "MFR_COMP_NAME", "MFR_COMP_DESC",
+       "MFR_COMP_PTNO", "DO_NOT_DRIVE", "PARK_OUTSIDE"]
 INV = ["ACTION", "MAKE", "MODEL", "YEAR", "COMPNAME", "MFR_NAME", "ODATE", "CDATE", "CAMPNO", "SUBJECT", "SUMMARY"]
+# The complaint fields we read. Not read: dealer contact, operator name and VIN (personal data), and the
+# tire/child-seat/vehicle details the product does not use.
+CMPL_USED = ["ODINO", "MAKETXT", "MODELTXT", "YEARTXT", "CRASH", "FAILDATE", "FIRE", "INJURED", "DEATHS", "COMPDESC",
+             "STATE", "LDATE", "MILES", "CDESCR", "CMPL_TYPE", "PROD_TYPE"]
 
 SCHEMA = """
 CREATE TABLE complaints (odino INTEGER PRIMARY KEY, make TEXT, model TEXT, year TEXT, received TEXT, failed TEXT,
   crash INTEGER, fire INTEGER, injured INTEGER, deaths INTEGER, miles REAL, state TEXT, source TEXT, cmpl_type TEXT,
-  vehicles INTEGER, text TEXT);
+  prod_type TEXT, vehicles INTEGER, other_products INTEGER, text TEXT);
 CREATE TABLE complaint_components (odino INTEGER, component TEXT, comp TEXT);
 CREATE TABLE recalls (campno TEXT PRIMARY KEY, filed TEXT, influenced_by TEXT, manufacturer TEXT, units REAL,
-  defect TEXT, consequence TEXT, remedy TEXT);
-CREATE TABLE recall_vehicles (campno TEXT, make TEXT, model TEXT, year TEXT, component TEXT, comp TEXT);
-CREATE TABLE investigations (action TEXT PRIMARY KEY, opened TEXT, closed TEXT, campno TEXT, subject TEXT,
-  summary TEXT);
-CREATE TABLE investigation_vehicles (action TEXT, make TEXT, model TEXT, year TEXT, component TEXT, comp TEXT);
+  recall_type TEXT, do_not_drive INTEGER, park_outside INTEGER, defect TEXT, consequence TEXT, remedy TEXT);
+CREATE TABLE recall_vehicles (campno TEXT, make TEXT, model TEXT, year TEXT, component TEXT, comp TEXT,
+  built_from TEXT, built_to TEXT);
+CREATE TABLE investigations (action TEXT PRIMARY KEY, opened TEXT, closed TEXT, subject TEXT, summary TEXT);
+CREATE TABLE investigation_vehicles (action TEXT, make TEXT, model TEXT, year TEXT, component TEXT, comp TEXT,
+  campno TEXT);
 CREATE VIRTUAL TABLE complaints_fts USING fts5(text, content='complaints', content_rowid='odino');
 """
 
 
-def read_flat(zip_name: str, names: list[str]) -> pd.DataFrame:
+def read_flat(zip_name: str, names: list[str], keep: list[str] | None = None) -> pd.DataFrame:
     """Read the single tab-delimited file inside a zip: no header, no quoting, every value kept as a string.
-    Read as latin-1 (which never fails); fix_text() later repairs the UTF-8 per field."""
+    `names` are all documented fields in order; `keep` the ones to load (default all). Read as latin-1 (which never
+    fails); fix_text() later repairs the UTF-8 per field. Blank lines (6 in the pre-2010 recalls) are skipped."""
     with zipfile.ZipFile(RAW / zip_name) as archive, archive.open(archive.namelist()[0]) as fh:
-        return pd.read_csv(fh, sep="\t", header=None, names=names, usecols=range(len(names)), dtype=str,
+        return pd.read_csv(fh, sep="\t", header=None, names=names, usecols=keep or names, dtype=str,
                            quoting=3, encoding="latin-1", on_bad_lines="skip", keep_default_na=False)
 
 
@@ -85,56 +103,71 @@ def num(s: pd.Series) -> pd.Series:
 
 
 def build_complaints(con: sqlite3.Connection) -> None:
-    rows = read_flat("FLAT_CMPL.zip", CMPL)  # one row per complaint x component (CMPL.txt, ODINO)
+    rows = read_flat("FLAT_CMPL.zip", CMPL, keep=CMPL_USED)  # one line per complaint x product x component
     rows["received"] = iso(rows.LDATE)
-    rows = rows[rows.received >= COMPLAINTS_FROM]
-    first = rows.drop_duplicates("ODINO")  # one row per complaint: its first line
-    text = first.CDESCR.map(fix_text)
-    is_hotline = first.CMPL_TYPE == HOTLINE
+    rows = rows[rows.received >= COMPLAINTS_FROM].copy()
 
-    # NHTSA documents ODINO repeating once per component. About 1% of complaints also name more than one vehicle or
-    # product on their lines. The system judges one vehicle per complaint, so a complaint keeps its first line's
-    # vehicle and only that vehicle's components; `vehicles` records how many it named.
-    vehicle_columns = ["MAKETXT", "MODELTXT", "YEARTXT"]
-    vehicles_named = rows.drop_duplicates(["ODINO", *vehicle_columns]).groupby("ODINO").size()
-    own_vehicle_lines = rows.merge(first[["ODINO", *vehicle_columns]], on=["ODINO", *vehicle_columns])
+    # A complaint can name a vehicle and also tires, equipment or a child seat: one line per product (PROD_TYPE V, T,
+    # E or C, CMPL.txt), each with its own make/model/year and components. The system judges vehicles, so a complaint
+    # is judged on its first vehicle line; one without any vehicle line is kept on its first line (its make/model is
+    # then a tire, equipment or child-seat product, and prod_type says so).
+    rows["line"] = range(len(rows))
+    rows["is_vehicle"] = rows.PROD_TYPE == VEHICLE
+    vehicle_first = rows.sort_values(["is_vehicle", "line"], ascending=[False, True])
+    judged = vehicle_first.drop_duplicates("ODINO").sort_values("line")  # one line per complaint, in file order
+    text = judged.CDESCR.map(fix_text)
+    is_hotline = judged.CMPL_TYPE == HOTLINE
+
+    product_columns = ["MAKETXT", "MODELTXT", "YEARTXT", "PROD_TYPE"]
+    judged_product_lines = rows.merge(judged[["ODINO", *product_columns]], on=["ODINO", *product_columns])
+    vehicle_lines = rows[rows.is_vehicle].drop_duplicates(["ODINO", "MAKETXT", "MODELTXT", "YEARTXT"])
+    other_product_lines = rows[~rows.is_vehicle].drop_duplicates(["ODINO", *product_columns])
+    vehicles_named = vehicle_lines.groupby("ODINO").size()
+    other_products_named = other_product_lines.groupby("ODINO").size()
 
     complaints = pd.DataFrame({
-        "odino": first.ODINO.astype(int),
-        "make": first.MAKETXT,
-        "model": first.MODELTXT,
-        "year": first.YEARTXT,
-        "received": first.received,
-        "failed": iso(first.FAILDATE),
-        "crash": (first.CRASH == "Y").astype(int),
-        "fire": (first.FIRE == "Y").astype(int),
-        "injured": num(first.INJURED),
-        "deaths": num(first.DEATHS),
-        "miles": pd.to_numeric(first.MILES, errors="coerce"),
-        "state": first.STATE,
+        "odino": judged.ODINO.astype(int),
+        "make": judged.MAKETXT,
+        "model": judged.MODELTXT,
+        "year": judged.YEARTXT,
+        "received": judged.received,
+        "failed": iso(judged.FAILDATE),
+        "crash": (judged.CRASH == "Y").astype(int),
+        "fire": (judged.FIRE == "Y").astype(int),
+        "injured": num(judged.INJURED),
+        "deaths": num(judged.DEATHS),
+        "miles": pd.to_numeric(judged.MILES, errors="coerce"),
+        "state": judged.STATE,
         "source": is_hotline.map({True: "hotline", False: "owner"}),
-        "cmpl_type": first.CMPL_TYPE,
-        "vehicles": first.ODINO.map(vehicles_named).astype(int),
+        "cmpl_type": judged.CMPL_TYPE,
+        "prod_type": judged.PROD_TYPE,
+        "vehicles": judged.ODINO.map(vehicles_named).fillna(0).astype(int),
+        "other_products": judged.ODINO.map(other_products_named).fillna(0).astype(int),
         "text": text,
     })
     save(con, "complaints", complaints)
 
     components = pd.DataFrame({
-        "odino": own_vehicle_lines.ODINO.astype(int),
-        "component": own_vehicle_lines.COMPDESC,
-        "comp": top(own_vehicle_lines.COMPDESC),
+        "odino": judged_product_lines.ODINO.astype(int),
+        "component": judged_product_lines.COMPDESC,
+        "comp": top(judged_product_lines.COMPDESC),
     })
     save(con, "complaint_components", components.drop_duplicates())
 
-    repaired = (text != first.CDESCR).sum()
-    multi_vehicle = (complaints.vehicles > 1).sum()
-    print(f"complaints {len(first):,} (since {COMPLAINTS_FROM}), component rows {len(own_vehicle_lines):,}, "
-          f"text repaired {repaired:,}, hotline {is_hotline.sum():,}, naming several vehicles {multi_vehicle:,}")
+    repaired = (text != judged.CDESCR).sum()
+    not_vehicle = (complaints.prod_type != VEHICLE).sum()
+    with_other = (complaints.other_products > 0).sum()
+    several_vehicles = (complaints.vehicles > 1).sum()
+    print(f"complaints {len(judged):,} (since {COMPLAINTS_FROM}), text repaired {repaired:,}, "
+          f"hotline {is_hotline.sum():,}, about a vehicle {len(judged) - not_vehicle:,} "
+          f"(of which {with_other:,} also name tires/equipment/child seats, {several_vehicles:,} several vehicles), "
+          f"only a non-vehicle product {not_vehicle:,}")
 
 
 def build_recalls(con: sqlite3.Connection) -> None:
-    rows = read_flat("FLAT_RCL_POST_2010.zip", RCL)  # one row per recall x vehicle x component
-    first = rows.drop_duplicates("CAMPNO")  # one row per recall
+    files = [read_flat(name, RCL) for name in RECALL_FILES]
+    rows = pd.concat(files, ignore_index=True)  # one line per recall x vehicle/product x component
+    first = rows.drop_duplicates("CAMPNO")  # one line per recall: these fields are the same on all its lines
 
     recalls = pd.DataFrame({
         "campno": first.CAMPNO,
@@ -142,12 +175,17 @@ def build_recalls(con: sqlite3.Connection) -> None:
         "influenced_by": first.INFLUENCED_BY,
         "manufacturer": first.MFGNAME,
         "units": pd.to_numeric(first.POTAFF, errors="coerce"),
+        "recall_type": first.RCLTYPECD,
+        "do_not_drive": (first.DO_NOT_DRIVE == "Yes").astype(int),
+        "park_outside": (first.PARK_OUTSIDE == "Yes").astype(int),
         "defect": first.DESC_DEFECT.map(fix_text),
         "consequence": first.CONEQUENCE_DEFECT.map(fix_text),
         "remedy": first.CORRECTIVE_ACTION.map(fix_text),
     })
     save(con, "recalls", recalls)
 
+    # BGMAN / ENDMAN: the build dates the recall covers for this vehicle line (70% of vehicle recalls publish them on
+    # at least one line). A model year alone does not prove a car is covered; the build date (from the VIN) does.
     vehicles = pd.DataFrame({
         "campno": rows.CAMPNO,
         "make": rows.MAKETXT,
@@ -155,29 +193,35 @@ def build_recalls(con: sqlite3.Connection) -> None:
         "year": rows.YEARTXT,
         "component": rows.COMPNAME,
         "comp": top(rows.COMPNAME),
+        "built_from": iso(rows.BGMAN),
+        "built_to": iso(rows.ENDMAN),
     })
     save(con, "recall_vehicles", vehicles.drop_duplicates())
 
-    print(f"recalls {len(first):,}, vehicle rows {len(rows):,}")
+    by_file = ", ".join(f"{name} {frame.CAMPNO.nunique():,}" for name, frame in zip(RECALL_FILES, files, strict=True))
+    print(f"recalls {len(first):,} ({by_file}), lines {len(rows):,}")
 
 
 def build_investigations(con: sqlite3.Connection) -> None:
-    rows = read_flat("FLAT_INV.zip", INV)  # one row per investigation x vehicle
+    rows = read_flat("FLAT_INV.zip", INV)  # one line per investigation x vehicle
     # 1,278 investigations (mostly 1970s-80s defect petitions) name no vehicle at all; they could never match a
     # complaint's vehicle, so they are left out.
     rows = rows[rows.MAKE != ""]
-    first = rows.drop_duplicates("ACTION")  # one row per investigation
+    first = rows.drop_duplicates("ACTION")  # one line per investigation
 
     investigations = pd.DataFrame({
         "action": first.ACTION,
         "opened": iso(first.ODATE),
         "closed": iso(first.CDATE),
-        "campno": first.CAMPNO.replace("", None),
         "subject": first.SUBJECT.map(fix_text),
         "summary": first.SUMMARY.map(fix_text),
     })
     save(con, "investigations", investigations)
 
+    # CAMPNO (the recall the investigation led to) is per vehicle line: an investigation covering several
+    # manufacturers can lead to a recall from each. INV.txt documents it as the 9-character recall number that links
+    # to the recalls file, but 290 values are published without the trailing "000" ("24V204"); they are completed
+    # so they link (289 then match a recall). Sub-numbers such as "02V027001" are kept as published.
     vehicles = pd.DataFrame({
         "action": rows.ACTION,
         "make": rows.MAKE,
@@ -185,10 +229,11 @@ def build_investigations(con: sqlite3.Connection) -> None:
         "year": rows.YEAR,
         "component": rows.COMPNAME,
         "comp": top(rows.COMPNAME),
+        "campno": rows.CAMPNO.map(lambda campno: campno + "000" if len(campno) == 6 else campno).replace("", None),
     })
     save(con, "investigation_vehicles", vehicles.drop_duplicates())
 
-    print(f"investigations {len(first):,}, vehicle rows {len(rows):,}")
+    print(f"investigations {len(first):,}, vehicle lines {len(rows):,}")
 
 
 INDEXES = """

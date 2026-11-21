@@ -4,6 +4,7 @@ import json
 from types import SimpleNamespace
 
 from agent_framework import ChatResponse, Content, Message
+from agent_framework.exceptions import ChatClientContentFilterException  # parent of OpenAIContentFilterException
 
 from app.ai.clients import LlmSetup, ScriptedChatClient
 from app.ai.middleware import FaultMiddleware
@@ -94,6 +95,49 @@ def test_injected_fault_keeps_the_conversation_ids():
     asyncio.run(FaultMiddleware("malformed_json").process(ctx, nothing))
     assert ctx.result.conversation_id == "resp_1" and ctx.result.response_id == "resp_1"
     assert ctx.result.text == GOOD[: len(GOOD) // 2]
+
+
+def test_judge_asks_for_strict_structured_output(con, iccu_complaint):
+    _, client, _ = go(con, iccu_complaint, [GOOD])
+    fmt = client.options[0]["response_format"]
+    assert fmt["type"] == "json_schema" and fmt["json_schema"]["strict"] is True
+    assert set(fmt["json_schema"]["schema"]["required"]) == {"checks", "similar", "proposed", "summary", "questions"}
+
+
+# What strict structured output does not cover (OpenAI: "refusals, incomplete responses, and API errors"): each is
+# reported with its own kind and falls back to the rules without a retry.
+def test_answer_cut_off_at_the_token_limit_falls_back(con, iccu_complaint):
+    cut = ChatResponse(messages=[Message(role="assistant", contents=[GOOD[:40]])], finish_reason="length")
+    r, client, _ = go(con, iccu_complaint, [cut])
+    assert r.decision.source == "fallback" and r.attempts[0].error.startswith("incomplete")
+    assert len(client.seen) == 1  # no retry
+
+
+def test_refusal_falls_back(con, iccu_complaint):
+    refusal = Content.from_text("I can't help with that.", additional_properties={"model_output_kind": "refusal"})
+    r, _, _ = go(con, iccu_complaint, [[refusal]])
+    assert r.decision.source == "fallback" and r.attempts[0].error.startswith("refused: I can't help")
+
+
+def test_content_filter_block_is_reported_as_such(con, iccu_complaint):
+    def blocked(messages):
+        raise ChatClientContentFilterException("The response was filtered due to the prompt triggering Azure "
+                                               "OpenAI's content management policy.")
+    r, client, _ = go(con, iccu_complaint, [blocked])
+    assert r.decision.source == "fallback" and r.attempts[0].error.startswith("content_filter")
+    assert len(client.seen) == 1
+
+
+def test_refusal_drill(con, iccu_complaint):
+    r, _, _ = go(con, iccu_complaint, [GOOD], fault="refusal")
+    assert r.decision.source == "fallback" and r.attempts[0].error.startswith("refused")
+
+
+def test_incomplete_drill_lowers_the_output_limit(con, iccu_complaint):
+    cut = ChatResponse(messages=[Message(role="assistant", contents=["{"])], finish_reason="length")
+    r, client, _ = go(con, iccu_complaint, [cut], fault="incomplete")
+    assert client.options[0]["max_tokens"] == FaultMiddleware.TINY_OUTPUT_LIMIT
+    assert r.decision.source == "fallback" and r.attempts[0].error.startswith("incomplete")
 
 
 def test_unknown_year_skips_the_ai(con, iccu_complaint):

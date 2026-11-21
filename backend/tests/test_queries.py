@@ -34,6 +34,18 @@ def test_search_is_as_of_and_ignores_fts_syntax(con):
     assert queries.search_complaints(con, V, "!!", as_of="2025-01-01") == []
 
 
-def test_investigations_before_as_of_listed_once(con):
-    assert [i["action"] for i in queries.investigations_for(con, V, "2024-01-01")] == ["PE23011"]
+def test_investigations_before_as_of_listed_once_with_this_vehicles_recall(con):
+    found = queries.investigations_for(con, V, "2025-01-01")
+    assert [i["action"] for i in found] == ["PE23011"]
+    assert found[0]["campno"] == "24V204000"  # the Ioniq's line, not the Kia line listed first
+    assert found[0]["closed"] == "2024-04-17"
     assert queries.investigations_for(con, V, "2023-01-01") == []
+
+
+def test_investigation_outcome_after_as_of_is_hidden(con):
+    # Opened 2023-06-08, recall 24V204000 filed 2024-03-15, closed 2024-04-17: on 2024-01-01 it was still open.
+    found = queries.investigations_for(con, V, "2024-01-01")
+    assert [i["action"] for i in found] == ["PE23011"]
+    assert found[0]["closed"] is None and found[0]["campno"] is None
+    found = queries.investigations_for(con, V, "2024-04-01")  # recall filed, investigation not yet closed
+    assert found[0]["campno"] == "24V204000" and found[0]["closed"] is None

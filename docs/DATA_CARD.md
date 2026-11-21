@@ -1,17 +1,23 @@
 # Data card
 
-What the data is, what we did to it, how good the labels are, and what it cannot tell us. Field meanings follow
-NHTSA's own descriptions, which ship with the data (`data/raw/CMPL.txt`, `RCL.txt`, `INV.txt`). Every number here is
-reproducible: `python -m app.data.ingest` (database) and `python -m app.eval.build_sets` (evaluation sets; the build
-gives identical sets on every run).
+What the data is, what we did to it, how good the labels are, and what it cannot tell us. Field positions and
+meanings follow NHTSA's own descriptions, kept in [docs/nhtsa/](nhtsa/) (`CMPL.txt`, `RCL.txt`, `INV.txt`, as published
+next to the files). NHTSA's import instructions load each file as one flat table; the split into two tables per file
+(one row per record, one row per vehicle/component line) is ours, and follows a check of every field: fields that are
+the same on every line of a record go in the record's table. Every number here is reproducible:
+`python -m app.data.ingest` (database) and `python -m app.eval.build_sets` (evaluation sets; the build gives identical
+sets on every run).
 
 ## Sources (NHTSA Office of Defects Investigation, public domain)
 
 | File | What it is | Used |
 |---|---|---|
-| `FLAT_CMPL` | Consumer complaints: one line per complaint × component; vehicle, dates, crash/fire/injury, free text, how it reached NHTSA (`CMPL_TYPE`) | 436,710 complaints received 2020-01-01 onward |
-| `FLAT_RCL_POST_2010` | Recall campaigns: one line per recall × covered vehicle × component; defect, consequence, remedy | 15,417 recalls (248,434 lines, 114,805 distinct vehicle/component rows) |
-| `FLAT_INV` | Defect investigations: one line per investigation × vehicle; dates, subject, summary | 4,082 investigations that name a vehicle |
+| `FLAT_CMPL` | Complaints: one line per complaint × product × component (51 fields); vehicle or product, dates, crash/fire/injury, free text, how it reached NHTSA (`CMPL_TYPE`), product type (`PROD_TYPE`) | 436,710 complaints received 2020-01-01 onward; 16 of 51 fields read |
+| `FLAT_RCL_PRE_2010` + `FLAT_RCL_POST_2010` | Recall campaigns, 1966 on: one line per recall × covered vehicle/product × component (29 fields, same in both files; no recall is in both) | 30,476 recalls (15,059 + 15,417), 330,144 lines, 196,174 distinct vehicle/component rows |
+| `FLAT_INV` | Defect investigations: one line per investigation × vehicle (11 fields) | 4,082 investigations that name a vehicle |
+
+Every raw line is read (2,268,452 complaint lines, 81,710 + 248,434 recall lines, 154,503 investigation lines; 6
+blank lines in the pre-2010 recalls are skipped). Fields are tab-separated and not actually quoted.
 
 ## What we changed, and why
 
@@ -21,25 +27,50 @@ gives identical sets on every run).
   `EVOQ` = taken by NHTSA's hotline, so `complaints.source = 'hotline'` (95,658); everything else (website, app,
   letters) is `'owner'` (341,052). Hotline complaints are written up by NHTSA staff ("The contact owns a 2012 Ford
   Mustang. The contact stated…"), not in the owner's words.
-- **One vehicle per complaint.** NHTSA documents that a complaint id repeats once per component; 4,758 complaints
-  (1.1%) also name more than one vehicle or product on their lines. The system judges one vehicle per complaint, so a
-  complaint keeps its first line's vehicle and only that vehicle's components; `complaints.vehicles` records how many
-  it named. Counts and searches on the other vehicles do not see these complaints.
+- **The vehicle a complaint is judged on** comes from NHTSA's documented `PROD_TYPE` (V vehicle, T tires, E equipment,
+  C child restraint): a complaint has one line per product it names, each with its own make/model/year and components.
+  A complaint is judged on its vehicle line (`complaints.prod_type = 'V'`: 434,996) with only that line's components;
+  6,483 of those also name tires, equipment or a child seat (`complaints.other_products`). No complaint names two
+  vehicles. 1,714 complaints name only a non-vehicle product (child seat 895, equipment 811, tire 2, blank 6) and keep
+  that product as make/model.
+- **Recall type and advisories** are kept as published: `recalls.recall_type` (`RCLTYPECD`: V 26,493, E 2,877, T 791,
+  C 251; also `I` 53 and `X` 11, which `RCL.txt` does not document), `do_not_drive` (213 recalls) and `park_outside`
+  (107). They are stored, not yet used by the product.
+- **Build dates** (`BGMAN`/`ENDMAN`) are stored per vehicle line (`recall_vehicles.built_from`, `built_to`): 70% of
+  vehicle recalls publish them on at least one line (62% of those filed since 2010). A recall usually covers only cars
+  built between them, so a model year does not prove a car is covered; only the VIN does, and the data has none. The
+  product shows the range for the complaint's model year (earliest start, latest end over the recall's lines) and
+  says "may be covered, confirm with the VIN". 271 lines are published with the end before the start; those are
+  treated as unpublished. The judge does not see build dates (the evaluated input is unchanged).
+- **The recall an investigation led to is per vehicle line** (`investigation_vehicles.campno`): one investigation can
+  cover several manufacturers and lead to a recall from each (232 investigations do); the system shows the recall on
+  the complaint's own vehicle line. `INV.txt` documents CAMPNO as the 9-character recall number that links to the
+  recalls file, but 290 values are published without the trailing `000` (`24V204`); ingest completes them
+  (`24V204000`), after which 2,525 of 2,549 distinct values match a recall. The rest are kept as published (23
+  sub-numbers such as `02V027001` and one number not in the recall files).
 - **Investigations without a vehicle are left out**: 1,278 (mostly 1970s–80s defect petitions) name no vehicle and
   could never match a complaint.
 - **Top-level component** (`AIR BAGS:FRONTAL` → `AIR BAGS`) for matching. At full detail there are 719 complaint
-  component names and owners mostly stop at the top level (e.g. 25,124 air-bag complaints say just `AIR BAGS`). The
+  component names and owners mostly stop at the top level (e.g. 25,125 air-bag complaints say just `AIR BAGS`). The
   component only ranks candidate recalls and drives counts; it never excludes a recall (the AI reads all candidates).
 - **Recall numbers are masked** at intake (`24V868`, `24V-868`, `24V868000` → `[recall no. removed]`), together with a
   bracketed note right after the number (hotline staff write `NHTSA Campaign Number: 16V248000 (Power Train)`, which
   would still name the recall's component). The same function masks for the product and the evaluation builder
   (`backend/app/pipeline/intake.py`, tested in `tests/test_intake_evidence.py`).
+- **Not read:** dealer contact, the vehicle operator's name and the VIN (personal data), and tire, child-seat and
+  vehicle-equipment details the product does not use (all listed in `CMPL.txt`).
 
 ## No look-ahead
 
 Every evidence query takes the complaint's received date and only returns recalls, investigations and complaints dated
 strictly before it (`backend/app/data/queries.py`, tested in `tests/test_queries.py`). A recall filed on the same day
-is not visible: NHTSA publishes recalls after the filing date.
+is not visible: NHTSA publishes recalls after the filing date. An investigation opened before the complaint is shown
+with its closing date and resulting recall only when those also came before the complaint (an investigation still
+open on that date had no outcome yet).
+
+Not fixable from the data: NHTSA publishes each recall's *current* text, so a recall's remedy can mention a later
+recall that replaced it (24V204000's remedy names 24V-868). The system only links a replacement when that recall is
+itself a candidate (filed before the complaint).
 
 ## Evaluation sets (v2, frozen, `data/eval/`)
 

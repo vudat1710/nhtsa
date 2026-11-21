@@ -6,30 +6,64 @@ from datetime import date, timedelta
 from app.data import queries
 from app.models import Complaint, Evidence, Intake, InvestigationItem, RecallItem, Stats
 
-CAMPNO = r"(\d{2})\s?V\s?-?\s?(\d{3})"
-# "replaced by NHTSA recall number 22V-635" / "superseded by recall 16V-352" -> this recall was replaced by that one.
-# Requires "by (NHTSA) recall" so "parts replaced by GM dealers as part of recall 14V-047" does not count.
-REPLACED_BY = re.compile(r"(?:replaced|superseded) by (?:NHTSA )?recall(?: number| campaign)? " + CAMPNO, re.I)
-# "supersedes previous recall campaign 11V-594" / "expands and supersedes recall 14V-809": that one was replaced.
-SUPERSEDES = re.compile(r"supersedes (?:the )?(?:previous )?recall(?: campaign)? " + CAMPNO, re.I)
+# A recall number as written in recall texts: 24V-868, 11E-016, 24V868000. The letter is the recall type; these six
+# are the ones in NHTSA's recall files.
+RECALL_NUMBER = re.compile(r"\b(\d{2})\s?-?\s?([VETCIX])\s?-?\s?(\d{3})(?:\s?-?\s?000)?\b", re.I)
+SENTENCE_END = re.compile(r"(?<=[.;])(?<!\bno\.)\s+", re.I)  # not after "Recall No."
+NUMBER_AHEAD = r"(?=\s*\d{2}\s?-?\s?[VETCIX]\s?-?\s?\d{3})"
+# How recall texts state a replacement, checked in this order per sentence. Each rule says which recalls the sentence
+# names (all in the sentence, or those after the phrase) and whether they are newer or older than this recall.
+REPLACEMENT_RULES = [
+    # "18V-122 was superseded by this recall", "that recall will be superseded by this one": named ones are older
+    (re.compile(r"(?:superseded|replaced) by this\b", re.I), "sentence", "older"),
+    # "Recall 21V469 supersedes this recall", "a new recall, number 21V-504 that supersedes this recall"
+    (re.compile(r"(?:supersedes?|replaces?) this\b", re.I), "sentence", "newer"),
+    # "superseded by safety recall campaign 11E-016", "HAS BEEN SUPERSEDED (PLEASE SEE 07V401)",
+    # "replaced by NHTSA recall number 24V-868", "replaced by 25V798". "replaced by" needs a recall word or number
+    # next, so "parts replaced by GM dealers as part of recall 14V-047" does not count.
+    (re.compile(r"\bsuperseded\b|replaced by (?:the )?(?:NHTSA |safety )?(?:recall|campaign)|replaced by"
+                + NUMBER_AHEAD, re.I), "after", "newer"),
+    # "supersedes recalls 13V-029 and 14V-147", "WILL SUPERSEDE AND EXPAND A PREVIOUS SAFETY RECALL (PLEASE SEE
+    # 07V-104)", "supersedes and expands NHTSA recall number 22V-486"
+    (re.compile(r"\bsupersed(?:e|es|ing)\b", re.I), "after", "older"),
+]
+
+
+def replacement_mentions(text: str) -> tuple[list[str], list[str]]:
+    """Recalls a recall text names as its replacement (newer) and as replaced by it (older), per sentence."""
+    found: dict[str, list[str]] = {"newer": [], "older": []}
+    for sentence in SENTENCE_END.split(text):
+        for pattern, where, direction in REPLACEMENT_RULES:
+            match = pattern.search(sentence)
+            if match is None:
+                continue
+            named = sentence if where == "sentence" else sentence[match.end():]
+            for yy, kind, nnn in RECALL_NUMBER.findall(named):
+                found[direction].append(f"{yy}{kind.upper()}{nnn}000")
+            break
+    return found["newer"], found["older"]
 
 
 def link_replacements(recalls: list[RecallItem]) -> None:
-    """Mark candidates replaced by another candidate, from either recall's own wording."""
-    candidate_ids = {recall.campno for recall in recalls}
+    """Mark candidates replaced by another candidate, from either recall's own wording. A replacement is never filed
+    before the recall it replaces, and two recalls never replace each other."""
+    by_campno = {recall.campno: recall for recall in recalls}
+
+    def link(older_campno: str, newer_campno: str) -> None:
+        older = by_campno.get(older_campno)
+        newer = by_campno.get(newer_campno)
+        if older is None or newer is None or older is newer or newer.filed < older.filed:
+            return
+        if newer.replaced_by == older.campno:
+            return
+        older.replaced_by = newer.campno
+
     for recall in recalls:
-        text = f"{recall.remedy} {recall.defect}"
-        # "replaced by recall X": this recall was replaced by the newer X
-        for yy, nnn in REPLACED_BY.findall(text):
-            newer = f"{yy}V{nnn}000"
-            if newer in candidate_ids and newer != recall.campno:
-                recall.replaced_by = newer
-        # "supersedes recall X": the older X was replaced by this recall
-        for yy, nnn in SUPERSEDES.findall(text):
-            older_campno = f"{yy}V{nnn}000"
-            older = next((other for other in recalls if other.campno == older_campno), None)
-            if older and older.campno != recall.campno:
-                older.replaced_by = recall.campno
+        newer_campnos, older_campnos = replacement_mentions(f"{recall.remedy} {recall.defect}")
+        for newer_campno in newer_campnos:
+            link(recall.campno, newer_campno)
+        for older_campno in older_campnos:
+            link(older_campno, recall.campno)
 
 
 def gather(con: sqlite3.Connection, complaint: Complaint, intake: Intake) -> Evidence:
@@ -54,8 +88,10 @@ def gather(con: sqlite3.Connection, complaint: Complaint, intake: Intake) -> Evi
     link_replacements(recalls)
     campnos = [recall.campno for recall in recalls]
     years_by_campno = queries.recall_model_years(con, campnos, complaint.make, complaint.model)
+    built = queries.recall_build_dates(con, campnos, vehicle)
     for recall in recalls:
         recall.model_years = years_by_campno.get(recall.campno, [])
+        recall.built_from, recall.built_to = built.get(recall.campno, (None, None))
 
     # Earlier complaints on this vehicle and component: how many arrived after each recall was filed
     dates = earlier_complaint_dates(con, vehicle, comps, complaint.received, complaint.odino)

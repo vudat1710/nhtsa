@@ -22,7 +22,7 @@ from app.api import deps
 from app.api.workspace import related_for
 from app.config import get_settings
 from app.data import queries
-from app.data.ingest import CMPL, COMPLAINTS_FROM, RAW, RCL, ROOT, fix_text
+from app.data.ingest import CMPL, CMPL_USED, COMPLAINTS_FROM, RAW, RCL, ROOT, fix_text
 from app.models import Result
 from app.pipeline.decide import baseline
 from app.pipeline.intake import MASK
@@ -211,7 +211,9 @@ labelled rules-only answer.</p>
 def section_raw(main_run: Result, cmpl_rows: dict, rcl_rows: dict, repair: dict | None) -> H:
     # The three files: what they contain, and which NHTSA document describes their columns.
     files = [
-        ("FLAT_CMPL.zip", "Consumer complaints since 1995 (one row per complaint × component)", "CMPL.txt"),
+        ("FLAT_CMPL.zip", "Consumer complaints since 1995 (one row per complaint × product × component)", "CMPL.txt"),
+        ("FLAT_RCL_PRE_2010.zip", "Recall campaigns 1966-2009 (one row per campaign × vehicle × component)",
+         "RCL.txt"),
         ("FLAT_RCL_POST_2010.zip", "Recall campaigns since 2010 (one row per campaign × vehicle × component)",
          "RCL.txt"),
         ("FLAT_INV.zip", "Defect investigations (one row per investigation × vehicle)", "INV.txt"),
@@ -220,11 +222,12 @@ def section_raw(main_run: Result, cmpl_rows: dict, rcl_rows: dict, repair: dict 
     for name, what, doc in files:
         if not (RAW / name).exists():
             continue
-        file_format = H(f"tab-delimited, no header, no quoting; columns in <code>{doc}</code>")
+        file_format = H(f"tab-delimited, no header, no quoting; fields described in <code>docs/nhtsa/{doc}</code>")
         file_rows.append([name, mb(RAW / name), what, file_format])
     files_table = table(["File", "Size", "What it is", "Format"], file_rows)
 
-    # The main complaint as raw rows: one table column per raw row, one table row per CMPL column.
+    # The main complaint as raw rows: one table column per raw row, one table row per field we read (not shown: the
+    # fields we do not read, which include personal data such as dealer contact and the operator's name).
     complaint = main_run.complaint
     complaint_rows = cmpl_rows.get(str(complaint.odino), [])
     raw_complaint = ""
@@ -232,12 +235,12 @@ def section_raw(main_run: Result, cmpl_rows: dict, rcl_rows: dict, repair: dict 
         named_rows = [dict(zip(CMPL, row, strict=False)) for row in complaint_rows]
         headers = ["Column"] + [f"row {i + 1}" for i in range(len(complaint_rows))]
         table_rows = []
-        for column in CMPL:
+        for column in CMPL_USED:
             values = [named[column] for named in named_rows]
             table_rows.append([column] + values)
         raw_complaint = (f"<h3>One raw complaint: ODINO {complaint.odino}</h3><p>{len(complaint_rows)} raw row(s) for "
-                         "this complaint (one per component the owner picked). The first "
-                         f"{len(CMPL)} columns are read; later ones are not used:</p>"
+                         "this complaint (one per product and component the owner picked). The "
+                         f"{len(CMPL_USED)} of {len(CMPL)} documented fields that ingest reads:</p>"
                          + table(headers, table_rows, "raw"))
 
     # The matched recall: only its first raw row.
@@ -313,9 +316,9 @@ def section_db(con: sqlite3.Connection, runs: list[tuple[dict, Result]]) -> H:
         parts.append(sample(con, "SELECT * FROM recall_vehicles WHERE campno = ? AND make = ? AND model = ? "
                                  "ORDER BY year", (campno, complaint.make, complaint.model)))
     parts.append(f"<h3>investigations ({complaint.make} {complaint.model})</h3>")
-    parts.append(sample(con, """SELECT DISTINCT i.action, i.opened, i.closed, i.campno, i.subject FROM investigations i
+    parts.append(sample(con, """SELECT i.action, i.opened, i.closed, i.subject FROM investigations i
                                 JOIN investigation_vehicles v USING (action) WHERE v.make = ? AND v.model = ?
-                                ORDER BY i.opened DESC LIMIT 3""", (complaint.make, complaint.model)))
+                                GROUP BY i.action ORDER BY i.opened DESC LIMIT 3""", (complaint.make, complaint.model)))
     parts.append("<h3>investigation_vehicles (the newest of those investigations)</h3>")
     parts.append(sample(con, """SELECT * FROM investigation_vehicles WHERE action = (
                                   SELECT i.action FROM investigations i JOIN investigation_vehicles v USING (action)
@@ -331,8 +334,8 @@ def section_db(con: sqlite3.Connection, runs: list[tuple[dict, Result]]) -> H:
          "candidate recalls (queries.recalls_for)"],
         ["complaints ⇢ complaints", "same make + model + year + comp, received before",
          "earlier-complaint counts, the agent's search"],
-        ["investigations ⇢ recalls", "investigations.campno, when it matches a recall (often another format)",
-         "context only"],
+        ["investigation_vehicles ⇢ recalls", "campno on the vehicle's own line, when the investigation led to a "
+         "recall", "context only"],
     ])
     db_size = mb(get_settings().db_path)
     date_ranges = (f"Complaints received {complaint_span[0]} to {complaint_span[1]}; "

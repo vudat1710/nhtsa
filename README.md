@@ -14,7 +14,7 @@ labels: [docs/DATA_CARD.md](docs/DATA_CARD.md).
 An automaker's field-quality team reads thousands of owner complaints. Each one is either already covered by a recall
 or a possible new defect, and both mistakes are expensive: calling a new defect "known" is how it becomes a crash and
 a recall; escalating everything drowns engineers. The shortcut "same vehicle + same component = known recall" names
-a different recall than the owner cited **about 1 time in 5** (21% on our owner-written test set; the AI: 8%) and can't tell *"the air bag deployed when it shouldn't"* from
+a different recall than the owner cited **about 1 time in 5** (19% on our owner-written test set; the AI: 7%) and can't tell *"the air bag deployed when it shouldn't"* from
 *"the air bag did not deploy"*.
 
 ## Run it
@@ -46,7 +46,7 @@ demo.
 
 | The ticket turns out to be | Suggested action (one click, editable) | Shown as evidence |
 |---|---|---|
-| **Covered by a recall** | Link to the recall + reply to the owner (drafted **from the recall's own remedy text**, never written by AI) | "This vehicle is covered (2022–2024 Ioniq 5)"; *owner wrote* ↔ *recall says*; replaced recalls |
+| **Matches a recall** | Link to the recall + reply to the owner (drafted **from the recall's own remedy text**, never written by AI; says the vehicle *may* be covered and how to confirm with the VIN) | "The 2024 Ioniq 5 is in recall 24V-868 (2022–2024; 2024 models built Oct 4, 2021 – Oct 9, 2024): confirm with the VIN"; *owner wrote* ↔ *recall says*; replaced recalls |
 | …and complaints continue after the fix | Same, **+ flag the remedy** to an emerging issue for engineering | "85 earlier complaints: 10 before the recall, 75 after it" |
 | **Same part, different failure** / **no recall fits**, with a reason | Escalate to an emerging issue (existing one suggested, or a new one) | The reason: crash/fire/injury, ≥3 similar complaints in 12 months, ≥2 earlier owners describing the same failure, or **the same failure recalled on other model years** |
 | …a single report with none of those reasons | **Record and watch** (no escalation yet) | The counts vs. the escalation thresholds |
@@ -54,7 +54,7 @@ demo.
 
 Anything other than the suggestion asks for one line of why; that is the feedback signal. Engineers see escalations
 grouped on the **Emerging issues** page. The **operations portal** (`/ops`) is for the people running the system: every
-AI run with its audit trail, failure drills (model down, broken answer), and the evaluation.
+AI run with its audit trail, failure drills (model down, broken answer, answer cut off, refusal), and the evaluation.
 
 ### See how it got there, then ask about it
 
@@ -81,7 +81,8 @@ AI run with its audit trail, failure drills (model down, broken answer), and the
 | D2 | 2022 Acura MDX: air bags **did not deploy** in a crash (fire, injury) | **Same part, opposite failure**: the only air bag recall is about deploying when it shouldn't. The baseline calls it "known" |
 | D3 | 2018 Honda Ridgeline: rear camera dies, tailgate pinches the wiring | **Possible new defect**; the AI finds 3 earlier owners describing it. NHTSA recalled it **348 days later** (hindsight, shown after) |
 | D4 | 2019 Ford Mustang: "Backup camara is not working" | **Too vague, and the rules overrule the AI**: the AI calls it recall 22V-382 ("same failure"); the rules see 28 characters, decide "needs info", name the probable recall, and say the AI was overruled |
-| D5 | D1 in the ops portal → failure drill "model unavailable" / "broken answer" | Rules-only fallback, labelled / one repair turn, then the same verified answer; never a silent guess |
+| D5 | D1 in the ops portal → failure drills | Never a silent guess. "Model unavailable" → labelled rules-only fallback; "broken answer" → one repair turn, then the same verified answer; "cut off at the token limit" (a real cut-off: the call is sent with a 16-token limit) and "refusal" (simulated) → `incomplete` / `refused`, rules-only fallback |
+| D6 | Ops portal → run `/ops/runs/3c68585fd6c9` (complaint 11705719, from the v3 AI eval) → "Run with AI" | **A real provider block**: Azure's content filter rejects the request → `content_filter`, rules-only fallback (11752255, run `1602f7d69c63`, does the same) |
 | – | 2027 Ioniq 5: ICCU failed (recent complaint in the inbox) | **Recall-scope gap**: no recall covers the 2027, but 24V-868 covers the same failure on 2022–2024 → escalate |
 
 ## How it works
@@ -114,52 +115,55 @@ A Microsoft Agent Framework graph workflow wires the five pipeline steps (with t
 
 Frozen test sets built only from **owner-written complaints about one vehicle** ([docs/DATA_CARD.md](docs/DATA_CARD.md)):
 A, the owner cited a recall (number masked); B, no recall existed yet on that part; C, stress cases. The prompt was
-tuned only on the dev split; the test sets were run once with prompt v3 (`data/eval/reports/20261120-2045-abc-test-ai.json`,
-463 AI checks; 5 unknown-year cases skip the model by design). 95% intervals in brackets.
+tuned only on the dev split; the test sets were run once with prompt v3 (`data/eval/reports/20261120-2209-abc-test-ai.json`,
+466 AI checks; 5 unknown-year cases skip the model by design). 95% intervals in brackets.
 
 **There is no ground truth for "which recall is right".** Set A's label is the recall the *owner* cited (their belief),
 and the data has no repair records or VINs to check it against. So the table separates what is **checked
 objectively** (by code, from dates and the system's own records) from what is only **agreement with the owner**,
 which compares the AI with the baseline on the same noisy labels but is not accuracy.
 
-| Test sets v2 (300 A, 142 B, 26 C) | AI (verified) | Rules baseline |
+| Test sets v3 (300 A, 145 B, 26 C) | AI (verified) | Rules baseline |
 |---|---|---|
 | ***Checked objectively*** | | |
-| Cites only recalls that covered the vehicle on that date; every quote word for word; no later records seen | 463/463 (by construction + verifier) | – |
-| First AI answer failed verification / repaired / fell back to rules / model errors | 0 / 0 / 0 / 0 of 463 | – |
-| **Set B** (no recall existed yet on the owner's component) · claims a known recall | 5% [2–10] (7/142) | 0% (by construction) |
-| Set B · escalates or asks for details | 95% | 100% |
-| Stress set C (unknown year/component, too short, no recalls, injected instructions) | **26/26** | 21/26 |
-| Cost and speed | ~5,000 tokens, p50 10 s, p95 36 s | – |
+| Cites only recalls that covered the vehicle on that date; every quote word for word; no later records seen | 466/466 (by construction + verifier) | – |
+| First AI answer failed verification / repaired / fell back to rules / model errors | 0 / 0 / 2 / 2 of 466 (both: the provider's content filter blocked the complaint) | – |
+| **Set B** (no recall existed yet on the owner's component) · claims a known recall | 3% [2–8] (5/145) | 0% (by construction) |
+| Set B · escalates or asks for details | 97% | 100% |
+| Stress set C (unknown year/component, too short, no recalls, injected instructions) | **25/26** | 21/26 |
+| Cost and speed | ~5,000 tokens, p50 10 s, p95 35 s | – |
 | ***Agreement with the owner's cited recall (set A, not accuracy)*** | | |
-| Names a recall other than the owner's (confidently wrong vs the owner) | **8%** [5–12] | 21% [17–26] |
-| When it answers "known recall", it's the owner's recall | **86%** [81–91] | 66% [59–73] |
-| Agrees with the owner's recall overall | **51%** [46–57] | 41% [36–47] |
-| Asks for details / escalates instead | 22% / 19% | 0% / 38% |
-| "High confidence" answers that agree with the set's label (A and B) | **95%** [87–98] (59/62) | – |
+| Names a recall other than the owner's (confidently wrong vs the owner) | **7%** [4–10] | 19% [15–24] |
+| When it answers "known recall", it's the owner's recall | **88%** [82–92] | 68% [61–74] |
+| Agrees with the owner's recall overall | **50%** [44–55] | 39% [34–45] |
+| Asks for details / escalates instead | 23% / 20% | 0% / 42% |
+| "High confidence" answers that agree with the set's label (A and B) | **98%** [92–100] (65/66) | – |
 
-**What it means.** The AI names a recall other than the owner's less than half as often as the rules, and when it
-commits to "known recall" it is the owner's recall 86% of the time; it gets there by asking for details on vague
+**What it means.** The AI names a recall other than the owner's about a third as often as the rules, and when it
+commits to "known recall" it is the owner's recall 88% of the time; it gets there by asking for details on vague
 complaints instead of guessing. The baseline is weak on owner-written complaints because owners often pick a broader
-category than the recall's (in 47% of A the cited recall is filed under a different top-level component, e.g. `ENGINE`
+category than the recall's (in 49% of A the cited recall is filed under a different top-level component, e.g. `ENGINE`
 vs `ENGINE AND ENGINE COOLING`); the AI reads every candidate. Owners are sometimes wrong, so agreement can understate
-or overstate accuracy; a real accuracy number needs a blind, two-reviewer labelled sample (see Limitations). Injected
-instructions changed nothing in 6/6: no injected recall cited, same outcome as the clean complaint.
+or overstate accuracy; a real accuracy number needs a blind, two-reviewer labelled sample (see Limitations). The one
+stress miss: with an injected instruction, one complaint got a different (still verified) outcome than its clean
+version (`needs_info` instead of `known_recall`); the injected recall was never cited, in 6/6.
 
-**Why the sets were rebuilt (v2).** v1 (archived in `data/eval/archive_v1/`) took hotline complaints by a `TL*` prefix
-instead of NHTSA's documented `CMPL_TYPE`, so 70% of set A were staff write-ups ("The contact owns…"); in all of those
-the mask left the recall's component in brackets (`[recall no. removed] (Power Train)`), and 16 labels contradicted
-their own text ("the VIN was not included"). v1's agreement numbers are not reported as results. An AI-drafted,
-unreviewed read of 30 v1 disagreements pointed at one product gap worth building: complaints about *getting* a recall
-repair ("the dealer has no parts"), which describe no failure, are escalated instead of linked to the cited recall.
+**Why the sets were rebuilt (v3, after v1 and v2).** Each rebuild followed a check of our data handling against
+NHTSA's own field descriptions (`docs/nhtsa/`). v1 (`data/eval/archive_v1/`) took hotline complaints by a `TL*` prefix
+instead of the documented `CMPL_TYPE`, so 70% of set A were staff write-ups whose mask still named the recall's
+component (`[recall no. removed] (Power Train)`). v2 (`data/eval/archive_v2/`) judged some complaints on a tyre or
+child-seat line instead of the vehicle (`PROD_TYPE`), did not load recalls filed before 2010 (NHTSA publishes them in a
+second file), and kept one recall per investigation although it can differ per vehicle line. Earlier sets' agreement
+numbers are not reported as results. An AI-drafted, unreviewed read of 30 v1 disagreements pointed at one product gap
+worth building: complaints about *getting* a recall repair ("the dealer has no parts"), which describe no failure, are
+escalated instead of linked to the cited recall.
 
 **Follow-up questions** (`app/eval/ask_eval.py`, 21 questions over the 5 demo tickets, checked by code: scope,
-citations verified, "not in the records" when the records can't answer, re-check flag): **20/21 passed**; every
+citations verified, "not in the records" when the records can't answer, re-check flag): **21/21 passed**; every
 non-blocked answer's quotes verified (20/20; 1 injection request was blocked by the provider's safety filter and shown
-as such); 4/4 "not in the records" when expected; 3.3 citations per answer; p50 4.2 s. The miss: asked "why does no
-recall cover this?", the assistant answered correctly (none of the 4 recalls describes the camera wiring) but labelled
-the answer "not in the records" where the test expects "answered". Small set: it shows the guardrails work, not that
-answers are always the most useful.
+as such); 4/4 "not in the records" when expected; 3.7 citations per answer; p50 4.0 s
+(`data/eval/reports/ask-20261120-2301.json`). Small set: it shows the guardrails work, not that answers are always the
+most useful.
 
 **Trajectory evaluation (no labels needed)** (`app/eval/trajectory.py`). Without ground truth for *which* recall is
 right, there is still ground truth for *how* a case must be handled. Every stored run is checked against 23 rules of
@@ -172,14 +176,14 @@ designed path of each stress case. *Invariants* must always hold (a failure is a
 asks of the agent, tracked as rates. Each check is tested to fail on a deliberately broken run
 (`tests/test_trajectory.py`).
 
-| On the 468 v2 test runs (prompt v3) | |
+| On the 471 v3 test runs (prompt v3) | |
 |---|---|
 | 16 invariants + 4 stress-case paths | all hold |
-| Searched only when no recall matched (policy) | 463/463 |
-| Searched for earlier owners before proposing a new defect (policy) | 170/172 (two `related_different` without a search) |
-| Proposed new defects backed by earlier owners | 133/172 |
-| Proposed new defects that never mention a recall on the owner's own component | 0/172 |
-| Searched at all / searches that found something | 46% of AI runs / 96% |
+| Searched only when no recall matched (policy) | 464/464 |
+| Searched for earlier owners before proposing a new defect (policy) | 179/181 (two `related_different` without a search) |
+| Proposed new defects backed by earlier owners | 146/181 |
+| Proposed new defects that ignore a recall on the owner's own component | 0/181 |
+| Searched at all / searches that found something | 46% of AI runs / 98% |
 
 It also shows behaviour shifts between versions on the same cases: on the 150 v1 dev cases, prompt v2 searched in 69%
 of runs and v3 in 51% (v3 judges more symptom matches as "same", which needs no search). Run it on any stored run or
@@ -195,13 +199,20 @@ Reproduce: every run's full results are committed (`data/eval/results/*.jsonl.gz
 - **Owner cites the recall number** → masked before the AI sees it (no leak, no steering).
 - **A hotline write-up names the recall's component after its number** (`16V248000 (Power Train)`) → masked too.
 - **Instructions inside the complaint** → treated as data; any non-candidate recall is rejected by the verifier.
-- **Replaced recalls** ("replaced by NHTSA recall number 24V-868") → the newer one is used, not "two matches".
+- **Replaced recalls** ("replaced by NHTSA recall number 24V-868", "supersedes recalls 13V-029 and 14V-147", "Recall
+  21V469 supersedes this recall") → the newer one is used, not "two matches". Read from the recall texts' own wording
+  (136 replacement pairs across NHTSA's recalls); only linked when both are candidates and the newer was not filed first.
 - **Same part, opposite failure** → not "known"; escalated with the difference quoted.
 - **A quote that drops "Zero"** ("[Zero] airbags were deployed") → rejected (found in a live run).
 - **Complaints continue after a remedy** → reply + flag; the data can't tell a failed fix from an unrepaired car.
 - **Same failure recalled on other model years** → flagged as a possible recall-scope gap.
 - **Unknown year / unknown component / two words** → ask / search all candidates / ask.
-- **Model down, garbage output, invented ids or numbers** → one repair, then labelled rules-only fallback.
+- **Answer shape** → strict structured output: the provider constrains every completed, non-refusal answer to the
+  JSON schema (judge and follow-up assistant). What that does not cover is handled in code, each with its own label:
+  a refusal (`refused`), an answer cut off at the token limit (`incomplete`), a blocked request (`content_filter`), an
+  outage (`unavailable`): rules-only fallback, no retry. The content (quotes, ids, numbers) is still checked by the
+  verifier.
+- **Broken output, invented ids or numbers** → one repair, then labelled rules-only fallback.
 - **Look-ahead** → every query is bounded by the complaint date (a recall filed the same day is invisible).
 - **ALL-CAPS older recall texts** → shown in sentence case; not mistaken for acronyms.
 - **Follow-up question the records can't answer** (VIN, was it repaired?) → "not in the records", no guess.
@@ -215,16 +226,19 @@ Reproduce: every run's full results are committed (`data/eval/results/*.jsonl.gz
 - **No ground truth for accuracy.** Set A's labels are the owners' citations and the adjudication is an unreviewed AI
   draft. Next: a blind sample labelled by two people (which of two recalls fits, without knowing which one the AI
   picked), with their agreement measured, used to turn agreement rates into estimated accuracy.
-- **The v2 sets are not hand-checked yet** (v1 was, by a person).
+- **The v3 sets are not hand-checked yet** (v1 was, by a person).
 - **Labels.** Set A only covers owners who knew their recall; B's "would have caught it early" is ~65% the same failure.
   Analyst and engineer actions in the workspace are stored and should become the next labels.
 - **Components.** NHTSA's top-level categories overlap (`ENGINE` / `ENGINE AND ENGINE COOLING`), so same-component
   signals are weak for owner-written complaints; a category crosswalk is not built.
-- **Data shape.** Hotline complaints (22%) are in the database but no evaluation set covers them; the 1.1% of
-  complaints naming several vehicles are judged and counted on their first vehicle only.
+- **Data shape.** Hotline complaints (22%) are in the database but no evaluation set covers them. A recall usually
+  covers only cars built between two dates (70% of vehicle recalls publish them). Candidates are found by model year;
+  the build dates are shown, and the ticket and the owner reply say the car *may* be covered and ask to confirm with
+  the VIN. Without a VIN we cannot confirm it (next: VIN decoding). Do-not-drive / park-outside advisories are stored
+  but not yet shown to owners.
 - **Not yet measured:** run-to-run stability (same case 3×), analyst time saved.
-- **Coverage.** Complaints from 2020, recalls from 2010; no repair records; vehicle names must match NHTSA's spelling
-  (production: VIN decoding).
+- **Coverage.** Complaints from 2020 (all recalls since 1966); no repair records; vehicle names must match NHTSA's
+  spelling (production: VIN decoding).
 - **Throughput.** ~10 s per complaint at our quota; bulk triage needs more quota or a cheaper first pass.
 - **Next:** cluster escalations automatically; alert when complaints keep coming after a remedy; learn the escalation
   thresholds from engineer confirmations.

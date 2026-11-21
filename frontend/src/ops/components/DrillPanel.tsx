@@ -6,6 +6,8 @@ const FAULTS: [string, string][] = [
   ['', 'No simulated failure'],
   ['llm_down', 'Model unavailable (fallback to rules)'],
   ['malformed_json', 'AI answers broken JSON once (repair)'],
+  ['incomplete', 'AI answer cut off at the token limit (real; fallback)'],
+  ['refusal', 'AI refuses to answer (fallback)'],
 ]
 
 /** Failure drills: run a complaint with the AI on/off or deliberately broken, and watch every step. Runs are stored

@@ -10,7 +10,14 @@ from pydantic import BaseModel
 
 from app.models import Complaint, RecallCheck, RecallItem, Result
 from app.store.tickets import IssueKind, Tickets
-from app.workspace.messages import covers, display_campno, owner_info_request, owner_recall_reply, plain_defect
+from app.workspace.messages import (
+    build_window,
+    covers,
+    display_campno,
+    owner_info_request,
+    owner_recall_reply,
+    plain_defect,
+)
 
 ActionId = Literal["link_close", "request_info", "add_to_issue", "new_issue", "monitor", "close_no_action"]
 
@@ -31,6 +38,7 @@ class RecallCard(BaseModel):
     display: str
     filed: str
     covers: str
+    built: str | None = None             # '2024 models built October 4, 2021 – October 9, 2024', when published
     problem: str
     consequence: str
     remedy: str
@@ -112,6 +120,7 @@ def recall_card(recall: RecallItem, complaint: Complaint, replaced: list[str]) -
                       display=display_campno(recall.campno),
                       filed=recall.filed,
                       covers=covers(recall, complaint),
+                      built=build_window(recall, complaint),
                       problem=plain_defect(recall.defect),
                       consequence=recall.consequence,
                       remedy=recall.remedy,
@@ -274,11 +283,13 @@ def suggest(result: Result, tickets: Tickets, related: list[dict] = ()) -> Sugge
     why: list[Why] = []
     actions: list[ActionOption] = []
     if decision.outcome == "known_recall" and recall:
-        # Covered by a recall: link it and reply to the owner with the recall's own remedy.
+        # Matches a recall: link it and reply to the owner with the recall's own remedy. "Matches", not "covered":
+        # a recall covers certain build dates, and only the VIN shows whether this car is one of them.
         display = display_campno(recall.campno)
-        headline = f"Covered by recall {display}: {gist(plain_defect(recall.defect))}"
-        why.append(Why(text=f"This vehicle is covered: the {complaint.year} {complaint.model.title()} is in recall "
-                            f"{display} ({card.covers})."))
+        headline = f"Matches recall {display}: {gist(plain_defect(recall.defect))}"
+        scope = card.covers + (f"; {card.built}" if card.built else "")
+        why.append(Why(text=f"The {complaint.year} {complaint.model.title()} is in recall {display} ({scope}). "
+                            "Whether this car is included depends on its build date: confirm with the VIN."))
         why.append(Why(text="Same problem: what the owner describes is what the recall says can happen.",
                        quotes=pairs(checks_for(result, recall.campno, "same"))))
         if replaced:
