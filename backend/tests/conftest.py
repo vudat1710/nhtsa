@@ -47,14 +47,14 @@ def con(tmp_path):
     w = sqlite3.connect(path)
     w.executescript(SCHEMA)
     for odino, received, crash, fire, injured, comp, text in COMPLAINTS:
-        w.execute("INSERT INTO complaints (odino, make, model, year, received, crash, fire, injured, source, text) "
-                  "VALUES (?, 'HYUNDAI', 'IONIQ 5', '2024', ?, ?, ?, ?, 'owner', ?)",
+        w.execute("INSERT INTO complaints (odino, make, model, year, received, crash, fire, injured, source, "
+                  "prod_type, text) VALUES (?, 'HYUNDAI', 'IONIQ 5', '2024', ?, ?, ?, ?, 'owner', 'V', ?)",
                   (odino, received, crash, fire, injured, text))
         w.execute("INSERT INTO complaint_components VALUES (?, ?, ?)", (odino, comp + ":X", comp))
     w.execute("INSERT INTO complaints_fts(rowid, text) SELECT odino, text FROM complaints")
     for campno, filed, comp, defect, consequence, remedy in RECALLS:
-        w.execute("INSERT INTO recalls (campno, filed, influenced_by, defect, consequence, remedy) "
-                  "VALUES (?, ?, 'ODI', ?, ?, ?)", (campno, filed, defect, consequence, remedy))
+        w.execute("INSERT INTO recalls (campno, filed, influenced_by, recall_type, defect, consequence, remedy) "
+                  "VALUES (?, ?, 'ODI', 'V', ?, ?, ?)", (campno, filed, defect, consequence, remedy))
         built = ("2021-10-04", "2024-06-30") if campno == "24V868000" else (None, None)  # others: none published
         if campno == "25V001000":
             built = ("2024-05-01", "2023-01-01")  # published with the end before the start: treated as unpublished

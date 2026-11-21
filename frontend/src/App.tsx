@@ -5,6 +5,7 @@ import { EvalPage } from './ops/EvalPage'
 import { RunPage, RunsPage } from './ops/RunsPage'
 import { InboxPage } from './workspace/InboxPage'
 import { IssuePage, IssuesPage } from './workspace/IssuesPage'
+import { NewComplaintPage } from './workspace/NewComplaintPage'
 import { TicketPage } from './workspace/TicketPage'
 
 /** The analyst's product: inbox, tickets, emerging issues. No system internals. */
@@ -55,6 +56,7 @@ export function App() {
       <Routes>
         <Route element={<WorkspaceLayout />}>
           <Route path="/" element={<InboxPage />} />
+          <Route path="/new" element={<NewComplaintPage />} />
           <Route path="/tickets/:odino" element={<TicketPage />} />
           <Route path="/issues" element={<IssuesPage />} />
           <Route path="/issues/:id" element={<IssuePage />} />

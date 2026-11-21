@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { workspace } from '../api/client'
 import type { EmergingIssue } from '../api/types'
+import { ticketName } from '../lib/labels'
 import { Chip } from '../shared/Badges'
 
 const KIND = { new_defect: 'Possible new defect', remedy_concern: 'Recall remedy may not be working' }
@@ -49,7 +50,7 @@ export function IssuePage() {
       </div>
       {issue.complaint_details?.map(c => (
         <section key={c.odino} className="card">
-          <p><Link to={`/tickets/${c.odino}`} className="mono">{c.odino}</Link> · {c.vehicle} · {c.received} {c.severe && <Chip tone="alert">crash / fire / injury</Chip>}</p>
+          <p><Link to={`/tickets/${c.odino}`} className="mono">{ticketName(c.odino)}</Link> · {c.vehicle} · {c.received} {c.severe && <Chip tone="alert">crash / fire / injury</Chip>}</p>
           <p className="quoted">{c.text}</p>
         </section>
       ))}

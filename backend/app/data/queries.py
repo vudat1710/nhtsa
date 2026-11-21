@@ -37,6 +37,32 @@ def complaint(con: sqlite3.Connection, odino: int) -> Complaint | None:
                      injured=row["injured"] or 0, text=row["text"] or "", components=components)
 
 
+def vehicle_catalog(con: sqlite3.Connection) -> dict[str, dict[str, list[str]]]:
+    """Every vehicle (make -> model -> model years, newest first) in NHTSA's own spelling, from vehicle complaints and
+    vehicle recalls. A typed-in complaint must name one of these: recalls are found by exact make/model/year, so
+    'Ioniq5' instead of 'IONIQ 5' would find none and look like 'no recall covers this'."""
+    rows = con.execute(
+        """SELECT make, model, year FROM complaints WHERE prod_type = 'V' AND year != '9999'
+           UNION SELECT rv.make, rv.model, rv.year FROM recall_vehicles rv JOIN recalls r USING (campno)
+           WHERE r.recall_type = 'V' AND rv.year != '9999'""").fetchall()
+    catalog: dict[str, dict[str, list[str]]] = {}
+    for make, model, year in rows:
+        catalog.setdefault(make, {}).setdefault(model, []).append(year)
+    for models in catalog.values():
+        for years in models.values():
+            years.sort(reverse=True)
+    return catalog
+
+
+def vehicle_components(con: sqlite3.Connection, min_complaints: int = 100) -> list[str]:
+    """The top-level components owners pick for vehicles (NHTSA's names, upper case), used by at least min_complaints
+    complaints; drops child-seat parts and rare one-off spellings."""
+    rows = con.execute(
+        """SELECT cc.comp FROM complaint_components cc JOIN complaints c USING (odino) WHERE c.prod_type = 'V'
+           GROUP BY cc.comp HAVING count(*) >= ? ORDER BY cc.comp""", (min_complaints,)).fetchall()
+    return [comp for (comp,) in rows if comp and comp == comp.upper() and comp != "NONE"]
+
+
 def recalls_for(con: sqlite3.Connection, v: Vehicle, as_of: str, comps: list[str]) -> tuple[list[dict], int]:
     """Recalls covering this exact vehicle, filed before as_of. Same-component recalls first, then newest first.
     Returns (up to MAX_RECALLS recalls, total found)."""

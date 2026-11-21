@@ -1,5 +1,5 @@
 import type { Complaint, Intake, Judgment } from '../../api/types'
-import { INTAKE_FLAG } from '../../lib/labels'
+import { INTAKE_FLAG, ticketName } from '../../lib/labels'
 import { Chip } from '../../shared/Badges'
 import { Quoted } from '../../shared/Quoted'
 
@@ -11,7 +11,7 @@ export function ComplaintPanel({ complaint, intake, judgment, active }: {
   const marks = judgment?.checks.map(ch => ({ quote: ch.complaint_quote, label: ch.campno })) ?? []
   return (
     <section className="card">
-      <h3>Complaint {c.odino ?? '(typed in)'}</h3>
+      <h3>Complaint {ticketName(c.odino)}</h3>
       <p className="muted">{c.year} {c.make} {c.model} · received {c.received} · {c.components.join(', ') || 'no component chosen'}</p>
       <div className="chips">
         {c.crash > 0 && <Chip tone="alert">Crash</Chip>}

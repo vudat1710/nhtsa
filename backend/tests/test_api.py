@@ -1,12 +1,14 @@
 """API: the analyst's workspace (check, suggestion, actions, emerging issues) and the operations portal (drills, runs).
 Uses the test DB and a scripted model."""
 import json
+from datetime import date
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.ai.clients import LlmSetup, ScriptedChatClient
 from app.api import deps, workspace
+from app.data import queries
 from app.main import app
 from app.store.results import Store
 
@@ -24,6 +26,8 @@ def client(con, tmp_path, monkeypatch):
     monkeypatch.setattr(deps, "con", lambda: con)
     monkeypatch.setattr(deps, "store", lambda: store)
     monkeypatch.setattr(deps, "llm", lambda: LlmSetup(client=ScriptedChatClient(turns)))
+    monkeypatch.setattr(deps, "vehicles", lambda: queries.vehicle_catalog(con))
+    monkeypatch.setattr(deps, "components", lambda: queries.vehicle_components(con, min_complaints=1))
     monkeypatch.setattr(workspace, "demo_cases", lambda: [{"odino": 3, "title": "demo one"}])
     c = TestClient(app)
     c.turns = turns
@@ -149,3 +153,48 @@ def test_without_a_model_checks_use_the_rules_and_questions_are_off(client, monk
     assert "rules only" in client.get("/api/tickets/3").json()["suggestion"]["check_note"]
     assert client.post("/api/tickets/3/ask", json={"question": "Was it repaired?"}).status_code == 503
     assert client.get("/api/ops/health").json()["model"] is None
+
+
+NEW = {"make": "HYUNDAI", "model": "IONIQ 5", "year": "2024", "component": "ELECTRICAL SYSTEM",
+       "text": "Stop Vehicle Immediately came on and the car lost drive power. The ICCU failed again after the recall "
+               "repair last month.", "injured": 0}
+
+
+def test_the_form_offers_nhtsa_names_only(client):
+    assert client.get("/api/vehicles").json() == ["HYUNDAI"]
+    assert client.get("/api/vehicles", params={"make": "HYUNDAI"}).json() == ["IONIQ 5"]
+    assert client.get("/api/vehicles", params={"make": "HYUNDAI", "model": "IONIQ 5"}).json() == ["2024"]
+    assert "ELECTRICAL SYSTEM" in client.get("/api/components").json()
+
+
+def test_a_typed_complaint_is_a_ticket_like_any_other(client):
+    odino = client.post("/api/complaints", json=NEW).json()["odino"]
+    assert odino == -1                                           # negative: never an NHTSA id
+    assert client.get("/api/inbox").json()[0]["odino"] == -1    # newest typed complaint first
+    t = check(client, odino=-1)
+    assert t["complaint"]["received"] == date.today().isoformat()
+    assert t["suggestion"]["headline"].startswith("Matches recall 24V-868")
+    client.turns.append(json.dumps({"answer": "The records hold no repair history.", "citations": [],
+                                    "scope": "not_in_records"}))
+    assert client.post("/api/tickets/-1/ask", json={"question": "Was it repaired?"}).json()["verified"]
+    st = client.post("/api/tickets/-1/actions", json={"action": "new_issue", "issue_title": "ICCU again",
+                                                      "issue_kind": "new_defect", "reason": "fix not holding",
+                                                      "disagrees": True}).json()
+    assert client.get(f"/api/issues/{st['issue_id']}").json()["complaint_details"][0]["odino"] == -1
+    assert client.get("/api/issues").json()[0]["count"] == 1
+    done = events(client.post("/api/ops/drill/-1", params={"fault": "llm_down"}))[-1]
+    assert done["type"] == "done"
+
+
+@pytest.mark.parametrize("change", [{"model": "IONIQ5"}, {"year": "2019"}, {"component": "ENGINE STUFF"},
+                                    {"text": "   "}, {"text": ""}])
+def test_a_typed_complaint_must_name_an_nhtsa_vehicle_and_say_something(client, change):
+    assert client.post("/api/complaints", json=NEW | change).status_code == 422
+
+
+def test_reset_forgets_typed_complaints_and_their_runs(client):
+    client.post("/api/complaints", json=NEW)
+    check(client, odino=-1)
+    assert deps.store().forget_typed() == 1
+    assert client.post("/api/complaints", json=NEW).json()["odino"] == -1   # numbering restarts...
+    assert client.get("/api/tickets/-1").json()["suggestion"] is None        # ...without the old ticket's answer

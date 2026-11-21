@@ -45,11 +45,13 @@ backend/app/
 
   store/                 data/app.db
     results.py           every AI run, whole (the audit record)
-    tickets.py           what people did: ticket status, actions, emerging issues, questions asked
+    tickets.py           what people did: ticket status, actions, emerging issues, questions asked, typed-in
+                         complaints (negative ticket numbers, so never an NHTSA id)
     reset.py             clear what people did (keep runs); on a fresh clone, load data/inbox_results.jsonl.gz
 
   api/                   HTTP only; calls the layers above
-    workspace.py         inbox, ticket (+ trail, questions), check (live progress), actions, ask, emerging issues
+    workspace.py         inbox, ticket (+ trail, questions), check (live progress), actions, ask, emerging issues,
+                         new complaint (+ NHTSA's vehicle and component lists it must pick from)
     ops.py               runs, run detail, failure drills, evaluation reports
     streaming.py · deps.py
 
@@ -61,8 +63,8 @@ backend/app/
 backend/tests/           one file per area; conftest.py is a tiny NHTSA world (same schema)
 frontend/src/
   api/                   client.ts (workspace + ops clients, progress stream), types.ts (mirrors models.py)
-  workspace/             Inbox, Ticket (SuggestionView + ActionPanel + TrailView + AskPanel), Emerging issues:
-                         the analyst's product
+  workspace/             Inbox, Ticket (SuggestionView + ActionPanel + TrailView + AskPanel), New complaint,
+                         Emerging issues: the analyst's product
   ops/                   AI runs, run detail (decision, recall checks, evidence, audit trail), drills,
                          evaluation: for the people who build and run it
   shared/ · lib/         badges, quote highlighting, plain-word labels, liveTrail (progress events → steps)

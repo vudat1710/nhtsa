@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 from app.ai.middleware import FaultMiddleware
 from app.api import deps
 from app.api.streaming import stream
-from app.data import queries
+from app.api.workspace import complaint_or_404
 from app.eval.run import EVAL
 
 router = APIRouter(prefix="/ops")
@@ -40,10 +40,7 @@ async def drill(odino: int, use_llm: bool = True, fault: str | None = None) -> S
     """Run a stored complaint with the AI on/off or deliberately broken."""
     if fault and fault not in FaultMiddleware.MODES:
         raise HTTPException(422, f"fault must be one of {FaultMiddleware.MODES}")
-    complaint = queries.complaint(deps.con(), odino)
-    if complaint is None:
-        raise HTTPException(404, f"complaint {odino} not found")
-    return StreamingResponse(stream(complaint, LABEL, use_llm, fault), media_type="text/event-stream")
+    return StreamingResponse(stream(complaint_or_404(odino), LABEL, use_llm, fault), media_type="text/event-stream")
 
 
 @router.get("/evals")

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { workspace } from '../api/client'
 import type { RunEvent, Ticket, Turn } from '../api/types'
-import { STATUS } from '../lib/labels'
+import { STATUS, ticketName } from '../lib/labels'
 import { Chip } from '../shared/Badges'
 import { Quoted } from '../shared/Quoted'
 import { ActionPanel } from './ActionPanel'
@@ -52,7 +52,7 @@ export function TicketPage() {
       <p><Link to="/">← Inbox</Link></p>
       <div className="ticket-head">
         <div>
-          <h1>Complaint {c.odino} · {c.year} {c.make} {c.model}</h1>
+          <h1>{c.odino != null && c.odino < 0 ? `New complaint (${ticketName(c.odino)})` : `Complaint ${c.odino}`} · {c.year} {c.make} {c.model}</h1>
           <p className="muted">Received {c.received} · owner chose: {c.components.join(', ') || 'no component'}</p>
         </div>
         <Chip tone={done ? 'ok' : 'info'}>{STATUS[ticket.status.status]}</Chip>

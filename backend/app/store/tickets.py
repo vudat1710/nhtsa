@@ -1,10 +1,13 @@
-"""What the analyst does with a ticket (data/app.db, next to the runs): ticket status, emerging issues, and an action
-log. Kept apart from the AI runs: runs are the audit record of the system, tickets are the work of people."""
+"""What the analyst does with a ticket (data/app.db, next to the runs): ticket status, emerging issues, an action log,
+follow-up questions, and complaints typed in by an analyst. Kept apart from the AI runs: runs are the audit record of
+the system, tickets are the work of people."""
 import sqlite3
 from datetime import UTC, datetime
 from typing import Literal
 
 from pydantic import BaseModel
+
+from app.models import Complaint
 
 TicketStatus = Literal["new", "suggested", "waiting", "resolved", "escalated", "monitoring"]
 IssueKind = Literal["new_defect", "remedy_concern"]
@@ -19,6 +22,7 @@ CREATE TABLE IF NOT EXISTS issue_complaints (issue_id INTEGER, odino INTEGER, ad
 CREATE TABLE IF NOT EXISTS actions (id INTEGER PRIMARY KEY AUTOINCREMENT, odino INTEGER, action TEXT, detail TEXT,
   result_id TEXT, by TEXT, at TEXT);
 CREATE TABLE IF NOT EXISTS questions (id INTEGER PRIMARY KEY AUTOINCREMENT, odino INTEGER, body TEXT, at TEXT);
+CREATE TABLE IF NOT EXISTS typed_complaints (id INTEGER PRIMARY KEY AUTOINCREMENT, body TEXT, at TEXT);
 """
 
 
@@ -90,6 +94,25 @@ class Tickets:
     def questions(self, odino: int) -> list[str]:
         rows = self.con.execute("SELECT body FROM questions WHERE odino = ? ORDER BY id", (odino,))
         return [row[0] for row in rows]
+
+    # ---------- complaints typed in by an analyst ----------
+    # Their ticket number is negative (-1, -2, ...), so it can never collide with an NHTSA complaint id (ODINO).
+
+    def add_typed(self, complaint: Complaint) -> int:
+        cur = self.con.execute("INSERT INTO typed_complaints (body, at) VALUES ('', ?)", (now(),))
+        odino = -cur.lastrowid
+        self.con.execute("UPDATE typed_complaints SET body = ? WHERE id = ?",
+                         (complaint.model_copy(update={"odino": odino}).model_dump_json(), cur.lastrowid))
+        self.con.commit()
+        return odino
+
+    def typed(self, odino: int) -> Complaint | None:
+        row = self.con.execute("SELECT body FROM typed_complaints WHERE id = ?", (-odino,)).fetchone()
+        return Complaint.model_validate_json(row[0]) if row else None
+
+    def typed_ids(self) -> list[int]:
+        """Newest first."""
+        return [-row[0] for row in self.con.execute("SELECT id FROM typed_complaints ORDER BY id DESC")]
 
     # ---------- emerging issues ----------
 

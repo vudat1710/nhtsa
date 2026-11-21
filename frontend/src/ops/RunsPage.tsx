@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ops } from '../api/client'
 import type { Result, RunSummary } from '../api/types'
-import { ISSUE, SOURCE } from '../lib/labels'
+import { ISSUE, SOURCE, ticketName } from '../lib/labels'
 import { OutcomeBadge } from '../shared/Badges'
 import { AuditTrail } from './components/AuditTrail'
 import { ComplaintPanel } from './components/ComplaintPanel'
@@ -40,7 +40,7 @@ export function RunsPage() {
           {shown.map(r => (
             <tr key={r.id} className="clickable" onClick={() => nav(`/ops/runs/${r.id}`)}>
               <td className="small nowrap">{r.created_at.replace('T', ' ').slice(0, 19)}</td>
-              <td><span className="mono">{r.odino ?? 'typed'}</span><div className="small muted">{r.vehicle}</div></td>
+              <td><span className="mono">{ticketName(r.odino)}</span><div className="small muted">{r.vehicle}</div></td>
               <td><OutcomeBadge outcome={r.outcome} confidence={r.confidence} /></td>
               <td className={r.source === 'fallback' ? 'alert-text small' : 'small'}>{SOURCE[r.source].label}{r.fault && ` · drill: ${r.fault}`}</td>
               <td className="small">{r.first_issues.map(i => ISSUE[i] ?? i).join('; ') || '–'}</td>

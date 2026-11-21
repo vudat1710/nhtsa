@@ -1,6 +1,12 @@
 // Plain words for everything the backend returns as a code. One place, so the UI says the same thing everywhere.
 import type { Confidence, Decision, Outcome } from '../api/types'
 
+/** NHTSA complaints keep their ODINO; complaints typed in by an analyst have negative ticket numbers. */
+export function ticketName(odino: number | null): string {
+  if (odino == null) return 'typed in'
+  return odino < 0 ? `typed #${-odino}` : String(odino)
+}
+
 export const OUTCOME: Record<Outcome, { label: string; tone: string; action: string }> = {
   known_recall: { label: 'Known recall', tone: 'ok', action: 'Point the owner to the recall remedy.' },
   related_different: { label: 'Related, different failure', tone: 'warn', action: 'Escalate to an engineer: a recall covers this part, but not this failure.' },

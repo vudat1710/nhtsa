@@ -56,6 +56,16 @@ Anything other than the suggestion asks for one line of why; that is the feedbac
 grouped on the **Emerging issues** page. The **operations portal** (`/ops`) is for the people running the system: every
 AI run with its audit trail, failure drills (model down, broken answer, answer cut off, refusal), and the evaluation.
 
+### A brand-new complaint
+
+**+ New complaint** in the inbox takes a complaint that is not in NHTSA's data (one that just came in by phone, or one
+a reviewer writes). It becomes a ticket received **today** (ticket number `typed #1`, `#2`, …; negative internally so
+it can never clash with an NHTSA id) and goes through exactly the same check, trail, actions and follow-up questions,
+compared with every recall filed before today. Make, model and year are picked from NHTSA's own list (1,905 makes):
+recalls are found by exact name, so a typed "Ioniq5" would find no recall and wrongly read as "no recall covers
+this". The API rejects names outside the list. In production the VIN would fill these in. `reset` clears typed
+complaints and their runs.
+
 ### See how it got there, then ask about it
 
 - **How the agent investigated**: every ticket shows the steps in order, in analyst words: read the complaint → looked
@@ -207,6 +217,8 @@ Reproduce: every run's full results are committed (`data/eval/results/*.jsonl.gz
 - **Complaints continue after a remedy** → reply + flag; the data can't tell a failed fix from an unrepaired car.
 - **Same failure recalled on other model years** → flagged as a possible recall-scope gap.
 - **Unknown year / unknown component / two words** → ask / search all candidates / ask.
+- **A typed-in vehicle name NHTSA doesn't use** ("Ioniq5") → rejected with a message; the form only offers NHTSA's
+  names (otherwise no recall would be found and it would wrongly read as "no recall covers this").
 - **Answer shape** → strict structured output: the provider constrains every completed, non-refusal answer to the
   JSON schema (judge and follow-up assistant). What that does not cover is handled in code, each with its own label:
   a refusal (`refused`), an answer cut off at the token limit (`incomplete`), a blocked request (`content_filter`), an

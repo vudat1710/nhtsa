@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { workspace } from '../api/client'
 import type { InboxItem } from '../api/types'
-import { STATUS } from '../lib/labels'
+import { STATUS, ticketName } from '../lib/labels'
 import { Chip } from '../shared/Badges'
 
 const TONE: Record<string, string> = { known_recall: 'ok', related_different: 'warn', possible_new: 'alert', needs_info: 'info' }
@@ -40,6 +40,7 @@ export function InboxPage() {
           <p className="muted">{open.length} open · each complaint is checked against the recalls that covered that vehicle on the day it arrived.</p>
         </div>
         <div className="row">
+          <button className="secondary" onClick={() => nav('/new')}>+ New complaint</button>
           {unchecked.length > 0 && <button onClick={checkAll} disabled={!!checking}>{checking ?? `Check ${unchecked.length} new`}</button>}
           <label className="small"><input type="checkbox" checked={showDone} onChange={e => setShowDone(e.target.checked)} /> show done</label>
         </div>
@@ -50,7 +51,7 @@ export function InboxPage() {
           {shown.map(i => (
             <tr key={i.odino} className="clickable" onClick={() => nav(`/tickets/${i.odino}`)}>
               <td>
-                <Link to={`/tickets/${i.odino}`} className="mono">{i.odino}</Link>
+                <Link to={`/tickets/${i.odino}`} className="mono">{ticketName(i.odino)}</Link>
                 <div>{i.vehicle}</div>
                 <div className="muted small">{i.received}</div>
                 {i.severity.map(s => <Chip key={s} tone="alert">{s}</Chip>)}

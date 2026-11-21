@@ -1,6 +1,7 @@
 """The analyst's workspace: inbox, ticket (what it is, why, what to do), actions, and emerging issues.
 No model names, tokens or simulated failures here; those live in the operations portal (ops.py)."""
 import json
+from datetime import date
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -25,14 +26,16 @@ def demo_cases() -> list[dict]:
 
 
 def inbox_ids(limit: int = 15) -> list[int]:
-    """The demo complaints first, then a slice of real, recent owner complaints (a normal morning's inbox)."""
+    """Complaints typed in by an analyst (newest first), then the demo complaints, then a slice of real, recent owner
+    complaints (a normal morning's inbox)."""
+    typed = deps.store().tickets.typed_ids()
     demo = [case["odino"] for case in demo_cases()]
     rows = deps.con().execute(
         """SELECT odino FROM complaints WHERE source = 'owner' AND year != '9999' AND length(text) > 200
            ORDER BY received DESC, odino DESC LIMIT ?""", (limit,)).fetchall()
     recent = [row[0] for row in rows]
     # dict.fromkeys drops a recent complaint that is also a demo one, keeping the order.
-    return list(dict.fromkeys(demo + recent))
+    return list(dict.fromkeys(typed + demo + recent))
 
 
 def related_for(result) -> list[dict]:
@@ -52,10 +55,62 @@ def suggestion(result) -> Suggestion:
 
 
 def complaint_or_404(odino: int) -> Complaint:
-    complaint = queries.complaint(deps.con(), odino)
+    """An NHTSA complaint, or one typed in by an analyst (negative ticket number)."""
+    if odino < 0:
+        complaint = deps.store().tickets.typed(odino)
+    else:
+        complaint = queries.complaint(deps.con(), odino)
     if complaint is None:
         raise HTTPException(404, f"complaint {odino} not found")
     return complaint
+
+
+class NewComplaint(BaseModel):
+    """A complaint typed in by an analyst. The vehicle and component must be NHTSA's own names (see /vehicles)."""
+    make: str
+    model: str
+    year: str
+    component: str
+    text: str = Field(min_length=1, max_length=5000)
+    crash: bool = False
+    fire: bool = False
+    injured: int = Field(default=0, ge=0, le=99)
+
+
+@router.get("/vehicles")
+def vehicles(make: str | None = None, model: str | None = None) -> list[str]:
+    """NHTSA's makes; a make's models; or a model's years (newest first)."""
+    catalog = deps.vehicles()
+    if make is None:
+        return sorted(catalog)
+    models = catalog.get(make, {})
+    if model is None:
+        return sorted(models)
+    return models.get(model, [])
+
+
+@router.get("/components")
+def components() -> list[str]:
+    return deps.components()
+
+
+@router.post("/complaints")
+def new_complaint(body: NewComplaint) -> dict:
+    """Store a typed-in complaint as a new ticket, received today. It is checked like any other ticket: only recalls
+    filed before today are candidates."""
+    years = deps.vehicles().get(body.make, {}).get(body.model, [])
+    if body.year not in years:
+        raise HTTPException(422, f"{body.year} {body.make} {body.model} is not in NHTSA's vehicle list: pick the make, "
+                                 "model and year from the lists (recalls are matched on NHTSA's exact names)")
+    if body.component not in deps.components():
+        raise HTTPException(422, f"'{body.component}' is not one of NHTSA's component names")
+    text = body.text.strip()
+    if not text:
+        raise HTTPException(422, "the complaint text is empty")
+    complaint = Complaint(make=body.make, model=body.model, year=body.year, received=date.today().isoformat(),
+                          crash=int(body.crash), fire=int(body.fire), injured=body.injured, text=text,
+                          components=[body.component])
+    return {"odino": deps.store().tickets.add_typed(complaint)}
 
 
 @router.get("/inbox")
@@ -169,7 +224,7 @@ def act(odino: int, req: ActionRequest) -> dict:
 def issues() -> list[dict]:
     out = []
     for emerging in deps.store().tickets.issues():
-        complaints = [queries.complaint(deps.con(), odino) for odino in emerging.complaints]
+        complaints = [complaint_or_404(odino) for odino in emerging.complaints]
         severe = 0
         for complaint in complaints:
             if complaint.crash or complaint.fire or complaint.injured:
@@ -189,7 +244,7 @@ def issue(issue_id: int) -> dict:
         raise HTTPException(404, "issue not found")
     details = []
     for odino in emerging.complaints:
-        complaint = queries.complaint(deps.con(), odino)
+        complaint = complaint_or_404(odino)
         details.append({"odino": complaint.odino,
                         "vehicle": f"{complaint.year} {complaint.make.title()} {complaint.model.title()}",
                         "received": complaint.received,

@@ -20,3 +20,14 @@ def llm() -> LlmSetup | None:
 @lru_cache
 def store() -> Store:
     return Store(get_settings().app_db_path)
+
+
+@lru_cache
+def vehicles() -> dict[str, dict[str, list[str]]]:
+    """NHTSA's vehicle list for the new-complaint form (read once: ~78,000 make/model/year rows, about a second)."""
+    return queries.vehicle_catalog(con())
+
+
+@lru_cache
+def components() -> list[str]:
+    return queries.vehicle_components(con())

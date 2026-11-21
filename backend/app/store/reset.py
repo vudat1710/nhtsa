@@ -1,6 +1,7 @@
 """Start the workspace fresh for a demo: forget what analysts did (ticket status, actions, emerging issues,
-questions). AI runs are kept. If the workspace has no AI runs yet (a fresh clone, no model needed), the inbox's
-stored results are loaded from data/inbox_results.jsonl.gz, so every ticket opens with its checked suggestion.
+questions, typed-in complaints). AI runs on NHTSA complaints are kept. If the workspace has no AI runs yet (a fresh
+clone, no model needed), the inbox's stored results are loaded from data/inbox_results.jsonl.gz, so every ticket opens
+with its checked suggestion.
 
     uv run python -m app.store.reset            # tickets open with their stored, already checked suggestion
     uv run python -m app.store.reset --live     # every ticket starts unchecked and is checked live when opened
@@ -31,7 +32,9 @@ def main() -> None:
         con.execute(f"DELETE FROM {table}")
     con.execute("DELETE FROM sqlite_sequence WHERE name IN ('issues', 'actions')")
     con.commit()
-    print("workspace reset: ticket statuses, actions, emerging issues and questions cleared; AI runs kept")
+    typed = store.forget_typed()
+    print(f"workspace reset: ticket statuses, actions, emerging issues, questions and {typed} typed-in complaints "
+          "cleared; AI runs on NHTSA complaints kept")
 
     if args.live:
         cleared = con.execute("DELETE FROM results WHERE label = ?", (WORKSPACE_LABEL,)).rowcount

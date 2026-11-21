@@ -33,6 +33,18 @@ export const workspace = {
   issue: (id: number) => get<EmergingIssue>(`/issues/${id}`),
   check: (odino: number, onEvent: (e: RunEvent) => void) => streamEvents(`/api/tickets/${odino}/check`, onEvent),
   ask: (odino: number, question: string) => post<Turn>(`/tickets/${odino}/ask`, { question }),
+  vehicles: (make?: string, model?: string) => {
+    const params = new URLSearchParams()
+    if (make) params.set('make', make)
+    if (model) params.set('model', model)
+    return get<string[]>(`/vehicles?${params}`)
+  },
+  components: () => get<string[]>('/components'),
+  newComplaint: (body: NewComplaint) => post<{ odino: number }>('/complaints', body),
+}
+
+export interface NewComplaint {
+  make: string; model: string; year: string; component: string; text: string; crash: boolean; fire: boolean; injured: number
 }
 
 /** The operations portal. */
