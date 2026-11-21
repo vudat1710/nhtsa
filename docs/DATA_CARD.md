@@ -72,60 +72,63 @@ Not fixable from the data: NHTSA publishes each recall's *current* text, so a re
 recall that replaced it (24V204000's remedy names 24V-868). The system only links a replacement when that recall is
 itself a candidate (filed before the complaint).
 
-## Evaluation sets (v2, frozen, `data/eval/`)
+## Evaluation sets (v3, frozen, `data/eval/`)
 
-Every set uses **owner-written complaints about one vehicle**: `source = 'owner'`, not typed in the hotline's transcript
-style (1,622 non-hotline complaints are: "The contact…", "TL*…"), and `vehicles = 1`.
+Every set uses **owner-written complaints about one vehicle**: `source = 'owner'`, judged on a vehicle line
+(`prod_type = 'V'`), not typed in the hotline's transcript style (1,622 non-hotline complaints are: "The contact…",
+"TL*…"), and `vehicles = 1`. `python -m app.eval.build_sets` rebuilds identical sets (fixed seed; checked).
 
-| Set | Test / dev | Ground truth |
+| Set | Test / dev | What the cases are |
 |---|---|---|
-| **A: known recall** | 300 / 100 | The owner cited exactly one recall that covers the vehicle and was filed before the complaint; at least 200 characters after masking; not about parts availability; the text does not say the vehicle is *not* covered by it. Truth = that recall (the owner's belief). |
-| **B: no recall yet** | 142 / 50 | No recall on the vehicle + component at the time; one filed within 365 days after and sharing 3+ distinctive words; the vehicle has other (distractor) recalls; the text does not mention "recall". Truth = must not be "known recall". |
-| **C: stress** | 26 / 0 | Real A/B complaints with one change: unknown year (5), unknown component (5), injected instruction (6), too-short text (5), vehicle with no recalls (5). Truth = the designed behaviour. |
+| **A: known recall** | 300 / 100 | The owner cited exactly one recall that covers the vehicle and was filed before the complaint; at least 200 characters after masking; not about parts availability; the text does not say the vehicle is *not* covered by it. The owner's citation is kept, but it is a belief, not ground truth. |
+| **B: no recall yet** | 145 / 50 | No recall on the vehicle + component at the time; one filed within 365 days after and sharing 3+ distinctive words; the vehicle has other (distractor) recalls; the text does not mention "recall". Covers "no recall yet" situations. |
+| **C: stress** | 26 / 0 | Real A/B complaints with one change: unknown year (5), unknown component (5), injected instruction (6), too-short text (5), vehicle with no recalls (5). Each kind has a behaviour we specified (checked objectively). |
 
-Set sizes: A pool 3,927 → 400 sampled (1 skipped: its recall fell outside the 15-candidate cap); B pool 2,891 → 457 with
-shared wording → 192 after a cap of 3 complaints per recall (so one big recall cannot dominate).
+Set sizes: A pool 3,989 → 400 sampled; B pool 2,911 → 460 with shared wording → 195 after a cap of 3 complaints per
+later recall (so one big recall cannot dominate; 102 distinct later recalls in the test split).
 
-Facts about the test sets: A has a median of 6 candidate recalls per complaint (90th percentile 13). **For 47% the
+Facts about the test sets: A has a median of 6 candidate recalls per complaint (90th percentile 15). **For 49% the
 cited recall is filed under a different top-level component than the owner chose**: NHTSA's category list overlaps
-(`ENGINE` vs `ENGINE AND ENGINE COOLING`, `SERVICE BRAKES` vs `SERVICE BRAKES, HYDRAULIC`, `FUEL/PROPULSION SYSTEM` vs
-`FUEL SYSTEM, GASOLINE`), and owners tend to pick the broad one while recalls are filed under the specific one. B's
-later recall came a median of 102 days after the complaint.
+(`ENGINE` vs `ENGINE AND ENGINE COOLING`, `SERVICE BRAKES` vs `SERVICE BRAKES, HYDRAULIC`), and owners tend to pick
+the broad one while recalls are filed under the specific one. B's later recall came a median of 132 days after the
+complaint.
 
-**Label quality.** The v1 sets were hand-checked by a person (A: 14 of 15 sampled were fair matching tests; B: "no
-matching recall at the time" held 20 of 20, and the later recall was the same failure in ~13 of 20). The v2 sets have
-not been hand-checked yet.
+**Why the sets' labels are not used as results.** Set A's label is the recall the owner cited: owners are sometimes
+wrong, and nothing in the data (no VINs, no repair records) can settle which recall is right. Set B's "no recall yet"
+is a fact about dates, but a recall filed under another component can still fit. The first (v1) sets were hand-checked
+(A: 14 of 15 sampled were fair matching tests; B: the later recall was the same failure in ~13 of 20); the v3 sets
+have not been. So the sets are used as **realistic inputs**, and only what code checks objectively is reported.
 
-## Evaluation results and how to read them
+## Evaluation results
 
-- **Rules baseline on v2** (`data/eval/reports/20261120-2025-abc-test-baseline.json`, "newest candidate recall on the
-  owner's component", no reading of the text): A picks the owner's recall 41% [36–47], names a different recall 21%
-  [17–26], escalates 38% (no recall on the owner's chosen component); B never claims a known recall (by
-  construction); C 21/26 (it has no rule for too-short text).
-- **AI on v2** (`data/eval/reports/20261120-2045-abc-test-ai.json`, prompt v3, run once): A picks the owner's recall
-  51% [46–57], names a different recall 8% [5–12], asks for details 22%, escalates 19%; when it answers "known recall"
-  it is the owner's recall 86%; B claims a known recall 5% (7/142); C 26/26; every final answer verified (0 repairs,
-  0 fallbacks). Trajectory checks: `data/eval/trajectory/20261120-2045-abc-test-ai.json`.
-- **Set A measures agreement with the owner, not accuracy.** Owners sometimes cite the wrong recall, and nothing in the
-  data (no repair records, no VINs) can settle which recall is right.
-- **Prompt changes were made on the dev split only** (v1 → v2 negation rule, v2 → v3 "symptoms, not causes").
+Reported in the README (one table): every claim real, the workflow's rules, stress-case behaviour (set C, against our
+specification), no look-ahead, follow-up guardrails, cost. `data/eval/` holds one file per evaluation:
 
-### v1 sets (archived in `data/eval/archive_v1/`) and why they were replaced
+| File | What it is |
+|---|---|
+| `results/20261120-2209-abc-test-ai.jsonl.gz` | Every full result of the v3 test run (prompt v3, run once): evidence, the AI's answers, checks, decisions |
+| `reports/20261120-2209-abc-test-ai.json` | Facts about that run: first answers that failed a check, repairs, fallbacks, time, tokens |
+| `trajectory/20261120-2209-abc-test-ai.json` | The 20 workflow rules checked on that run, with failing examples (none) |
+| `reports/as_new-*.json` | No look-ahead: stored vs brand-new complaints |
+| `results/ask-*.jsonl` + `reports/ask-*.json` | Every follow-up answer, and the guardrail checks on them |
 
-The v1 sets, their scored runs, reports and the AI-drafted adjudication are kept for the record, but their
-label-based numbers are **not valid**:
+Every report can be rebuilt from its results without the model. Prompt changes were made on the dev split only (v1 to
+v2: the negation rule; v2 to v3: "symptoms, not causes").
 
-- **Hotline transcripts were taken for owner-written complaints.** v1 detected hotline complaints by a `TL*` text
-  prefix instead of NHTSA's `CMPL_TYPE`; newer transcripts start "The contact…". So 282 of 400 A cases (70%), 119 of
-  292 B and 17 of 26 C were NHTSA staff write-ups, which read more cleanly than owners' text.
-- **The answer leaked through the mask** in all 282 of those A cases: `[recall no. removed] (Power Train)` still named
-  the cited recall's component.
-- **16 A labels contradicted their own text** ("The VIN was not included in NHTSA Campaign Number …").
-- 4 B cases named more than one vehicle; and the build depended on Python's set order, so it was not reproducible.
+### Earlier sets (in git history) and why they were replaced
 
-What stays valid from the v1 runs is everything that does not depend on labels: every one of the 563 AI answers was
-verified (1 repaired, 0 fallbacks), and the workflow's trajectory rules held on every run (`data/eval/trajectory/`,
-`app/eval/trajectory.py`). The full run records are in `data/eval/results/`.
+Each rebuild followed a check of our data handling against NHTSA's own field descriptions (`docs/nhtsa/`).
+
+- **v1 took hotline transcripts for owner-written complaints.** It detected hotline complaints by a `TL*` text prefix
+  instead of NHTSA's `CMPL_TYPE`; newer transcripts start "The contact…". So 282 of 400 A cases (70%) were NHTSA staff
+  write-ups, and in all of them the answer leaked through the mask: `[recall no. removed] (Power Train)` still named
+  the cited recall's component. 16 A labels also contradicted their own text, and the build was not reproducible.
+- **v2 judged some complaints on a tire or child-seat line** instead of the vehicle (`PROD_TYPE`), did not load recalls
+  filed before 2010 (NHTSA publishes them in a second file), and kept one resulting recall per investigation although
+  it can differ per vehicle line.
+
+What stayed valid from the earlier runs is everything that does not depend on labels: every final AI answer was
+verified, and the workflow rules held on every run.
 
 ## What the data cannot tell us (limitations)
 
@@ -133,13 +136,15 @@ verified (1 repaired, 0 fallbacks), and the workflow's trajectory rules held on 
   every text still says "recall". Complaints from owners who don't know about a recall have no labels.
 - **B's "would have caught it early" is noisy** (~65% the same failure on the v1 hand check). B is reliable for "must
   not claim a known recall"; lead time is reported only as an indicative number.
-- **No repair records.** We cannot tell whether a car was repaired under a recall, so "complaint after the remedy" means
-  "the fix may not hold, or the car was not repaired", never which one.
-- **History windows.** Complaints from 2020 only (similar-complaint counts start then); recalls from 2010 only (older
-  recalls on old vehicles are invisible).
+- **No repair records and no VINs.** We cannot tell whether a car was repaired under a recall ("complaint after the
+  remedy" means the fix may not hold, *or* the car was not repaired), nor whether its build date is inside a recall.
+- **History window.** Complaints from 2020 only (similar-complaint counts start then); recalls from 1966.
 - **Owner-chosen components are noisy** ("UNKNOWN OR OTHER", or a broader or different category than the recall's),
   so same-component signals (the baseline, "recall filed under a different component", earlier-complaint counts) are
   weak for owner-written complaints. A category crosswalk (e.g. `ENGINE` ↔ `ENGINE AND ENGINE COOLING`) is not built.
-- **Multi-vehicle complaints** (1.1%) are judged and counted on their first vehicle only.
+- **Complaints that also name tires, equipment or a child seat** (6,483) are judged on their vehicle only.
 - **Hotline complaints** (22% of complaints) are in the database and can be checked in the workspace, but no evaluation
   set covers them.
+- **The model may have read public NHTSA data in training.** Candidates come from the database and the verifier
+  rejects any other recall, so memory cannot inject a recall; a slice after the model's training cutoff would measure
+  whether it nudges verdicts.

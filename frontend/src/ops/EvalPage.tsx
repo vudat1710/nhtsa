@@ -4,132 +4,105 @@ import type { EvalReport, RateStat } from '../api/types'
 
 type M = Record<string, Record<string, RateStat | number | null>>
 
-function pct(s?: RateStat | number | null): string {
-  if (s == null || typeof s === 'number') return s == null ? '–' : String(s)
-  if (s.rate == null) return '–'
-  return `${Math.round(s.rate * 100)}%`
+function Count({ k, n }: { k: number; n: number }) {
+  return <td className={k === n ? 'ok-text' : 'alert-text'}><strong>{k}/{n}</strong></td>
 }
 
-function Cell({ s, better }: { s?: RateStat | number | null; better?: boolean }) {
-  if (s == null) return <td className="muted">–</td>
-  if (typeof s === 'number') return <td>{s}</td>
-  return (
-    <td className={better ? 'ok-text' : ''}>
-      <strong>{pct(s)}</strong> <span className="muted small">{s.k}/{s.n} · 95% CI {Math.round(s.ci95[0] * 100)}–{Math.round(s.ci95[1] * 100)}%</span>
-    </td>
-  )
-}
-
-const ROWS: [string, string, string, 'higher' | 'lower' | ''][] = [
-  ['A_known_recall', 'right_recall', 'A · picks the recall the owner cited', 'higher'],
-  ['A_known_recall', 'wrong_recall', 'A · answers a different recall (confidently wrong)', 'lower'],
-  ['A_known_recall', 'needs_info', 'A · asks for more information', ''],
-  ['A_known_recall', 'escalated', 'A · escalates (says no recall fits)', ''],
-  ['B_no_recall_yet', 'false_known_recall', 'B · claims a known recall when none existed', 'lower'],
-  ['B_no_recall_yet', 'escalated', 'B · escalates to an engineer', 'higher'],
-  ['', 'false_known_recall_A_and_B', 'A+B · confidently wrong “known recall”', 'lower'],
-]
-
-/** How we know the answers can be trusted: AI vs a rules baseline on frozen real cases, with intervals. */
+/** Only what is checked objectively: against the records, against our own specification, or measured. There is no
+ *  ground truth for which recall is right, so no agreement or accuracy number is shown (see "Not measured"). */
 export function EvalPage() {
   const [reports, setReports] = useState<EvalReport[] | null>(null)
   useEffect(() => { ops.evals().then(setReports) }, [])
   if (!reports) return <p className="muted">Loading…</p>
-  const test = reports.filter(r => r.split === 'test' && r.set !== 'ask')
-  const ai = test.find(r => r.mode === 'ai')
-  const base = test.find(r => r.mode === 'baseline')
+  const ai = reports.find(r => r.split === 'test' && r.set !== 'ask' && r.mode === 'ai')
   const asked = reports.find(r => r.set === 'ask')?.metrics as Record<string, RateStat | number> | undefined
-  if (!ai && !base) return <p className="muted">No evaluation runs yet: <code>uv run python -m app.eval.run --set a,b,c</code></p>
-  const get = (r: EvalReport | undefined, group: string, key: string) => {
-    const m = r?.metrics as M | undefined
-    return (group ? m?.[group]?.[key] : (m as unknown as Record<string, RateStat>)?.[key]) as RateStat | undefined
-  }
-  const am = ai?.metrics as M | undefined
+  const asNew = reports.find(r => r.set === 'as_new') as unknown as Record<string, number> | undefined
+  if (!ai) return <p className="muted">No AI evaluation run yet: <code>uv run python -m app.eval.run</code></p>
+  const am = ai.metrics as M
+  const provenance = am.provenance as Record<string, RateStat> | undefined
+  const operations = am.operations as Record<string, number> | undefined
+  const rules = (ai.rules ?? []).filter(r => !r.id.startsWith('scenario.'))
+  const scenarios = (ai.rules ?? []).filter(r => r.id.startsWith('scenario.'))
+  const held = rules.filter(r => r.k === r.n).length
+
   return (
     <>
       <div className="page-head">
-        <h1>Can you trust it?</h1>
-        <p className="muted">Frozen test sets built only from owner-written NHTSA complaints (see docs/DATA_CARD.md). {ai ? <>Prompt {ai.prompt} · model {ai.model || '–'} · run {ai.name}</> : <>Rules baseline run {base?.name}.</>}</p>
+        <h1>What is checked</h1>
+        <p className="muted">{String(ai.metrics.cases)} real, owner-written NHTSA complaints, each replayed as of the day it arrived (nothing later is visible). Only what code can check objectively is shown: against the records, against our own specification, or measured. Prompt {ai.prompt} · model {ai.model || '–'} · run {ai.name}.</p>
       </div>
-      {!ai && (
+
+      {provenance && (
         <section className="card">
-          <p className="small"><strong>AI results pending.</strong> The test sets were rebuilt (v2) after finding that 70% of the previous set A were NHTSA hotline transcripts, not owner-written complaints, and that a bracketed note after the recall number leaked the answer. The AI run on v2 needs the live model; v1 results are archived in data/eval/archive_v1/.</p>
-        </section>
-      )}
-      <section className="card">
-        <h3>AI vs rules baseline</h3>
-        <p className="small muted">Baseline = “newest recall on the same component”, no reading of the text. Set A: the owner cited a recall (number hidden). Owners are sometimes wrong, so “picks the cited recall” is agreement with the owner, not accuracy. Set B: no matching recall existed yet; one was filed within a year.</p>
-        <table className="metrics">
-          <thead><tr><th></th><th>AI (verified)</th><th>Baseline</th></tr></thead>
-          <tbody>
-            {ROWS.map(([g, k, label, dir]) => {
-              const a = get(ai, g, k), b = get(base, g, k)
-              const better = !!(a && b && a.rate != null && b.rate != null && dir && (dir === 'higher' ? a.rate > b.rate : a.rate < b.rate))
-              return <tr key={g + k}><td>{label}</td><Cell s={a} better={better} /><Cell s={b} /></tr>
-            })}
-          </tbody>
-        </table>
-      </section>
-      {ai?.adjudication && (
-        <section className="card">
-          <h3>When the AI disagreed, who was right?</h3>
-          <p className="small muted">Draft verdicts written by the AI assistant (data/eval/adjudication/{ai.name}.md), not yet reviewed by a person: an AI grading the AI, so           not an accuracy measure.</p>          <table className="metrics"><thead><tr><th></th><th>AI right</th><th>Owner right</th><th>Unclear</th></tr></thead><tbody>
-            <tr><td>A · random {ai.adjudication.A.adjudicated} of {ai.adjudication.A.disagreements} disagreements</td><td className="ok-text">{ai.adjudication.A.ai_right}</td><td>{ai.adjudication.A.owner_right}</td><td>{ai.adjudication.A.unclear}</td></tr>
-            <tr><td>B · all {ai.adjudication.B.adjudicated} “known recall” claims</td><td className="ok-text">{ai.adjudication.B.ai_right}</td><td>{ai.adjudication.B.owner_right}</td><td>{ai.adjudication.B.unclear}</td></tr>
-          </tbody></table>
-          <p className="small">All 7 “owner right” cases in A are complaints that describe no failure, only trouble getting the recall repair done. The AI correctly found no failure to match; the product should then link the cited recall as a remedy-access problem instead of escalating. That is the top next step.</p>
-        </section>
-      )}
-      {ai?.rescore_note && <p className="small muted">Rescored from {ai.rescored_from} with the same AI answers ({ai.decisions_changed} decisions changed): {ai.rescore_note}.</p>}
-      {am?.calibration && (
-        <section className="card">
-          <h3>Does “confidence” mean something?</h3>
-          <p className="small muted">Share of answers that were right, by the confidence the rules gave (A: matched the cited recall; B: did not claim a known recall).</p>
+          <h3>Every claim is checked against the records</h3>
+          <p className="small muted">Every recall, quote and number in an answer is verified before it is shown. If a check fails, the AI gets one correction; then the rules answer, labelled “not AI-verified”. This proves the evidence is real, not that the judgment is right.</p>
           <table className="metrics"><tbody>
-            {Object.entries(am.calibration).map(([lvl, s]) => <tr key={lvl}><td>{lvl}</td><Cell s={s as RateStat} /></tr>)}
+            <tr><td>First AI answers that failed a check</td><Count k={provenance.first_answer_failed_verification.k} n={provenance.first_answer_failed_verification.n} /></tr>
+            <tr><td>Fell back to the rules, labelled “not AI-verified”</td><td><strong>{provenance.fallback.k}/{provenance.fallback.n}</strong></td></tr>
           </tbody></table>
         </section>
       )}
-      {am?.C_stress && (
+
+      {rules.length > 0 && (
         <section className="card">
-          <h3>Stress cases (set C)</h3>
-          <table className="metrics"><thead><tr><th></th><th>AI</th><th>Baseline</th></tr></thead><tbody>
-            {Object.keys(am.C_stress).map(k => <tr key={k}><td>{k.replaceAll('_', ' ')}</td><Cell s={get(ai, 'C_stress', k)} /><Cell s={get(base, 'C_stress', k)} /></tr>)}
-          </tbody></table>
-        </section>
-      )}
-      {am?.provenance && (
-        <section className="card">
-          <h3>Are its sources real?</h3>
-          <p className="small muted">Every final answer is 100% verified by construction. This is how often the AI’s first answer needed correcting.</p>
+          <h3>The workflow’s rules held on every run: {held} of {rules.length}</h3>
+          <p className="small muted">Rules that must always hold, checked against each stored run (app/eval/trajectory.py). Each is tested to fail on a deliberately broken run.</p>
           <table className="metrics"><tbody>
-            <tr><td>First answer failed verification</td><Cell s={am.provenance.first_answer_failed_verification as RateStat} /></tr>
-            <tr><td>Fixed in one retry</td><Cell s={am.provenance.repaired as RateStat} /></tr>
-            <tr><td>Fell back to rules (not AI-verified)</td><Cell s={am.provenance.fallback as RateStat} /></tr>
-            <tr><td>Model errors</td><Cell s={am.provenance.model_errors as RateStat} /></tr>
+            {rules.map(r => <tr key={r.id}><td>{r.question}</td><Count k={r.k} n={r.n} /></tr>)}
           </tbody></table>
         </section>
       )}
-      {am?.operations && (
+
+      {scenarios.length > 0 && (
         <section className="card">
-          <h3>Cost and speed (AI)</h3>
+          <h3>Stress cases behave as designed</h3>
+          <p className="small muted">Real complaints with one thing broken, each with a behaviour we specified.</p>
           <table className="metrics"><tbody>
-            {Object.entries(am.operations).map(([k, v]) => <tr key={k}><td>{k.replaceAll('_', ' ')}</td><td>{String(v)}</td></tr>)}
+            {scenarios.map(r => <tr key={r.id}><td>{r.question}</td><Count k={r.k} n={r.n} /></tr>)}
           </tbody></table>
         </section>
       )}
+
+      {asNew && (
+        <section className="card">
+          <h3>No look-ahead: a stored complaint is judged as a brand-new one</h3>
+          <p className="small muted">Each complaint’s evidence, gathered as stored and as a new complaint with no id (app/eval/as_new.py). Everything the system sees was received before the complaint’s own date, so it cannot see itself or anything later.</p>
+          <table className="metrics"><tbody>
+            <tr><td>Identical evidence</td><Count k={asNew.evidence_identical} n={asNew.cases} /></tr>
+            <tr><td>Identical search results with and without excluding its own id</td><Count k={asNew.search_identical} n={asNew.cases} /></tr>
+            <tr><td>Complaints whose search found themselves</td><td><strong>{asNew.found_itself}</strong></td></tr>
+          </tbody></table>
+        </section>
+      )}
+
       {asked && (
         <section className="card">
-          <h3>Follow-up questions (“Ask about this case”)</h3>
-          <p className="small muted">Questions about the demo tickets (data/eval/ask_questions.json), checked by code: right scope, every quote verified, “not in the records” instead of a guess.</p>
+          <h3>Follow-up questions keep to the records</h3>
+          <p className="small muted">“Ask about this case” on the demo tickets (data/eval/ask_questions.json).</p>
           <table className="metrics"><tbody>
-            <tr><td>Questions passed</td><Cell s={asked.passed} /></tr>
-            <tr><td>Answers with every quote verified (not blocked)</td><Cell s={asked.verified_when_not_blocked} /></tr>
-            <tr><td>Says “not in the records” when it should</td><Cell s={asked.says_not_in_records_when_expected} /></tr>
-            <tr><td>Blocked by the provider’s safety filter</td><Cell s={asked.blocked_by_provider} /></tr>
+            {typeof asked.verified_when_not_blocked === 'object' && <tr><td>Answers with every quote found word for word</td><Count k={asked.verified_when_not_blocked.k} n={asked.verified_when_not_blocked.n} /></tr>}
+            {typeof asked.says_not_in_records_when_the_data_lacks_it === 'object' && <tr><td>Says “not in the records” for what the data lacks (repair history, crash data, VIN)</td><Count k={asked.says_not_in_records_when_the_data_lacks_it.k} n={asked.says_not_in_records_when_the_data_lacks_it.n} /></tr>}
+            {typeof asked.declines_requests_not_about_the_case === 'object' && <tr><td>Declines requests that are not about the case</td><Count k={asked.declines_requests_not_about_the_case.k} n={asked.declines_requests_not_about_the_case.n} /></tr>}
+            {typeof asked.suggests_recheck_when_a_fact_changes === 'object' && <tr><td>Suggests a re-check when the analyst gives a new fact (a different model year)</td><Count k={asked.suggests_recheck_when_a_fact_changes.k} n={asked.suggests_recheck_when_a_fact_changes.n} /></tr>}
+            <tr><td>Blocked by the provider’s safety filter (shown as blocked)</td><td><strong>{String(asked.blocked_by_provider)}</strong></td></tr>
           </tbody></table>
         </section>
       )}
+
+      {operations && (
+        <section className="card">
+          <h3>Cost and speed (measured)</h3>
+          <table className="metrics"><tbody>
+            <tr><td>Time per complaint, median / 95th percentile</td><td>{(operations.latency_ms_p50 / 1000).toFixed(0)} s / {(operations.latency_ms_p95 / 1000).toFixed(0)} s</td></tr>
+            <tr><td>Tokens per complaint (in + out)</td><td>{(operations.input_tokens_per_case + operations.output_tokens_per_case).toLocaleString()}</td></tr>
+          </tbody></table>
+        </section>
+      )}
+
+      <section className="card">
+        <h3>Not measured: accuracy</h3>
+        <p className="small">There is no ground truth for which recall is right: the only labels are the recalls owners cite, owners are sometimes wrong, and the data has no VINs or repair records. So no accuracy number is shown. Next: two analysts label a blind sample (which recall fits, without seeing the AI’s answer); in production, the analysts’ own accept/override decisions, already logged in the workspace, become the labels.</p>
+      </section>
     </>
   )
 }

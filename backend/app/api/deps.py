@@ -5,6 +5,7 @@ from app.ai.clients import LlmSetup, setup_from_settings
 from app.config import get_settings
 from app.data import queries
 from app.store.results import Store
+from app.store.seed import open_store
 
 
 @lru_cache
@@ -19,7 +20,7 @@ def llm() -> LlmSetup | None:
 
 @lru_cache
 def store() -> Store:
-    return Store(get_settings().app_db_path)
+    return open_store(get_settings().app_db_path)
 
 
 @lru_cache

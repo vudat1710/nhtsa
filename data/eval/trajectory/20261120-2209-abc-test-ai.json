@@ -136,57 +136,6 @@
    ],
    "examples": []
   },
-  "tools.search_when_unmatched": {
-   "severity": "policy",
-   "question": "Searched only when no recall was the same failure (prompt rule 5)",
-   "k": 464,
-   "n": 464,
-   "rate": 1.0,
-   "ci95": [
-    0.992,
-    1.0
-   ],
-   "examples": []
-  },
-  "tools.search_before_escalating": {
-   "severity": "policy",
-   "question": "Looked for earlier owners before proposing a new defect",
-   "k": 179,
-   "n": 181,
-   "rate": 0.989,
-   "ci95": [
-    0.961,
-    0.997
-   ],
-   "examples": [
-    {
-     "result_id": "7e87e9faacce",
-     "odino": 11775573,
-     "problems": [
-      "proposed related_different without searching earlier complaints"
-     ]
-    },
-    {
-     "result_id": "a3822bafb662",
-     "odino": 11778485,
-     "problems": [
-      "proposed related_different without searching earlier complaints"
-     ]
-    }
-   ]
-  },
-  "tools.query_quality": {
-   "severity": "policy",
-   "question": "Search queries describe the failure in the agent's own words",
-   "k": 213,
-   "n": 213,
-   "rate": 1.0,
-   "ci95": [
-    0.982,
-    1.0
-   ],
-   "examples": []
-  },
   "decision.candidate": {
    "severity": "invariant",
    "question": "The matched recall is a candidate",
@@ -295,71 +244,5 @@
    ],
    "examples": []
   }
- },
- "metrics": {
-  "paths": {
-   "intake > evidence > judge > verify > decide": 466,
-   "intake > evidence > decide": 5
-  },
-  "searched": {
-   "k": 213,
-   "n": 466,
-   "rate": 0.457,
-   "ci95": [
-    0.412,
-    0.502
-   ]
-  },
-  "searches_per_ai_run": 0.52,
-  "searches_that_found_something": {
-   "k": 234,
-   "n": 240,
-   "rate": 0.975,
-   "ci95": [
-    0.947,
-    0.988
-   ]
-  },
-  "similar_complaints_cited": 386,
-  "cited_per_search_with_results": 1.65,
-  "escalations_with_earlier_owners": {
-   "k": 146,
-   "n": 181,
-   "rate": 0.807,
-   "ci95": [
-    0.743,
-    0.858
-   ]
-  },
-  "escalations_ignoring_same_component_recalls": {
-   "k": 0,
-   "n": 181,
-   "rate": 0.0,
-   "ci95": [
-    0.0,
-    0.021
-   ]
-  },
-  "repaired": {
-   "k": 0,
-   "n": 466,
-   "rate": 0.0,
-   "ci95": [
-    0.0,
-    0.008
-   ]
-  },
-  "fallback": {
-   "k": 2,
-   "n": 466,
-   "rate": 0.004,
-   "ci95": [
-    0.001,
-    0.016
-   ]
-  },
-  "latency_ms_p50": 10385,
-  "latency_ms_p95": 35365,
-  "tokens_per_ai_run": 5034
  }
 }

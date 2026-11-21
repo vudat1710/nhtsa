@@ -1,7 +1,6 @@
 """The operations portal (for the people who build and run the system, not the analyst): every AI run with its audit
 trail, failure drills, and the evaluation reports."""
 import json
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -45,16 +44,10 @@ async def drill(odino: int, use_llm: bool = True, fault: str | None = None) -> S
 
 @router.get("/evals")
 def evals() -> list[dict]:
-    """Latest report per (sets, split, mode), newest first (a rescored report wins over its original), with the
-    adjudication summary attached when one exists."""
+    """The latest report of each kind (newest name first), with the workflow-rule checks of that run attached when
+    they exist (app/eval/trajectory.py): all of them are invariants, checked objectively against the run records."""
     reports_dir = EVAL / "reports"
-    files = list(reports_dir.glob("*.json")) if reports_dir.exists() else []
-
-    def newest_first(path: Path) -> tuple[str, bool]:
-        # A rescored report sorts just before its original, so it is the one kept below.
-        return path.stem.removesuffix("-rescored"), path.stem.endswith("-rescored")
-
-    files.sort(key=newest_first, reverse=True)
+    files = sorted(reports_dir.glob("*.json"), key=lambda path: path.stem, reverse=True) if reports_dir.exists() else []
 
     seen = set()
     out = []
@@ -65,17 +58,10 @@ def evals() -> list[dict]:
             continue
         seen.add(key)
 
-        adjudication_file = EVAL / "adjudication" / f"{report['name']}.json"
-        if adjudication_file.exists():
-            data = json.loads(adjudication_file.read_text(encoding="utf-8"))
-            summary = {}
-            for group, details in data["groups"].items():
-                cases = details["cases"]
-                counts = {"disagreements": details["disagreements"],
-                          "adjudicated": len([case for case in cases if case["verdict"]])}
-                for verdict in ("ai_right", "owner_right", "unclear"):
-                    counts[verdict] = len([case for case in cases if case["verdict"] == verdict])
-                summary[group] = counts
-            report["adjudication"] = summary
+        trajectory_file = EVAL / "trajectory" / f"{report['name']}.json"
+        if trajectory_file.exists():
+            data = json.loads(trajectory_file.read_text(encoding="utf-8"))
+            report["rules"] = [{"id": rule_id, "question": check["question"], "k": check["k"], "n": check["n"]}
+                               for rule_id, check in data["checks"].items()]
         out.append(report)
     return out

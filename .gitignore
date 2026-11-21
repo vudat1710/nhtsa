@@ -9,3 +9,6 @@ data/raw/
 data/*.db
 data/*.db-*
 data/eval/runs/*-baseline.jsonl.tmp
+backend/scripts/
+notes/
+

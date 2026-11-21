@@ -32,7 +32,7 @@ from app.pipeline.intake import cited_recalls, mask_recall_numbers
 OUT = ROOT / "data" / "eval"
 SEED = 7
 VERSION = 3  # v1 included hotline transcripts, v2 judged some complaints on a tire/child-seat line and lacked
-             # pre-2010 recalls (both archived in data/eval/archive_v*); see docs/DATA_CARD.md
+             # pre-2010 recalls (earlier sets are in git history); see docs/DATA_CARD.md
 PER_RECALL_CAP = 3  # keep one big recall (e.g. Takata) from dominating a set
 OWNER_WRITTEN = ("source = 'owner' AND prod_type = 'V' AND vehicles = 1 AND ltrim(text) NOT LIKE 'The contact%' "
                  "AND ltrim(text) NOT LIKE 'TL*%'")

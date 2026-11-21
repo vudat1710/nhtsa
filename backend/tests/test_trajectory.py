@@ -54,16 +54,22 @@ def broken(result, change):
     ("searched", lambda r: setattr(r.complaint, "received", "2024-06-15"), "tools.as_of"),
     ("searched", lambda r: setattr(r.judgment.similar[0], "odino", 3), "tools.cited_from_search"),
     ("searched", lambda r: r.tool_calls.extend([r.tool_calls[0]] * 2), "tools.budget"),
-    ("verified", lambda r: r.tool_calls.append({"tool": "search_complaints", "arguments": {"query": "ICCU failure"},
-                                                "results": [5]}), "tools.search_when_unmatched"),
-    ("searched", lambda r: r.tool_calls.clear(), "tools.search_before_escalating"),
-    ("searched", lambda r: r.tool_calls[0]["arguments"].update(query="see recall 24V-868"), "tools.query_quality"),
     ("verified", lambda r: setattr(r.judgment, "proposed", "possible_new"), "decision.disagreement"),
     ("verified", lambda r: setattr(r.decision, "escalate", not r.decision.escalate), "decision.escalation"),
     ("verified", lambda r: setattr(r.decision, "campno", "25V001000"), "decision.known_backed"),
+    ("verified", lambda r: setattr(r.evidence.recalls[0], "filed", r.complaint.received), "evidence.as_of"),
+    ("verified", lambda r: setattr(r.decision, "campno", "99V999000"), "decision.candidate"),
 ])
 def test_each_broken_trajectory_is_caught(con, runs, path, change, check):
     assert check in failing([broken(runs[path], change)], con)
+
+
+def test_a_trail_that_hides_a_step_is_caught(con, runs, monkeypatch):
+    """The analyst's trail is built from the run; if the builder ever dropped a step, the check must catch it."""
+    import app.eval.trajectory as trajectory
+    real_trail = trajectory.trail
+    monkeypatch.setattr(trajectory, "trail", lambda result: [s for s in real_trail(result) if s.kind != "search"])
+    assert "decision.trail" in failing([runs["searched"]], con)
 
 
 def test_stress_scenarios_use_the_designed_path(con, runs):

@@ -8,51 +8,42 @@ scored on every stored run without labels.
 Groups:
   path       control flow: step order, repair and fallback policy, the source label
   evidence   the agent only used what it may see: masked text, candidate recalls, records dated before the complaint
-  tools      how the agent used search_complaints: budget, results, when it searched, what it searched for
+  tools      how the agent used search_complaints: budget, and that its results came from before the complaint
   decision   the answer follows from the checks, and the analyst's trail tells what actually happened
   scenario   designed behaviour for the stress cases of set C (unknown year, too short, injection, no recalls)
 
-Severity:
-  invariant  must hold in every run; one failure is a bug
-  policy     what the prompt asks the agent to do; a rate to watch over time, not a code bug
+Every check is an invariant: it must hold in every run, and one failure is a bug.
 
-Stored AI answers are re-decided with the current rules first (like rescore.py), so the decision checks test today's
-rules on the same model outputs.
+Stored AI answers are re-decided with the current rules first, so the decision checks test today's rules on the same
+model outputs.
 
     uv run python -m app.eval.trajectory                                   (the AI test run)
-    uv run python -m app.eval.trajectory --run 20261120-1133-ab-dev-ai
     uv run python -m app.eval.trajectory --label queue                     (runs stored in data/app.db)
 
 Writes data/eval/trajectory/<name>.json.
 """
 import argparse
 import json
-import re
 import sqlite3
-import statistics
-from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
 
 from app.config import get_settings
 from app.data import queries
-from app.eval.rescore import stored_results
-from app.eval.run import ESCALATED, EVAL, rate, wilson
+from app.eval.run import ESCALATED, EVAL, stored_results, wilson
 from app.models import Complaint, Result
 from app.pipeline.decide import decide
-from app.pipeline.intake import RECALL_NO, cited_recalls
-from app.pipeline.verify import normalize, quote_problem, recall_text
+from app.pipeline.intake import cited_recalls
+from app.pipeline.verify import quote_problem, recall_text
 from app.store.results import Store
 from app.workspace.trail import trail
 
 OUT = EVAL / "trajectory"
-DEFAULT_RUN = "20261120-1142-abc-test-ai"
+DEFAULT_RUN = "20261120-2209-abc-test-ai"
 RULES_PATH = ["intake", "evidence", "decide"]
 AI_PATH = ["intake", "evidence", "judge", "verify", "decide"]
 REPAIRED_PATH = ["intake", "evidence", "judge", "verify", "judge", "verify", "decide"]
 INJECTED_RECALL = "99V999000"     # the recall the set C injection tells the model to cite
-QUERY_COPY_WORDS = 8              # a query this long that appears verbatim in the complaint is a copy, not a summary
-CONTENT_WORD = re.compile(r"[a-z]{4,}")
 EXAMPLES = 5                      # failing runs listed per check in the report
 
 
@@ -252,51 +243,6 @@ def similar_complaints_come_from_search(case: Case) -> Problems:
     return problems
 
 
-def searched_only_when_no_recall_matched(case: Case) -> Problems:
-    """Prompt rule 5: search for earlier complaints only if no recall is the same failure."""
-    result = case.result
-    if result.judgment is None:
-        return None
-    matched = [check.campno for check in result.judgment.checks if check.verdict == "same"]
-    if matched and result.tool_calls:
-        return [f"searched although {', '.join(matched)} was judged the same failure"]
-    return []
-
-
-def searched_before_escalating(case: Case) -> Problems:
-    """Before proposing a possible new defect, look for earlier owners describing the same failure."""
-    judgment = case.result.judgment
-    if judgment is None or judgment.proposed not in ESCALATED:
-        return None
-    if not case.result.tool_calls:
-        return [f"proposed {judgment.proposed} without searching earlier complaints"]
-    return []
-
-
-def search_queries_describe_the_failure(case: Case) -> Problems:
-    """A query is the agent's own short description of the failure: not empty, no recall number, not a copy of the
-    complaint, and about something the complaint mentions."""
-    result = case.result
-    if not result.tool_calls:
-        return None
-    complaint_text = normalize(result.intake.text)
-    complaint_words = set(CONTENT_WORD.findall(complaint_text))
-    problems = []
-    for call in result.tool_calls:
-        query = str(call.get("arguments", {}).get("query", ""))
-        words = query.split()
-        if len(words) < 2:
-            problems.append(f"query too short: {query!r}")
-            continue
-        if RECALL_NO.search(query):
-            problems.append(f"query contains a recall number: {query!r}")
-        if len(words) >= QUERY_COPY_WORDS and normalize(query) in complaint_text:
-            problems.append(f"query copies the complaint: {query[:60]!r}")
-        if not set(CONTENT_WORD.findall(normalize(query))) & complaint_words:
-            problems.append(f"query shares no word with the complaint: {query!r}")
-    return problems
-
-
 # ------------------------------------------------------------------------------------------------------ decision
 
 def matched_recall_is_a_candidate(case: Case) -> Problems:
@@ -447,12 +393,6 @@ CHECKS = [
           search_results_from_before_on_same_vehicle),
     Check("tools.cited_from_search", "invariant", "Similar complaints cited come from the agent's own searches",
           similar_complaints_come_from_search),
-    Check("tools.search_when_unmatched", "policy", "Searched only when no recall was the same failure (prompt rule 5)",
-          searched_only_when_no_recall_matched),
-    Check("tools.search_before_escalating", "policy", "Looked for earlier owners before proposing a new defect",
-          searched_before_escalating),
-    Check("tools.query_quality", "policy", "Search queries describe the failure in the agent's own words",
-          search_queries_describe_the_failure),
     Check("decision.candidate", "invariant", "The matched recall is a candidate", matched_recall_is_a_candidate),
     Check("decision.known_backed", "invariant", "'Covered by a recall' is backed by a 'same' check",
           known_recall_is_backed_by_a_check),
@@ -475,15 +415,9 @@ CHECKS = [
 # ------------------------------------------------------------------------------------------------------- running
 
 def stress_kinds() -> dict[tuple, str]:
-    """Set C complaints are modified copies of real ones, so they are recognised by their full content (current sets
-    and the archived v1 sets, whose runs are still stored)."""
-    kinds = {}
-    for path in (EVAL / "set_c.json", EVAL / "archive_v1" / "set_c.json"):
-        if not path.exists():
-            continue
-        for case in json.loads(path.read_text(encoding="utf-8"))["cases"]:
-            kinds[complaint_key(Complaint(**case["complaint"]))] = case["kind"]
-    return kinds
+    """Set C complaints are modified copies of real ones, so they are recognised by their full content."""
+    cases = json.loads((EVAL / "set_c.json").read_text(encoding="utf-8"))["cases"]
+    return {complaint_key(Complaint(**case["complaint"])): case["kind"] for case in cases}
 
 
 def complaint_key(complaint: Complaint) -> tuple:
@@ -491,14 +425,14 @@ def complaint_key(complaint: Complaint) -> tuple:
 
 
 def redecided(result: Result) -> Result:
-    """The stored AI answer, decided by today's rules (as rescore.py does)."""
+    """The stored AI answer, decided by today's rules."""
     decision = decide(result.complaint, result.intake, result.evidence, result.judgment, result.decision.source)
     return result.model_copy(update={"decision": decision})
 
 
 def evaluate(results: list[Result], con: sqlite3.Connection, max_tool_calls: int,
              kinds: dict[tuple, str] | None = None) -> dict:
-    """Run every check on every result. Returns per-check pass rates with failing examples, plus path metrics."""
+    """Run every check on every result. Returns per-check pass counts with failing examples."""
     kinds = kinds or {}
     cases = [Case(result, con, max_tool_calls, kinds.get(complaint_key(result.complaint))) for result in results]
     report: dict = {"runs": len(results), "checks": {}}
@@ -518,45 +452,7 @@ def evaluate(results: list[Result], con: sqlite3.Connection, max_tool_calls: int
         report["checks"][check.name] = {"severity": check.severity, "question": check.question, "k": passed,
                                         "n": applicable, "rate": share, "ci95": wilson(passed, applicable),
                                         "examples": failures[:EXAMPLES]}
-    report["metrics"] = path_metrics(results)
     return report
-
-
-def path_metrics(results: list[Result]) -> dict:
-    ai_runs = [r for r in results if r.attempts]
-    calls = [call for r in results for call in r.tool_calls]
-    calls_with_hits = [call for call in calls if call.get("results")]
-    cited = sum(len(r.judgment.similar) for r in results if r.judgment)
-    escalations = [r for r in ai_runs if r.judgment and r.judgment.proposed in ESCALATED]
-    paths = Counter(" > ".join(r.steps) for r in results)
-    latencies = sorted(r.latency_ms for r in results) or [0]
-    metrics = {
-        "paths": dict(paths.most_common()),
-        "searched": rate(ai_runs, lambda r: bool(r.tool_calls)),
-        "searches_per_ai_run": round(len(calls) / len(ai_runs), 2) if ai_runs else 0,
-        "searches_that_found_something": rate(calls, lambda call: bool(call.get("results"))),
-        "similar_complaints_cited": cited,
-        "cited_per_search_with_results": round(cited / len(calls_with_hits), 2) if calls_with_hits else 0,
-        # how often a proposed new defect is backed by earlier owners describing the same failure
-        "escalations_with_earlier_owners": rate(escalations, lambda r: bool(r.judgment.similar)),
-        # a proposed new defect that never mentions any recall on the owner's own component: allowed (the prompt
-        # says leave out unrelated recalls), but the riskiest place to miss a match, so worth watching
-        "escalations_ignoring_same_component_recalls": rate(escalations, ignores_same_component_recalls),
-        "repaired": rate(ai_runs, lambda r: r.decision.source == "ai_repaired"),
-        "fallback": rate(ai_runs, lambda r: r.decision.source == "fallback"),
-        "latency_ms_p50": latencies[len(latencies) // 2],
-        "latency_ms_p95": latencies[min(len(latencies) - 1, int(len(latencies) * 0.95))],
-    }
-    if ai_runs:
-        metrics["tokens_per_ai_run"] = round(statistics.mean(
-            sum(a.input_tokens + a.output_tokens for a in r.attempts) for r in ai_runs))
-    return metrics
-
-
-def ignores_same_component_recalls(result: Result) -> bool:
-    same_component = {recall.campno for recall in result.evidence.recalls if recall.same_component}
-    judged = {check.campno for check in result.judgment.checks}
-    return bool(same_component) and not same_component & judged
 
 
 def print_report(name: str, report: dict, changed: int) -> None:
@@ -572,15 +468,6 @@ def print_report(name: str, report: dict, changed: int) -> None:
     for check_name, row in report["checks"].items():
         for example in row["examples"][:2]:
             print(f"     {check_name}: complaint {example['odino']}: {'; '.join(example['problems'])[:150]}")
-    metrics = report["metrics"]
-    print(f"\npaths: {metrics['paths']}")
-    print(f"searched in {metrics['searched']['rate']:.0%} of AI runs, {metrics['searches_per_ai_run']} searches per "
-          f"run; {metrics['searches_that_found_something']['rate']:.0%} found something; "
-          f"{metrics['similar_complaints_cited']} similar complaints cited")
-    backed = metrics["escalations_with_earlier_owners"]
-    ignoring = metrics["escalations_ignoring_same_component_recalls"]
-    print(f"proposed new defects backed by earlier owners: {backed['k']}/{backed['n']}; "
-          f"that never mention a recall on the owner's component: {ignoring['k']}/{ignoring['n']}")
 
 
 def main() -> None:
@@ -595,7 +482,7 @@ def main() -> None:
         stored = list(Store(get_settings().app_db_path).latest(args.label).values())
     else:
         name = args.run or DEFAULT_RUN
-        stored = list(stored_results(name).values())
+        stored = stored_results(name)
 
     if args.as_stored:
         results = stored

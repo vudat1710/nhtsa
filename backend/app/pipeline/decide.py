@@ -100,7 +100,7 @@ def decide(complaint: Complaint, intake: Intake, evidence: Evidence, judgment: J
 
 
 def baseline(intake: Intake, evidence: Evidence, flags: list[str], source: str) -> Decision:
-    """No AI: newest recall on the same component, if any (also the evaluation baseline). Always low confidence."""
+    """No AI: newest recall on the same component, if any (the rules-only fallback). Always low confidence."""
     candidate_ids = {recall.campno for recall in evidence.recalls}
     # Same-component recalls that no other candidate replaced, newest first (the order evidence keeps them in)
     same = []

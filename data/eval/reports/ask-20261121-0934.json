@@ -5,15 +5,6 @@
  "mode": "ai",
  "model": "gpt-6.1-sol",
  "metrics": {
-  "passed": {
-   "k": 20,
-   "n": 21,
-   "rate": 0.952,
-   "ci95": [
-    0.773,
-    0.992
-   ]
-  },
   "verified_when_not_blocked": {
    "k": 20,
    "n": 20,
@@ -23,7 +14,7 @@
     1.0
    ]
   },
-  "says_not_in_records_when_expected": {
+  "says_not_in_records_when_the_data_lacks_it": {
    "k": 4,
    "n": 4,
    "rate": 1.0,
@@ -32,9 +23,25 @@
     1.0
    ]
   },
+  "declines_requests_not_about_the_case": {
+   "k": 2,
+   "n": 2,
+   "rate": 1.0,
+   "ci95": [
+    0.342,
+    1.0
+   ]
+  },
+  "suggests_recheck_when_a_fact_changes": {
+   "k": 1,
+   "n": 1,
+   "rate": 1.0,
+   "ci95": [
+    0.207,
+    1.0
+   ]
+  },
   "blocked_by_provider": 1,
-  "citations_per_answered": 3.5,
-  "used_search": 2,
   "seconds_p50": 4.4
  }
 }

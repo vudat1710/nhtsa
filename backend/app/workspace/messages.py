@@ -12,8 +12,28 @@ def display_campno(campno: str) -> str:
 
 
 def sentences(text: str) -> list[str]:
-    parts = re.split(r"(?<=[.!?])\s+", text or "")
-    return [sentence.strip() for sentence in parts if sentence.strip()]
+    """Split on sentence ends, but not after an abbreviation: 'Tesla, Inc. (Tesla) is recalling…' is one sentence
+    (split there, 'Tesla, Inc.' survived the boilerplate filter and became the ticket's headline)."""
+    pieces = [piece.strip() for piece in re.split(r"(?<=[.!?])\s+", text or "") if piece.strip()]
+    merged: list[str] = []
+    for piece in pieces:
+        if merged and ends_with_abbreviation(merged[-1]):
+            merged[-1] = f"{merged[-1]} {piece}"
+        else:
+            merged.append(piece)
+    return merged
+
+
+ABBREVIATIONS = {"inc", "corp", "co", "ltd", "llc", "mfg", "mfrs", "no", "nos", "approx", "dept", "st", "mr", "ms",
+                 "dr", "vs"}
+
+
+def ends_with_abbreviation(piece: str) -> bool:
+    """'Tesla, Inc.' / 'U.S.' / 'S.P.A.' / 'H.' -> True; 'the battery may drain.' / 'version 2021.36.5.2.' -> False."""
+    if not piece.endswith("."):
+        return False
+    last = piece.split()[-1].rstrip(".").strip("()\"'")
+    return last.lower() in ABBREVIATIONS or bool(re.fullmatch(r"([A-Za-z]\.)*[A-Za-z]", last))
 
 
 def readable(text: str) -> str:

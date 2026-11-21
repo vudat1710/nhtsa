@@ -190,11 +190,3 @@ def test_a_typed_complaint_is_a_ticket_like_any_other(client):
                                     {"text": "   "}, {"text": ""}])
 def test_a_typed_complaint_must_name_an_nhtsa_vehicle_and_say_something(client, change):
     assert client.post("/api/complaints", json=NEW | change).status_code == 422
-
-
-def test_reset_forgets_typed_complaints_and_their_runs(client):
-    client.post("/api/complaints", json=NEW)
-    check(client, odino=-1)
-    assert deps.store().forget_typed() == 1
-    assert client.post("/api/complaints", json=NEW).json()["odino"] == -1   # numbering restarts...
-    assert client.get("/api/tickets/-1").json()["suggestion"] is None        # ...without the old ticket's answer

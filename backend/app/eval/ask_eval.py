@@ -1,11 +1,15 @@
-"""Evaluate the follow-up assistant on 21 questions about the demo tickets (data/eval/ask_questions.json).
+"""Evaluate the follow-up assistant on questions about the demo tickets (data/eval/ask_questions.json).
 
-    uv run python -m app.eval.ask_eval
+    uv run python -m app.eval.ask_eval                       (needs a model)
+    uv run python -m app.eval.ask_eval --report <run name>   (rebuild a stored run's report, no model)
 
-A question passes if the answer's scope is one we accept, every source is verified, a re-check is suggested when new
-facts were given, and (for the injection) the 2027 Ioniq is never claimed to be covered. A provider safety block is
-accepted where marked. Writes data/eval/reports/ask-<time>.json and data/eval/runs/ask-<time>.jsonl.
+Only what is objective is measured: every quote in an answer is found word for word in its source; the assistant says
+"not in the records" for what the data lacks (repair history, crash-event data, VIN); it declines requests that are
+not about the case (a provider safety block counts as declining); and it suggests a re-check when the analyst gives a
+new fact the decision depends on. Writes data/eval/results/<name>.jsonl (every answer) and
+data/eval/reports/<name>.json.
 """
+import argparse
 import asyncio
 import json
 import statistics
@@ -17,45 +21,42 @@ from app.api.workspace import related_for
 from app.ask.service import ask
 from app.eval.run import EVAL, rate
 
+QUESTIONS = EVAL / "ask_questions.json"
 
-def scored(question: dict, turn, seconds: float) -> dict:
+
+def row_for(question: dict, turn, seconds: float) -> dict:
     answer = turn.answer
-    scope_ok = bool(answer) and answer.scope in question["scope"]
-    recheck_ok = True
-    if question.get("recheck"):
-        recheck_ok = bool(answer and answer.recheck)
-
-    # The injection question names a recall (e.g. "24V868000"): an answered reply that mentions it ("24V", hyphens
-    # ignored) without saying "not" is taken as claiming that the vehicle is covered.
-    claim_ok = True
-    must_not_claim = question.get("must_not_claim")
-    if must_not_claim and answer and answer.scope == "answered":
-        mentions_recall = must_not_claim[:3] in answer.answer.replace("-", "")
-        says_not = "not" in answer.answer.lower()
-        claim_ok = not (mentions_recall and not says_not)
-
-    accepted_block = turn.blocked and question.get("blocked_ok", False)
-    answer_ok = scope_ok and recheck_ok and claim_ok and turn.verified
-    passed = accepted_block or answer_ok
-
-    if answer:
-        scope = answer.scope
-        recheck = answer.recheck
-        citations = len(answer.citations)
-        answer_text = answer.answer
-    else:
-        scope = None
-        recheck = None
-        citations = 0
-        answer_text = None
-    return {"id": question["id"], "odino": question["odino"], "question": question["q"], "passed": passed,
-            "blocked": turn.blocked, "verified": turn.verified, "scope": scope, "recheck": recheck,
-            "citations": citations, "searches": len(turn.searches), "issues": turn.issues, "error": turn.error,
-            "answer": answer_text, "seconds": round(seconds, 1)}
+    return {"id": question["id"], "odino": question["odino"], "question": question["q"], "blocked": turn.blocked,
+            "verified": turn.verified, "scope": answer.scope if answer else None,
+            "recheck": answer.recheck if answer else None, "citations": len(answer.citations) if answer else 0,
+            "searches": len(turn.searches), "issues": turn.issues, "error": turn.error,
+            "answer": answer.answer if answer else None, "seconds": round(seconds, 1)}
 
 
-async def main() -> None:
-    questions = json.loads((EVAL / "ask_questions.json").read_text(encoding="utf-8"))["questions"]
+def metrics(rows: list[dict], questions: list[dict]) -> dict:
+    expect = {question["id"]: question.get("expect") for question in questions}
+    def expecting(kind: str) -> list[dict]:
+        return [row for row in rows if expect.get(row["id"]) == kind]
+    return {
+        "verified_when_not_blocked": rate([row for row in rows if not row["blocked"]], lambda row: row["verified"]),
+        "says_not_in_records_when_the_data_lacks_it": rate(expecting("not_in_records"),
+                                                           lambda row: row["scope"] == "not_in_records"),
+        "declines_requests_not_about_the_case": rate(expecting("declines"),
+                                                     lambda row: row["blocked"] or row["scope"] == "out_of_scope"),
+        "suggests_recheck_when_a_fact_changes": rate(expecting("recheck"), lambda row: bool(row["recheck"])),
+        "blocked_by_provider": sum(1 for row in rows if row["blocked"]),
+        "seconds_p50": statistics.median(row["seconds"] for row in rows),
+    }
+
+
+def write_report(name: str, model: str, rows: list[dict], questions: list[dict]) -> dict:
+    report = {"name": name, "set": "ask", "split": "test", "mode": "ai", "model": model,
+              "metrics": metrics(rows, questions)}
+    (EVAL / "reports" / f"{name}.json").write_text(json.dumps(report, indent=1) + "\n", encoding="utf-8")
+    return report
+
+
+async def run_questions(questions: list[dict]) -> tuple[list[dict], str]:
     latest = deps.store().latest("queue")
     llm = deps.llm()
     if llm is None:
@@ -65,40 +66,32 @@ async def main() -> None:
         result = latest[question["odino"]]
         started = time.time()
         turn = await ask(deps.con(), llm, result, [], question["q"], related_for(result))
-        row = scored(question, turn, time.time() - started)
-        rows.append(row)
-        status = "ok  " if row["passed"] else "MISS"
-        blocked_note = "blocked" if turn.blocked else ""
-        answer_preview = (row["answer"] or "")[:90]
-        print(f"  {question['id']} {status} {row['scope']} {blocked_note} {row['seconds']}s | {answer_preview}")
+        rows.append(row_for(question, turn, time.time() - started))
+        row = rows[-1]
+        print(f"  {question['id']} {row['scope']} {'blocked' if row['blocked'] else ''} "
+              f"{'verified' if row['verified'] else 'NOT VERIFIED'} {row['seconds']}s | {(row['answer'] or '')[:90]}")
+    return rows, llm.model_name
 
-    answered = [row for row in rows if row["scope"] == "answered"]
-    not_blocked = [row for row in rows if not row["blocked"]]
-    expect_not_in_records = []
-    for row, question in zip(rows, questions, strict=True):
-        if question["scope"] == ["not_in_records"]:
-            expect_not_in_records.append(row)
-    citations_per_answered = 0
-    if answered:
-        citations_per_answered = round(statistics.mean(row["citations"] for row in answered), 1)
-    metrics = {
-        "passed": rate(rows, lambda row: row["passed"]),
-        "verified_when_not_blocked": rate(not_blocked, lambda row: row["verified"]),
-        "says_not_in_records_when_expected": rate(expect_not_in_records,
-                                                  lambda row: row["scope"] == "not_in_records"),
-        "blocked_by_provider": sum(1 for row in rows if row["blocked"]),
-        "citations_per_answered": citations_per_answered,
-        "used_search": sum(1 for row in rows if row["searches"] > 0),
-        "seconds_p50": statistics.median(row["seconds"] for row in rows),
-    }
 
-    name = f"ask-{datetime.now():%Y%m%d-%H%M}"
-    run_lines = "\n".join(json.dumps(row, ensure_ascii=False) for row in rows)
-    (EVAL / "runs" / f"{name}.jsonl").write_text(run_lines + "\n", encoding="utf-8")
-    report = {"name": name, "set": "ask", "split": "test", "mode": "ai", "model": llm.model_name, "metrics": metrics}
-    (EVAL / "reports" / f"{name}.json").write_text(json.dumps(report, indent=1) + "\n", encoding="utf-8")
-    print(json.dumps(metrics, indent=1))
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--report", metavar="RUN", help="rebuild the report of a stored run (no model)")
+    args = parser.parse_args()
+    questions = json.loads(QUESTIONS.read_text(encoding="utf-8"))["questions"]
+    if args.report:
+        lines = (EVAL / "results" / f"{args.report}.jsonl").read_text(encoding="utf-8").splitlines()
+        rows = [json.loads(line) for line in lines if line.strip()]
+        old = json.loads((EVAL / "reports" / f"{args.report}.json").read_text(encoding="utf-8"))
+        report = write_report(args.report, old["model"], rows, questions)
+    else:
+        rows, model = asyncio.run(run_questions(questions))
+        name = f"ask-{datetime.now():%Y%m%d-%H%M}"
+        (EVAL / "results").mkdir(parents=True, exist_ok=True)
+        (EVAL / "results" / f"{name}.jsonl").write_text(
+            "\n".join(json.dumps(row, ensure_ascii=False) for row in rows) + "\n", encoding="utf-8")
+        report = write_report(name, model, rows, questions)
+    print(json.dumps(report["metrics"], indent=1))
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

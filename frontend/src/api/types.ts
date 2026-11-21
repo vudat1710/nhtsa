@@ -160,14 +160,11 @@ export interface EvalReport {
   name: string
   set: string
   split: string
-  mode: 'ai' | 'baseline'
+  mode: string
   prompt: string
   model: string
   metrics: Record<string, unknown>
-  rescored_from?: string
-  rescore_note?: string
-  decisions_changed?: number
-  adjudication?: Record<'A' | 'B', { disagreements: number; adjudicated: number; ai_right: number; owner_right: number; unclear: number }>
+  rules?: { id: string; question: string; k: number; n: number }[]   // workflow invariants checked on this run
 }
 
 // Progress events streamed while a case runs (see backend/app/pipeline/workflow.py)

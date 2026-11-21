@@ -36,15 +36,6 @@ class Store:
         row = self.con.execute("SELECT body FROM results WHERE id = ?", (result_id,)).fetchone()
         return Result.model_validate_json(row["body"]) if row else None
 
-    def forget_typed(self) -> int:
-        """Delete typed-in complaints and every run on them, and restart their numbering at -1. Runs must go too: a
-        new typed complaint reuses the number, and must not inherit an old one's suggestion."""
-        typed = self.con.execute("DELETE FROM typed_complaints").rowcount
-        self.con.execute("DELETE FROM results WHERE odino < 0")
-        self.con.execute("DELETE FROM sqlite_sequence WHERE name = 'typed_complaints'")
-        self.con.commit()
-        return typed
-
     def latest(self, label: str) -> dict[int, Result]:
         """Newest result per complaint for a label."""
         rows = self.con.execute(
