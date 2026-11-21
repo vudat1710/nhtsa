@@ -24,13 +24,16 @@ class Store:
         self.tickets = Tickets(self.con)
 
     def save(self, result: Result, label: str = "") -> None:
-        """label groups runs: 'queue' for the workspace, or an evaluation run name."""
+        """label groups runs: 'queue' for the workspace, or an evaluation run name. Saved under the tickets' lock, so
+        a new run can't appear while an action on the ticket is being checked and recorded."""
         decision = result.decision
-        self.con.execute("INSERT INTO results (id, odino, label, created_at, outcome, confidence, escalate, source, "
-                         "body) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                         (result.id, result.complaint.odino, label, result.created_at, decision.outcome,
-                          decision.confidence, int(decision.escalate), decision.source, result.model_dump_json()))
-        self.con.commit()
+        with self.tickets.lock:
+            self.con.execute("INSERT INTO results (id, odino, label, created_at, outcome, confidence, escalate, "
+                             "source, body) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                             (result.id, result.complaint.odino, label, result.created_at, decision.outcome,
+                              decision.confidence, int(decision.escalate), decision.source,
+                              result.model_dump_json()))
+            self.con.commit()
 
     def get(self, result_id: str) -> Result | None:
         row = self.con.execute("SELECT body FROM results WHERE id = ?", (result_id,)).fetchone()

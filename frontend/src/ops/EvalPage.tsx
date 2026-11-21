@@ -34,11 +34,11 @@ export function EvalPage() {
 
       {provenance && (
         <section className="card">
-          <h3>Every claim is checked against the records</h3>
-          <p className="small muted">Every recall, quote and number in an answer is verified before it is shown. If a check fails, the AI gets one correction; then the rules answer, labelled “not AI-verified”. This proves the evidence is real, not that the judgment is right.</p>
+          <h3>Every citation is checked against the records</h3>
+          <p className="small muted">Every recall, quote and number in an answer is found in the records before it is shown. If a check fails, the AI gets one correction; then the answer is labelled “not checked by the AI” and a person must look. This proves the citations are real, not that the judgment is right.</p>
           <table className="metrics"><tbody>
             <tr><td>First AI answers that failed a check</td><Count k={provenance.first_answer_failed_verification.k} n={provenance.first_answer_failed_verification.n} /></tr>
-            <tr><td>Fell back to the rules, labelled “not AI-verified”</td><td><strong>{provenance.fallback.k}/{provenance.fallback.n}</strong></td></tr>
+            <tr><td>Not checked by the AI (a person must look)</td><td><strong>{provenance.fallback.k}/{provenance.fallback.n}</strong></td></tr>
           </tbody></table>
         </section>
       )}

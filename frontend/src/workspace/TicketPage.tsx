@@ -12,9 +12,13 @@ import { liveLine } from '../lib/liveTrail'
 import { TrailView } from './TrailView'
 
 const HISTORY: Record<string, string> = {
-  linked_recall: 'Linked to recall', replied_to_owner: 'Replied to the owner', asked_owner: 'Asked the owner',
-  escalated: 'Escalated to', closed: 'Closed', disagreed: 'Disagreed with the suggestion', monitoring: 'Recorded and watching',
+  linked_recall: 'Linked to recall', reply_drafted: 'Reply to the owner drafted (not sent)', no_reply: 'No reply to the owner',
+  owner_request_drafted: 'Request to the owner drafted (not sent)', escalated: 'Escalated to', closed: 'Closed',
+  disagreed: 'Chose something other than the suggestion', monitoring: 'Recorded and watching', reopened: 'Reopened',
+  // older entries
+  replied_to_owner: 'Reply to the owner drafted (not sent)', asked_owner: 'Request to the owner drafted (not sent)',
 }
+const MESSAGES = ['reply_drafted', 'owner_request_drafted', 'replied_to_owner', 'asked_owner']
 
 /** One ticket: what it is (suggestion), how the agent got there (trail), what to do (actions), and follow-ups (ask). */
 export function TicketPage() {
@@ -84,13 +88,13 @@ export function TicketPage() {
           </section>
         </div>
         <div>
-          {s && !done && !live && <ActionPanel key={s.result_id} odino={odino} s={s} onDone={load} />}
+          {s && !done && !live && <ActionPanel key={s.result_id} odino={odino} s={s} onDone={load} onRecheck={runCheck} />}
           {ticket.history.length > 0 && (
             <section className="card">
               <h3>What was done</h3>
               {ticket.history.map((h, i) => (
                 <div key={i} className="history">
-                  <strong>{HISTORY[h.action] ?? h.action}</strong> {h.action === 'replied_to_owner' || h.action === 'asked_owner'
+                  <strong>{HISTORY[h.action] ?? h.action}</strong> {MESSAGES.includes(h.action)
                     ? <details><summary className="small">message</summary><pre>{h.detail}</pre></details> : h.detail}
                   <div className="muted small">{h.by} · {h.at.replace('T', ' ').slice(0, 16)}</div>
                 </div>

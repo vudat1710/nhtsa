@@ -19,7 +19,8 @@ from app.workspace.messages import (
     plain_defect,
 )
 
-ActionId = Literal["link_close", "request_info", "add_to_issue", "new_issue", "monitor", "close_no_action"]
+ActionId = Literal["link_close", "request_info", "add_to_issue", "new_issue", "monitor", "close_no_action", "recheck",
+                   "reopen"]
 
 
 class QuotePair(BaseModel):
@@ -77,6 +78,7 @@ class Suggestion(BaseModel):
     check_note: str | None               # shown when the analyst should double-check (rules only / medium / low)
     severity: list[str]
     summary: str
+    summary_by: Literal["ai", "rules"] = "rules"   # "ai": the AI's own words; only its quotes and numbers were checked
     recall: RecallCard | None
     why: list[Why]
     pattern: Pattern | None
@@ -254,8 +256,55 @@ def escalation_reasons(result: Result, related: list[dict]) -> list[str]:
     return reasons
 
 
-def suggest(result: Result, tickets: Tickets, related: list[dict] = ()) -> Suggestion:
-    """related: recalls on the same make/model/part but other model years (queries.recalls_other_years)."""
+def recalls_to_check(result: Result) -> list[RecallItem]:
+    """Without a checked AI answer: the same-component recalls no other candidate replaced, newest first (at most 3).
+    Read first, never a match."""
+    evidence = result.evidence
+    candidate_ids = {recall.campno for recall in evidence.recalls}
+    return [recall for recall in evidence.recalls
+            if recall.same_component and recall.replaced_by not in candidate_ids][:3]
+
+
+def not_checked(result: Result, tickets: Tickets, can_recheck: bool, why: list[Why],
+                actions: list[ActionOption]) -> str:
+    """No checked AI answer: say so, list the same-component recalls as the ones to read first (never as a match),
+    and offer to check again. Returns the headline."""
+    complaint = result.complaint
+    decision = result.decision
+    evidence = result.evidence
+    failed = "could not check" if decision.source == "fallback" else "is off and did not check"
+    why.append(Why(text=f"The AI {failed} this complaint, so no recall was compared with what the owner describes. "
+                        "A recall on the same part can still be about a different failure."))
+    to_check = recalls_to_check(result)
+    if to_check:
+        listed = "; ".join(f"{display_campno(recall.campno)}: {gist(plain_defect(recall.defect))}"
+                           for recall in to_check)
+        why.append(Why(text=f"Recalls on the same part, to read first: {listed}."))
+    else:
+        why.append(Why(text=f"None of the {len(evidence.recalls)} recalls on this vehicle is filed under the same "
+                            "part; read them before deciding."))
+    comp = main_comp(complaint)
+    if decision.escalate:
+        why.append(Why(text="A crash, fire or injury is reported: send it to engineering now; the recall check can "
+                            "follow."))
+        actions.append(issue_option(tickets, "new_defect", complaint, comp, None, primary=True))
+    if can_recheck:
+        actions.append(ActionOption(id="recheck", primary=not decision.escalate, label="Check it again with the AI"))
+    for recall in to_check:
+        actions.append(ActionOption(id="link_close", campno=recall.campno,
+                                    label=f"Link to recall {display_campno(recall.campno)} (after comparing it "
+                                          "yourself)",
+                                    message=owner_recall_reply(complaint, recall, False)))
+    actions.append(ActionOption(id="request_info", label="Ask the owner for details",
+                                message=owner_info_request(complaint, [])))
+    if not decision.escalate:
+        actions.append(issue_option(tickets, "new_defect", complaint, comp, None, primary=False))
+    return "Not checked by the AI: compare the recalls yourself"
+
+
+def suggest(result: Result, tickets: Tickets, related: list[dict] = (), can_recheck: bool = False) -> Suggestion:
+    """related: recalls on the same make/model/part but other model years (queries.recalls_other_years).
+    can_recheck: a model is configured, so an answer the AI did not check can be checked again."""
     complaint = result.complaint
     decision = result.decision
     evidence = result.evidence
@@ -282,7 +331,9 @@ def suggest(result: Result, tickets: Tickets, related: list[dict] = ()) -> Sugge
 
     why: list[Why] = []
     actions: list[ActionOption] = []
-    if decision.outcome == "known_recall" and recall:
+    if decision.outcome == "needs_info" and "not_checked" in decision.flags:
+        headline = not_checked(result, tickets, can_recheck, why, actions)
+    elif decision.outcome == "known_recall" and recall:
         # Matches a recall: link it and reply to the owner with the recall's own remedy. "Matches", not "covered":
         # a recall covers certain build dates, and only the VIN shows whether this car is one of them.
         display = display_campno(recall.campno)
@@ -290,7 +341,9 @@ def suggest(result: Result, tickets: Tickets, related: list[dict] = ()) -> Sugge
         scope = card.covers + (f"; {card.built}" if card.built else "")
         why.append(Why(text=f"The {complaint.year} {complaint.model.title()} is in recall {display} ({scope}). "
                             "Whether this car is included depends on its build date: confirm with the VIN."))
-        why.append(Why(text="Same problem: what the owner describes is what the recall says can happen.",
+        why.append(Why(text="The AI judged it the same problem: what the owner describes matches what the recall says "
+                            "can happen. The quotes below were found word for word; please confirm they mean the "
+                            "same failure.",
                        quotes=pairs(checks_for(result, recall.campno, "same"))))
         if replaced:
             why.append(Why(text=f"Recall {', '.join(card.replaced)} was replaced by {display}: use {display}'s "
@@ -315,7 +368,11 @@ def suggest(result: Result, tickets: Tickets, related: list[dict] = ()) -> Sugge
         actions.append(issue_option(tickets, "new_defect", complaint, comp, None, primary=False))
 
     elif decision.outcome in ("related_different", "possible_new"):
-        # Not covered: a recall on this part describes a different failure, or no recall matches at all.
+        # No match: a recall on this part describes a different failure, or no recall matches at all. When the
+        # candidate list was cut, that holds for the recalls reviewed, not for the vehicle.
+        reviewed = len(evidence.recalls)
+        incomplete = evidence.recalls_total > reviewed
+        vehicle = f"{complaint.year} {complaint.model.title()}"
         if decision.outcome == "related_different":
             checks = judgment.checks if judgment else []
             different = None
@@ -329,18 +386,28 @@ def suggest(result: Result, tickets: Tickets, related: list[dict] = ()) -> Sugge
                 comp = other.comps[0]  # talk about the part that recall covers
             else:
                 display = "?"
-            what = f"Not covered: recall {display} is a different {part(comp)} failure"
-            why.append(Why(text=f"Recall {display} covers the {part(comp)} on this vehicle, but describes a different "
-                                "failure than the owner reports.", quotes=pairs([different] if different else [])))
-            why.append(Why(text="No other recall on this vehicle describes what the owner reports."))
-        else:
-            what = "No recall covers this"
-            vehicle = f"{complaint.year} {complaint.model.title()}"
-            recall_count = len(evidence.recalls)
-            if recall_count:
-                why.append(Why(text=f"None of the {recall_count} recalls on the {vehicle} describes this failure."))
+            what = f"Not recall {display}: a different {part(comp)} failure"
+            why.append(Why(text=f"Recall {display} covers the {part(comp)} on this vehicle, but the AI judged that it "
+                                "describes a different failure than the owner reports.",
+                           quotes=pairs([different] if different else [])))
+            if incomplete:
+                why.append(Why(text=f"No other recall among the {reviewed} of {evidence.recalls_total} reviewed "
+                                    "describes what the owner reports."))
             else:
-                why.append(Why(text=f"No recall covered the {vehicle} when this complaint arrived."))
+                why.append(Why(text="No other recall on this vehicle describes what the owner reports."))
+        elif not reviewed:
+            what = "No recall covered this vehicle"
+            why.append(Why(text=f"No recall covered the {vehicle} when this complaint arrived."))
+        elif incomplete:
+            what = f"No match among the {reviewed} of {evidence.recalls_total} recalls reviewed"
+            why.append(Why(text=f"None of the {reviewed} recalls reviewed on the {vehicle} describes this failure."))
+        else:
+            what = "No matching recall found"
+            why.append(Why(text=f"None of the {reviewed} recalls on the {vehicle} describes this failure."))
+        if incomplete:
+            why.append(Why(text=f"{evidence.recalls_total - reviewed} more recalls on this vehicle were not reviewed "
+                                f"(the list stops at {reviewed}, same part and newest first). Check them before "
+                                "concluding that no recall covers this."))
 
         if judgment and judgment.similar:
             earlier = [{"odino": owner.odino, "quote": owner.quote} for owner in judgment.similar]
@@ -404,17 +471,18 @@ def suggest(result: Result, tickets: Tickets, related: list[dict] = ()) -> Sugge
     actions.append(ActionOption(id="close_no_action", label="Close: not a safety defect"))
 
     if decision.source == "fallback":
-        check_note = ("The AI could not complete this check; this suggestion is based on simple rules only. "
-                      "Please read the complaint and the recall before acting.")
+        check_note = ("The AI could not complete this check. Nothing was compared: read the complaint and the recalls "
+                      "before acting.")
     elif decision.source == "rules":
-        check_note = "Suggestion based on simple rules only. Please check before acting."
+        check_note = "The AI is off. Nothing was compared: read the complaint and the recalls before acting."
     elif decision.confidence != "high":
         check_note = f"{decision.confidence.title()} confidence: please confirm before acting."
     else:
         check_note = None
 
     summary = judgment.summary if judgment else " ".join(decision.reasons)
+    summary_by = "ai" if judgment else "rules"
     return Suggestion(result_id=result.id, outcome=decision.outcome, headline=headline,
                       confidence=decision.confidence, check_note=check_note, severity=severity, summary=summary,
-                      recall=card, why=why, pattern=pattern_of(result, recall, comp), questions=questions,
-                      actions=actions)
+                      summary_by=summary_by, recall=card, why=why, pattern=pattern_of(result, recall, comp),
+                      questions=questions, actions=actions)

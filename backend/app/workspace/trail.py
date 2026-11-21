@@ -113,8 +113,8 @@ def trail(result: Result) -> list[Step]:
                               lines=[f"{quote_count} quote(s) found word for word in their sources; every recall "
                                      "cited is one that covered this vehicle; no number was invented."]))
     if decision.source == "fallback":
-        steps.append(Step(kind="check", status="warn", title="Fell back to simple rules",
-                          lines=["The AI's answer could not be used; the suggestion below is rules-only."]))
+        steps.append(Step(kind="check", status="warn", title="Not checked by the AI",
+                          lines=["The AI's answer could not be used, so nothing was compared: a person must look."]))
 
     # Decide: the rules, not the agent, set the outcome.
     status = "ok" if decision.source.startswith("ai") else "warn"

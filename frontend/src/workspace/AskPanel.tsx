@@ -22,7 +22,7 @@ function Answer({ t }: { t: Turn }) {
         {a.scope === 'out_of_scope' && <span className="chip">outside this case</span>}
         {a.recheck && <span className="chip warn">suggests re-checking the ticket</span>}
         {t.blocked ? <span className="chip warn">blocked by the provider’s safety filter</span>
-          : t.verified ? <span className="chip ok">✓ every source checked</span> : <span className="chip alert">could not be verified: treat with caution</span>}
+          : t.verified ? <span className="chip ok">✓ every source checked</span> : <span className="chip alert">a source could not be checked: treat with caution</span>}
       </div>
       {!t.blocked && (
         <details className="how-answered">

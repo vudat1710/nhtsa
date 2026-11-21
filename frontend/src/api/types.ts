@@ -91,8 +91,8 @@ export interface RateStat { k: number; n: number; rate: number | null; ci95: [nu
 
 // ---------- the analyst's workspace (backend/app/workspace) ----------
 
-export type TicketStatus = 'new' | 'suggested' | 'waiting' | 'resolved' | 'escalated'
-export type ActionId = 'link_close' | 'request_info' | 'add_to_issue' | 'new_issue' | 'close_no_action'
+export type TicketStatus = 'new' | 'suggested' | 'waiting' | 'resolved' | 'escalated' | 'monitoring'
+export type ActionId = 'link_close' | 'request_info' | 'add_to_issue' | 'new_issue' | 'monitor' | 'close_no_action' | 'recheck' | 'reopen'
 
 export interface QuotePair { owner: string; recall: string }
 export interface Why { text: string; quotes: QuotePair[]; owner_quotes: { odino: number; quote: string }[] }
@@ -111,7 +111,7 @@ export interface ActionOption {
 }
 export interface Suggestion {
   result_id: string; outcome: Outcome; headline: string; confidence: Confidence; check_note: string | null
-  severity: string[]; summary: string; recall: RecallCard | null; why: Why[]; pattern: Pattern | null
+  severity: string[]; summary: string; summary_by: 'ai' | 'rules'; recall: RecallCard | null; why: Why[]; pattern: Pattern | null
   questions: string[]; actions: ActionOption[]
 }
 export interface HistoryItem { odino: number; action: string; detail: string; result_id: string | null; by: string; at: string }
@@ -139,7 +139,7 @@ export interface Turn {
 export interface InboxItem {
   odino: number; vehicle: string; received: string; snippet: string; severity: string[]; status: TicketStatus
   demo: string | null
-  suggestion: null | { outcome: Outcome; headline: string; confidence: Confidence; check: boolean; action: string }
+  suggestion: null | { outcome: Outcome; headline: string; confidence: Confidence; check: boolean; action: string | null }
 }
 export interface EmergingIssue {
   id: number; title: string; kind: 'new_defect' | 'remedy_concern'; make: string; model: string; comp: string

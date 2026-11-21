@@ -20,8 +20,11 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 }
 
 export interface ActionBody {
-  action: ActionId; campno?: string | null; issue_id?: number | null; issue_title?: string | null
-  issue_kind?: string | null; issue_comp?: string | null; message?: string | null; reason?: string; disagrees?: boolean
+  action: ActionId; result_id: string
+  /** the suggested action as shown (null: nothing was suggested); the server refuses if it changed meanwhile */
+  suggested: { action: ActionId; campno: string | null; issue_id: number | null } | null
+  campno?: string | null; issue_id?: number | null; issue_title?: string | null
+  issue_kind?: string | null; issue_comp?: string | null; message?: string | null; reason?: string
 }
 
 /** The analyst's workspace. */

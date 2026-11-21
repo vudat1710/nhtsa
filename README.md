@@ -33,7 +33,7 @@ You need Python 3.12+, [uv](https://docs.astral.sh/uv/) and Node 20+.
 uv sync
 uv run python -m app.data.fetch          # downloads ~380 MB of NHTSA files -> data/raw
 uv run python -m app.data.ingest         # builds data/nhtsa.db (~550 MB, about 1 minute)
-uv run pytest                            # 117 tests, no network, no AI model needed
+uv run pytest                            # 126 tests, no network, no AI model needed
 
 uv run uvicorn app.main:app --app-dir backend --port 8000
 cd frontend; npm install; npm run dev    # http://localhost:5173  (operations portal: /ops)
@@ -41,7 +41,8 @@ cd frontend; npm install; npm run dev    # http://localhost:5173  (operations po
 
 **No Azure account? It still works.** On first start, the 19 inbox tickets open with their stored AI results
 (`data/inbox_results.jsonl.gz`), so you can see each suggestion and how it was reached. A new check without the AI
-gets a rules-only suggestion, clearly marked "please check before acting", and follow-up questions are switched off.
+is labelled "the AI is off": no recall is matched, the recalls on the same part are listed to read first, and follow-up
+questions are switched off.
 
 **With the AI:**
 1. Copy `.env.example` to `.env`.
@@ -58,8 +59,21 @@ gets a rules-only suggestion, clearly marked "please check before acting", and f
 | …a single report with none of those reasons | **Record it and watch** (don't escalate yet) | The counts, next to the thresholds |
 | **Too vague** | Ask the owner (using the AI's questions if it had any, otherwise a standard request) | The recall it might be, if any |
 
+**When the AI can't answer** (it's down, refuses, is cut off or blocked, or fails the checks twice), the ticket says
+"not checked by the AI" and **no recall is matched**: matching by part alone is exactly the shortcut that confuses
+opposite failures. The recalls on the same part are listed to read first, "check it again with the AI" is offered, and
+a crash, fire or injury still goes to engineering.
+
 If the analyst picks something other than the suggestion, they write one line saying why. That's how the system
 learns. Engineers see escalated complaints grouped on the **Emerging issues** page.
+
+**Every action is tied to what the analyst saw.** The action names the AI run and the suggested action that were on
+screen. If either changed since (the ticket was checked again, or a colleague opened a matching emerging issue, which
+turns "open a new issue" into "add to the existing one"), it is refused and the new suggestion is shown. One action
+at a time, from the first check to the last write; everything is checked first, then the status, the log and any
+emerging issue are saved together (all or nothing). Whether the analyst followed the
+suggestion is decided by the server, not the browser. A closed ticket must be reopened, with a reason; the same click
+sent twice is saved once; and replies are recorded as **drafts** (nothing is sent to the owner).
 
 The **operations portal** (`/ops`) is for the people who run the system. It shows every AI run step by step, failure
 drills (AI down, broken answer, answer cut off, AI refuses) and the test results.
@@ -107,8 +121,8 @@ on the list. In a real deployment, the VIN would fill these in.
 | D2 | 2022 Acura MDX: air bags **did not open** in a crash (fire, injury) | **Same part, opposite problem.** The only air-bag recall is about air bags opening when they *shouldn't*. The "same part" shortcut would call it known |
 | D3 | 2018 Honda Ridgeline: rear camera dies because the tailgate pinches the wiring | **Possible new problem.** The AI finds 3 earlier owners describing the same thing. NHTSA issued a recall **348 days later** (shown afterwards, as hindsight) |
 | D4 | 2019 Ford Mustang: "Backup camara is not working" | **Too vague, and the rules overrule the AI.** The AI says it's recall 22V-382. The rules see only 28 characters, decide "needs more detail", name the likely recall, and say the AI was overruled |
-| D5 | D1 in the operations portal → failure drills | **It never guesses quietly.** "AI unavailable" → clearly labelled rules-only answer. "Broken answer" → one retry, then the same checked answer. "Cut off at the token limit" (a real cut-off: the request allows only 16 tokens) and "AI refuses" (simulated) → labelled `incomplete` / `refused`, rules-only answer |
-| D6 | Operations portal → run `/ops/runs/3c68585fd6c9` (complaint 11705719) → "Run with AI" | **A real block by Azure:** its content filter rejects the request → labelled `content_filter`, rules-only answer. Run `1602f7d69c63` (complaint 11752255) does the same |
+| D5 | D1 in the operations portal → failure drills | **It never guesses quietly.** "AI unavailable" → labelled "not checked by the AI", no recall matched. "Broken answer" → one retry, then the same checked answer. "Cut off at the token limit" (a real cut-off: the request allows only 16 tokens) and "AI refuses" (simulated) → labelled `incomplete` / `refused`, not checked by the AI |
+| D6 | Operations portal → run `/ops/runs/3c68585fd6c9` (complaint 11705719) → "Run with AI" | **A real block by Azure:** its content filter rejects the request → labelled `content_filter`, not checked by the AI. Run `1602f7d69c63` (complaint 11752255) does the same |
 | – | 2027 Ioniq 5: the same drive-power failure (a recent complaint in the inbox) | **A recall that may need extending.** No recall covers the 2027 model yet, but 24V-868 covers the same failure on 2022–2024 → escalate |
 
 ## How it works
@@ -122,7 +136,7 @@ complaint ─► intake ─► evidence ──► judge (AI) ─► verify ─�
              flag gaps  date          tool         numbers;
                                                    1 retry
                                                      │ fails twice
-                                                     └──► rules-only answer (labelled)
+                                                     └──► "not checked by the AI" (no recall matched)
 ```
 
 A Microsoft Agent Framework workflow connects the five steps, including the retry and the fallback. Only the `judge`
@@ -155,16 +169,19 @@ No AI grades the AI. (Prompt v3, run once: `data/eval/reports/20261120-2209-abc-
 
 | What we check | How | Result |
 |---|---|---|
-| **Nothing is made up** | Every recall existed for that car on that date; every quote is in its source word for word; every number exists | Every AI answer passed (464 of 464). 2 more were blocked by Azure's content filter and got a labelled rules-only answer |
+| **Every citation is real** | Every recall existed for that car on that date; every quote is in its source word for word; every number exists | Every AI answer passed (464 of 464). 2 more were blocked by Azure's content filter and were labelled "not checked by the AI" |
 | **The process runs correctly** | 16 rules checked on every stored run: steps in order, one retry then fallback, nothing dated after the complaint, only real recalls, searches limited, the trail matches what ran (`app/eval/trajectory.py`; each rule is tested to fail on a deliberately broken run) | 16 of 16, on all 471 runs |
 | **Tricky cases work as designed** | Unknown year → ask, no AI. Too short → ask, never escalate. Hidden instructions never reach the answer. No recalls → nothing to compare | 21 of 21 |
 | **It never sees the future, or itself** | Each complaint's evidence is gathered twice: as stored, and as a brand-new complaint with no id (`app/eval/as_new.py`) | Identical for 490 of 490 (test sets + inbox); none ever found itself |
 | **Follow-up answers stick to the records** | 21 questions on the demo tickets (`app/eval/ask_eval.py`) | Quotes checked: 20 of 20 answers (1 more was blocked by Azure). Says "not in the records" when the data lacks it (repair history, crash data, VIN): 4 of 4. Turns down unrelated requests: 2 of 2. Asks for a re-check after a new fact: 1 of 1 |
 | **Cost and speed** | Measured | About 5,000 tokens; half finish within 10 s, 95% within 35 s |
 
-**What this proves, and what it doesn't.** Every answer the analyst sees is based on real evidence and follows the
-designed process. It does **not** prove the AI picks the right recall: that needs labels we don't have yet (see the
-plan below). Why reading the text beats matching part names is shown on real cases (demo D2).
+**What this proves, and what it doesn't.** The checks prove that every quote, recall and number the analyst sees is
+real, and that the designed process was followed. They do **not** prove the conclusion: whether the owner's words and
+the recall's words describe the same failure is the AI's judgment. Code can't check meaning, so the ticket says so
+("the AI judged it the same problem; please confirm"), the AI's summary is labelled as its own words, and the analyst
+confirms before anything is closed. Whether the AI picks the right recall needs labels we don't have yet (see the plan
+below). Why reading the text beats matching part names is shown on real cases (demo D2).
 
 **Repeat it yourself.** The full results of every run are committed (`data/eval/results/*.jsonl.gz`):
 - `uv run python -m app.eval.trajectory --run <name>` re-checks the process rules, without the AI;
@@ -192,9 +209,10 @@ plan below). Why reading the text beats matching part names is shown on real cas
 - **The answer's format** → Azure is told the exact format and enforces it on every finished answer (strict
   structured output), for the main AI step and the follow-up assistant. The cases that doesn't cover are handled in
   code, each with its own label: the AI refuses (`refused`), the answer is cut off (`incomplete`), Azure blocks the
-  request (`content_filter`), or the AI is down (`unavailable`). Each gets a rules-only answer, with no retry. The
+  request (`content_filter`), or the AI is down (`unavailable`). Each is labelled "not checked by the AI", with no retry. The
   content (quotes, recall numbers, numbers) is still checked separately.
-- **A broken answer, made-up recall or made-up number** → one retry, then a labelled rules-only answer.
+- **A broken answer, made-up recall or made-up number** → one retry, then "not checked by the AI": no recall is
+  matched, the same-part recalls are listed to read, and a crash, fire or injury still escalates.
 - **Looking into the future** → every lookup stops at the complaint's date. A recall filed the same day doesn't count.
 - **Old recall texts in ALL CAPS** → shown in normal sentence case, without breaking abbreviations.
 - **A follow-up question the records can't answer** (VIN, was it repaired?) → "not in the records", no guess.

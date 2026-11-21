@@ -16,7 +16,7 @@ export function DecisionCard({ result }: { result: Result }) {
       </div>
       <p className="action">{o.action}{d.escalate && d.outcome === 'known_recall' && ' Also escalate: see the flag below.'}</p>
       {recall && <p className="recall-line">{recall.defect.split('. ').slice(-2).join('. ')}</p>}
-      <h4>Why (rules, from verified evidence)</h4>
+      <h4>Why (rules, from checked citations)</h4>
       <ul className="reasons">{d.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>
       {d.flags.length > 0 && (
         <div className="chips">{d.flags.map(f => <Chip key={f} tone={f === 'severe' || f === 'after_remedy' ? 'alert' : ''}>{FLAG[f] ?? f}</Chip>)}</div>

@@ -122,7 +122,35 @@ def test_unknown_year_needs_info_whatever_the_ai_says(case):
     assert decide(c, it, ev, judgment(SAME_868), "ai_verified").outcome == "needs_info"
 
 
-def test_baseline_picks_newest_same_component_not_a_replaced_one(case):
+def test_without_a_checked_ai_answer_no_recall_is_matched(case):
+    """Matching by component alone is the shortcut that confuses opposite failures: the fallback only ranks the
+    same-component recalls to read first (the newest one not replaced by another candidate)."""
     d = decide(*case, None, "fallback")
-    assert (d.outcome, d.campno, d.confidence) == ("known_recall", "24V868000", "low")
-    assert d.reasons[0].startswith("Not AI-verified")
+    assert (d.outcome, d.campno, d.confidence, d.escalate) == ("needs_info", None, "low", False)
+    assert d.reasons[0].startswith("The AI could not check") and "24V868000" in d.reasons[1]
+    assert "24V204000" not in d.reasons[1] and "not_checked" in d.flags
+
+
+def test_without_a_checked_ai_answer_crash_fire_injury_still_escalates(case):
+    c, it, ev = case
+    it.flags.append("severe")
+    assert decide(c, it, ev, None, "rules").escalate is True
+    it.flags.append("short_text")  # too short to escalate on, as with the AI
+    assert decide(c, it, ev, None, "rules").escalate is False
+
+
+def test_without_a_checked_ai_answer_and_no_recalls_it_is_unmatched(case):
+    c, it, ev = case
+    ev.recalls = []
+    d = decide(c, it, ev, None, "fallback")
+    assert (d.outcome, d.escalate) == ("possible_new", True)
+
+
+def test_without_a_checked_ai_answer_a_too_short_text_never_escalates(case):
+    """Regression (own review): with no recalls and a crash, a two-word complaint escalated without the AI, although
+    with the AI a too-short text never escalates."""
+    c, it, ev = case
+    ev.recalls = []
+    it.flags += ["short_text", "severe"]
+    d = decide(c, it, ev, None, "fallback")
+    assert (d.outcome, d.escalate) == ("needs_info", False)

@@ -1,7 +1,7 @@
 {
  "name": "20261120-2209-abc-test-ai",
  "redecided": true,
- "decisions_changed": 0,
+ "decisions_changed": 2,
  "runs": 471,
  "checks": {
   "path.steps": {
@@ -139,8 +139,8 @@
   "decision.candidate": {
    "severity": "invariant",
    "question": "The matched recall is a candidate",
-   "k": 261,
-   "n": 261,
+   "k": 259,
+   "n": 259,
    "rate": 1.0,
    "ci95": [
     0.985,
@@ -151,8 +151,8 @@
   "decision.known_backed": {
    "severity": "invariant",
    "question": "'Covered by a recall' is backed by a 'same' check",
-   "k": 179,
-   "n": 179,
+   "k": 177,
+   "n": 177,
    "rate": 1.0,
    "ci95": [
     0.979,

@@ -1,4 +1,4 @@
-"""Step 5 (code): the final outcome and confidence. The AI proposes; these rules decide, from verified evidence only.
+"""Step 5 (code): the final outcome and confidence. The AI proposes; these rules decide, from checked citations only.
 
 Each rule is one plain sentence in `reasons`, so an analyst (and a reviewer) can see exactly why.
 """
@@ -39,7 +39,8 @@ def decide(complaint: Complaint, intake: Intake, evidence: Evidence, judgment: J
         campno = best.campno
         confidence = "high"
         escalate = False
-        reasons.append(f"The complaint describes the failure in recall {best.campno} (quotes verified).")
+        reasons.append(f"The AI judged the complaint the same failure as recall {best.campno} (its quotes were found "
+                       "word for word).")
         if len(same) > 1:
             confidence = "medium"
             reasons.append(f"{len(same)} recalls fit; the analyst should confirm which one.")
@@ -88,6 +89,9 @@ def decide(complaint: Complaint, intake: Intake, evidence: Evidence, judgment: J
             reasons.append(f"None of the {shown} recalls on this vehicle describes this failure.")
 
     # Extra flags on top of the outcome
+    if outcome in ("possible_new", "related_different") and evidence.recalls_total > len(evidence.recalls):
+        # Only the first recalls were compared: "no recall matches" holds for those, not for the vehicle
+        flags.append("incomplete_review")
     recent_complaints = evidence.stats.last_12_months
     if outcome == "possible_new" and recent_complaints >= PATTERN_MIN:
         flags.append("pattern")
@@ -100,19 +104,34 @@ def decide(complaint: Complaint, intake: Intake, evidence: Evidence, judgment: J
 
 
 def baseline(intake: Intake, evidence: Evidence, flags: list[str], source: str) -> Decision:
-    """No AI: newest recall on the same component, if any (the rules-only fallback). Always low confidence."""
+    """No checked AI answer (the AI failed, or is off): nothing was compared with the failure the owner describes, so
+    no recall is matched and a person must look. Same-component recalls are only ranked as the ones to check first
+    (matching by component alone is the shortcut that confuses opposite failures). A crash, fire or injury is still
+    escalated, unless the text is too short to escalate on (the same rule as with the AI)."""
+    why = "The AI could not check this complaint" if source == "fallback" else "The AI is off"
+    flags = [*flags, "not_checked"]
+    too_short = "short_text" in intake.flags
+    escalate = "severe" in flags and not too_short
+    if not evidence.recalls and not too_short:
+        # Nothing to compare: the database already shows no recall covered this vehicle (a fact, not a judgment).
+        return Decision(outcome="possible_new", confidence="low", flags=flags, escalate=True, source=source,
+                        reasons=[f"{why}. No recall covered this vehicle when the complaint arrived."])
+    if not evidence.recalls:
+        # Too short to escalate on, as with the AI: ask the owner
+        return Decision(outcome="needs_info", confidence="low", flags=flags, escalate=False, source=source,
+                        reasons=[f"{why}. No recall covered this vehicle when the complaint arrived, and the "
+                                 "description is too short to escalate on."])
     candidate_ids = {recall.campno for recall in evidence.recalls}
     # Same-component recalls that no other candidate replaced, newest first (the order evidence keeps them in)
-    same = []
-    for recall in evidence.recalls:
-        if recall.same_component and recall.replaced_by not in candidate_ids:
-            same.append(recall)
-    note = "Not AI-verified: " if source == "fallback" else ""
-    if same:
-        newest = same[0]
-        reason = (f"{note}{newest.campno} is the newest recall on the same component; "
-                  "the failure itself was not compared.")
-        return Decision(outcome="known_recall", confidence="low", campno=newest.campno, flags=flags, escalate=False,
-                        source=source, reasons=[reason])
-    return Decision(outcome="possible_new", confidence="low", flags=flags, escalate=True, source=source,
-                    reasons=[f"{note}no recall on this vehicle shares the complaint's component."])
+    to_check = [recall.campno for recall in evidence.recalls
+                if recall.same_component and recall.replaced_by not in candidate_ids]
+    reasons = [f"{why}, so no recall was compared with what the owner describes."]
+    if to_check:
+        reasons.append(f"Recalls on the same component to check first: {', '.join(to_check[:3])}.")
+    else:
+        reasons.append(f"None of the {len(evidence.recalls)} recalls on this vehicle is filed under the same "
+                       "component; read them before deciding.")
+    if escalate:
+        reasons.append("A crash, fire or injury is reported: sent to engineering without waiting for the check.")
+    return Decision(outcome="needs_info", confidence="low", flags=flags, escalate=escalate, source=source,
+                    reasons=reasons)

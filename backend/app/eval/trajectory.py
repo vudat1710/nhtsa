@@ -255,19 +255,16 @@ def matched_recall_is_a_candidate(case: Case) -> Problems:
 
 
 def known_recall_is_backed_by_a_check(case: Case) -> Problems:
-    """'Covered by a recall' needs a verified 'same' check (AI) or a same-component candidate (rules)."""
+    """'Covered by a recall' needs a verified 'same' check: without a checked AI answer nothing was compared."""
     result = case.result
     decision = result.decision
     if decision.outcome != "known_recall":
         return None
-    if result.judgment is not None:
-        verdicts = [check.verdict for check in result.judgment.checks if check.campno == decision.campno]
-        if "same" not in verdicts:
-            return [f"known_recall {decision.campno}, but its check says {verdicts or 'nothing'}"]
-        return []
-    recall = result.evidence.recall(decision.campno)
-    if recall is None or not recall.same_component:
-        return [f"rules answer {decision.campno} is not a same-component candidate"]
+    if result.judgment is None:
+        return [f"known_recall {decision.campno} without a checked AI answer (nothing was compared)"]
+    verdicts = [check.verdict for check in result.judgment.checks if check.campno == decision.campno]
+    if "same" not in verdicts:
+        return [f"known_recall {decision.campno}, but its check says {verdicts or 'nothing'}"]
     return []
 
 
@@ -287,8 +284,12 @@ def disagreement_with_the_ai_is_flagged(case: Case) -> Problems:
 
 
 def escalation_follows_the_outcome(case: Case) -> Problems:
-    decision = case.result.decision
+    result = case.result
+    decision = result.decision
     should_escalate = decision.outcome in ESCALATED or "after_remedy" in decision.flags
+    if result.judgment is None and decision.outcome == "needs_info" and "unknown_year" not in result.intake.flags:
+        # Not checked by the AI: only a crash, fire or injury is escalated (never on a too-short text)
+        should_escalate = "severe" in decision.flags and "short_text" not in result.intake.flags
     if decision.escalate != should_escalate:
         return [f"escalate={decision.escalate} for {decision.outcome} with flags {decision.flags}"]
     return []

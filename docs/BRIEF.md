@@ -24,18 +24,20 @@ A work queue that suggests **the next action** for each complaint. It is not a c
 1. **The system finds the evidence:** the recalls that existed for that exact car on the day the complaint arrived,
    and how many similar complaints came before.
 2. **The AI reads:** it compares the complaint with each recall, quotes both, and can search earlier complaints.
-3. **The system checks:** every quote must match the original text exactly (including small words like "no"), and
-   every recall and number must be real. A failed check gets one retry. After that, simple rules answer, clearly
-   labelled.
+3. **The system checks the citations:** every quote must match the original text exactly (including small words
+   like "no"), and every recall and number must be real. It can't check meaning: whether two quotes describe the same
+   failure stays the AI's judgment, shown as such for the analyst to confirm. A failed check gets one retry. After
+   that the ticket says "not checked by the AI" and **matches no recall**; a crash, fire or injury still escalates.
 4. **Fixed rules make the final call**, not the AI.
-5. **The analyst acts in one click:**
-   - link the recall and send a reply written from the recall's own text;
+5. **The analyst confirms and acts in one click:**
+   - link the recall and draft a reply written from the recall's own text;
    - flag a fix that doesn't seem to work;
    - escalate with a stated reason;
    - or ask the owner for details.
 
 The analyst can also see each step the system took, ask follow-up questions that are answered only from this case,
-and enter a brand-new complaint.
+and enter a brand-new complaint. Every action is saved against the suggestion the analyst actually saw (if the
+ticket was checked again meanwhile, the action is refused), all at once or not at all.
 
 **Why this way:** the expensive decision is made by rules the team can read, not by the AI, and every claim can be
 checked in seconds.
@@ -50,7 +52,7 @@ not yet measured.
 
 | | What we measure | Goal | Result |
 |---|---|---|---|
-| **Proven now** | Every quote, recall and number in an answer is real | Always, or a clearly labelled rules answer | Every AI answer passed (464 of 464); 2 blocked by Azure's filter got a labelled rules answer |
+| **Proven now** | Every quote, recall and number in an answer is real (not that the conclusion is right) | Always, or "not checked by the AI" with no recall matched | Every AI answer passed (464 of 464); 2 blocked by Azure's filter were labelled "not checked by the AI" |
 | | The process runs correctly (right order, nothing from the future, trail matches what ran) | Every run | 16 of 16 rules held on all 471 runs |
 | | Tricky cases (no model year, two-word complaint, hidden instructions, no recalls) | All handled as designed | 21 of 21 |
 | **Before launch** | Two analysts label a sample blind: how often they agree with "known recall"; how often a new problem is wrongly called "known" | Agreed with the quality team (proposed: at least 95%; at most 2%) | Not measured yet |

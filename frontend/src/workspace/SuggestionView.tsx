@@ -3,14 +3,15 @@ import { Chip } from '../shared/Badges'
 
 const TONE: Record<string, string> = { known_recall: 'ok', related_different: 'warn', possible_new: 'alert', needs_info: 'info' }
 
-/** What it is and why, in field-quality terms. Every quote here was checked against the record it came from. */
+/** What it is and why, in field-quality terms. Every quote here was found word for word in the record it came from;
+ *  whether two quotes describe the same failure is the AI's judgment, for the analyst to confirm. */
 export function SuggestionView({ s }: { s: Suggestion }) {
   return (
     <section className={`card decision ${TONE[s.outcome]}`}>
       <h2>{s.headline}</h2>
       <div className="chips">
         {s.severity.map(x => <Chip key={x} tone="alert">{x}</Chip>)}
-        {!s.check_note && <Chip tone="ok">high confidence</Chip>}
+        {!s.check_note && <Chip tone="ok">high confidence (set by rules)</Chip>}
       </div>
       {s.check_note && <p className="check-note">{s.check_note}</p>}
 
@@ -44,7 +45,10 @@ export function SuggestionView({ s }: { s: Suggestion }) {
           {s.recall.replaced.length > 0 && <p className="muted small">Replaces recall {s.recall.replaced.join(', ')}.</p>}
         </details>
       )}
-      <p className="muted small summary">In short: {s.summary}</p>
+      <p className="muted small summary">
+        {s.summary_by === 'ai' ? "The AI's summary (its own words; only its quotes and numbers were checked): " : 'The rules: '}
+        {s.summary}
+      </p>
     </section>
   )
 }

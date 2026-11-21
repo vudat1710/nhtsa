@@ -1,7 +1,12 @@
 """What the analyst does with a ticket (data/app.db, next to the runs): ticket status, emerging issues, an action log,
 follow-up questions, and complaints typed in by an analyst. Kept apart from the AI runs: runs are the audit record of
-the system, tickets are the work of people."""
+the system, tickets are the work of people.
+
+Status, action log and emerging issues are written together inside `transaction()`: all of an action, or none of it."""
 import sqlite3
+import threading
+from collections.abc import Collection, Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Literal
 
@@ -56,6 +61,14 @@ class Tickets:
     def __init__(self, con: sqlite3.Connection):
         self.con = con
         self.con.executescript(SCHEMA)
+        # The API serves requests on several threads over this one connection: one action's writes at a time.
+        self.lock = threading.RLock()
+
+    @contextmanager
+    def transaction(self) -> Iterator[None]:
+        """Everything written inside is committed together, or rolled back together if anything fails."""
+        with self.lock, self.con:
+            yield
 
     def status(self, odino: int) -> dict:
         row = self.con.execute("SELECT * FROM tickets WHERE odino = ?", (odino,)).fetchone()
@@ -67,15 +80,22 @@ class Tickets:
     def statuses(self) -> dict[int, dict]:
         return {row["odino"]: dict(row) for row in self.con.execute("SELECT * FROM tickets")}
 
+    # set, log, create_issue and add_to_issue don't commit: call them inside transaction().
+
     def set(self, odino: int, status: TicketStatus, campno: str | None = None, issue_id: int | None = None) -> None:
         self.con.execute("INSERT OR REPLACE INTO tickets VALUES (?, ?, ?, ?, ?)",
                          (odino, status, campno, issue_id, now()))
-        self.con.commit()
 
     def log(self, odino: int, action: str, detail: str, result_id: str | None, by: str = "analyst") -> None:
         self.con.execute("INSERT INTO actions (odino, action, detail, result_id, by, at) VALUES (?, ?, ?, ?, ?, ?)",
                          (odino, action, detail, result_id, by, now()))
-        self.con.commit()
+
+    def last_action(self, odino: int, kinds: Collection[str]) -> dict | None:
+        """The ticket's latest log entry of one of these kinds."""
+        marks = ",".join("?" * len(kinds))
+        row = self.con.execute(f"SELECT * FROM actions WHERE odino = ? AND action IN ({marks}) "
+                               "ORDER BY id DESC LIMIT 1", (odino, *kinds)).fetchone()
+        return dict(row) if row else None
 
     def history(self, odino: int) -> list[Action]:
         rows = self.con.execute("SELECT * FROM actions WHERE odino = ? ORDER BY id", (odino,))
@@ -120,12 +140,10 @@ class Tickets:
                      campno: str | None) -> int:
         cur = self.con.execute("INSERT INTO issues (title, kind, make, model, comp, campno, status, created_at) "
                                "VALUES (?, ?, ?, ?, ?, ?, 'open', ?)", (title, kind, make, model, comp, campno, now()))
-        self.con.commit()
         return cur.lastrowid
 
     def add_to_issue(self, issue_id: int, odino: int) -> None:
         self.con.execute("INSERT OR IGNORE INTO issue_complaints VALUES (?, ?, ?)", (issue_id, odino, now()))
-        self.con.commit()
 
     def issue(self, issue_id: int) -> Issue | None:
         row = self.con.execute("SELECT * FROM issues WHERE id = ?", (issue_id,)).fetchone()

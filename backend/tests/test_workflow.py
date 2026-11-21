@@ -9,6 +9,8 @@ from agent_framework.exceptions import ChatClientContentFilterException  # paren
 from app.ai.clients import LlmSetup, ScriptedChatClient
 from app.ai.middleware import FaultMiddleware
 from app.pipeline.workflow import run
+from app.store.results import Store
+from app.workspace.suggest import suggest
 
 GOOD = json.dumps({
     "checks": [{"campno": "24V868000", "verdict": "same", "complaint_quote": "would not accelerate. The ICCU failed",
@@ -69,7 +71,24 @@ def test_bad_answer_is_repaired_once(con, iccu_complaint):
 def test_two_bad_answers_fall_back_to_rules(con, iccu_complaint):
     r, _, _ = go(con, iccu_complaint, ["not json", "still not json"])
     assert r.decision.source == "fallback" and r.judgment is None
-    assert r.decision.reasons[0].startswith("Not AI-verified")
+    assert r.decision.reasons[0].startswith("The AI could not check")
+
+
+def test_fallback_never_matches_a_recall_by_component_alone(con, iccu_complaint, tmp_path):
+    """Regression (review of 0eb81e1): demo D2 through the fallback became "known recall: link and close", with the
+    text "Same problem". An air bag that did not deploy is not the recall about air bags deploying when they
+    shouldn't, although both are AIR BAGS."""
+    airbag = iccu_complaint.model_copy(update={
+        "text": "The air bags did not deploy during the crash and the car caught fire afterwards.",
+        "components": ["AIR BAGS"], "crash": 1, "fire": 1})
+    r, _, _ = go(con, airbag, ["not json", "still not json"])
+    d = r.decision
+    assert (d.outcome, d.campno, d.escalate, d.source) == ("needs_info", None, True, "fallback")
+    s = suggest(r, Store(tmp_path / "app.db").tickets, can_recheck=True)
+    assert s.headline.startswith("Not checked by the AI")
+    assert not any("Same problem" in why.text for why in s.why)
+    assert [a.id for a in s.actions if a.primary] == ["new_issue"]          # crash + fire: to engineering first
+    assert all("after comparing it yourself" in a.label for a in s.actions if a.id == "link_close")
 
 
 def test_model_down_falls_back_without_retrying(con, iccu_complaint):
@@ -147,4 +166,19 @@ def test_unknown_year_skips_the_ai(con, iccu_complaint):
 
 def test_ai_off_uses_the_rules_baseline(con, iccu_complaint):
     r, _, _ = go(con, iccu_complaint, [], use_llm=False)
-    assert r.decision.source == "rules" and r.decision.campno == "24V868000"
+    assert r.decision.source == "rules" and r.decision.outcome == "needs_info" and r.decision.campno is None
+
+def test_a_cut_candidate_list_never_reads_as_no_recall_covers_this(con, iccu_complaint, tmp_path):
+    """Regression (review of 0eb81e1): with 15 of 36 recalls reviewed, the ticket said "No recall covers this"."""
+    from app.pipeline.decide import decide
+
+    nothing = json.dumps({"checks": [], "proposed": "possible_new", "summary": "Nothing fits."})
+    r, _, _ = go(con, iccu_complaint, [nothing])
+    shown = len(r.evidence.recalls)
+    cut = r.model_copy(update={"evidence": r.evidence.model_copy(update={"recalls_total": shown + 21})})
+    d = decide(cut.complaint, cut.intake, cut.evidence, cut.judgment, "ai_verified")
+    assert "incomplete_review" in d.flags and d.confidence == "low"
+    s = suggest(cut.model_copy(update={"decision": d}), Store(tmp_path / "app.db").tickets)
+    assert s.headline.startswith(f"No match among the {shown} of {shown + 21} recalls reviewed")
+    assert any(w.text.startswith("21 more recalls on this vehicle were not reviewed") for w in s.why)
+    assert not any("No recall covers this" in w.text for w in s.why)

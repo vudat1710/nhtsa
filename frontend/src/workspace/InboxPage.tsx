@@ -61,7 +61,7 @@ export function InboxPage() {
                 {i.suggestion ? (
                   <>
                     <span className={`badge ${TONE[i.suggestion.outcome]}`}>{i.suggestion.headline}</span>
-                    <div className="small">→ {i.suggestion.action}</div>
+                    {i.suggestion.action && <div className="small">→ {i.suggestion.action}</div>}
                     {i.suggestion.check && <div className="warn-text small">please confirm before acting</div>}
                   </>
                 ) : <span className="muted">not checked yet</span>}

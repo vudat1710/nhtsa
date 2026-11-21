@@ -13,7 +13,7 @@ from app.ask.service import Turn, ask
 from app.config import ROOT
 from app.data import queries
 from app.models import Complaint
-from app.workspace.actions import ActionError, ActionRequest, apply
+from app.workspace.actions import ActionConflict, ActionError, ActionRequest, apply, same_suggestion
 from app.workspace.suggest import Suggestion, related_other_years, suggest
 from app.workspace.trail import trail
 
@@ -51,7 +51,7 @@ def related_for(result) -> list[dict]:
 
 def suggestion(result) -> Suggestion:
     """The analyst's view of a stored run, with other-year recalls of the same part as context for unmatched ones."""
-    return suggest(result, deps.store().tickets, related_for(result))
+    return suggest(result, deps.store().tickets, related_for(result), can_recheck=deps.llm() is not None)
 
 
 def complaint_or_404(odino: int) -> Complaint:
@@ -140,7 +140,7 @@ def inbox() -> list[dict]:
         summary = None
         if result:
             suggested = suggestion(result)
-            primary_action = next(action.label for action in suggested.actions if action.primary)
+            primary_action = next((action.label for action in suggested.actions if action.primary), None)
             summary = {"outcome": suggested.outcome, "headline": suggested.headline,
                        "confidence": suggested.confidence, "check": bool(suggested.check_note),
                        "action": primary_action}
@@ -211,13 +211,26 @@ async def check(odino: int) -> StreamingResponse:
 
 @router.post("/tickets/{odino}/actions")
 def act(odino: int, req: ActionRequest) -> dict:
-    result = deps.store().latest(LABEL).get(odino)
-    if result is None:
-        raise HTTPException(409, "check this ticket first")
-    try:
-        return apply(deps.store().tickets, result, req)
-    except ActionError as exc:
-        raise HTTPException(422, str(exc)) from exc
+    store = deps.store()
+    # One action at a time, from the first check to the last write: a re-check or another analyst's action can't land
+    # between checking what the analyst saw and saving what they did (new runs are saved under the same lock)
+    with store.tickets.lock:
+        result = store.latest(LABEL).get(odino)
+        if result is None:
+            raise HTTPException(409, "check this ticket first")
+        if req.result_id != result.id:
+            # The ticket was checked again after the analyst opened it: the action would be logged against a
+            # suggestion they never saw
+            raise HTTPException(409, "this ticket was checked again since you opened it: review the new suggestion")
+        suggested = next((action for action in suggestion(result).actions if action.primary), None)
+        if not same_suggestion(req.suggested, suggested):
+            raise HTTPException(409, "the suggestion changed since you opened this ticket: review it")
+        try:
+            return apply(store.tickets, result, req, suggested)
+        except ActionConflict as exc:
+            raise HTTPException(409, str(exc)) from exc
+        except ActionError as exc:
+            raise HTTPException(422, str(exc)) from exc
 
 
 @router.get("/issues")

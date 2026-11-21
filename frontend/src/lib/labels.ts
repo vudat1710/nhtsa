@@ -15,14 +15,14 @@ export const OUTCOME: Record<Outcome, { label: string; tone: string; action: str
 }
 
 export const CONFIDENCE: Record<Confidence, string> = {
-  high: 'High confidence', medium: 'Medium confidence', low: 'Low confidence',
+  high: 'High confidence (set by rules)', medium: 'Medium confidence (set by rules)', low: 'Low confidence (set by rules)',
 }
 
 export const SOURCE: Record<Decision['source'], { label: string; note: string }> = {
-  ai_verified: { label: 'AI, verified', note: 'Every quote and number was checked against the source records.' },
-  ai_repaired: { label: 'AI, verified after one correction', note: 'The first answer failed a check; the AI corrected it and the correction passed.' },
-  fallback: { label: 'Not AI-verified', note: 'The AI failed or its answer failed verification twice; this is the rules-only answer.' },
-  rules: { label: 'Rules only', note: 'Run without the AI.' },
+  ai_verified: { label: 'AI, citations checked', note: 'Every quote and number was found in the source records. Whether they describe the same failure is the AI’s judgment.' },
+  ai_repaired: { label: 'AI, citations checked after one correction', note: 'The first answer failed a check; the AI corrected it and the correction passed.' },
+  fallback: { label: 'Not checked by the AI', note: 'The AI failed or its answer failed the checks twice: nothing was compared, a person must look.' },
+  rules: { label: 'AI off', note: 'Run without the AI: nothing was compared, a person must look.' },
 }
 
 export const FLAG: Record<string, string> = {
@@ -31,6 +31,8 @@ export const FLAG: Record<string, string> = {
   superseded: 'An older recall was replaced by a newer one',
   pattern: 'Several similar complaints in the last 12 months',
   ai_disagreed: 'The rules overrode the AI’s proposal',
+  not_checked: 'Not checked by the AI',
+  incomplete_review: 'Not every recall on the vehicle was reviewed',
 }
 
 export const INTAKE_FLAG: Record<string, string> = {
@@ -48,12 +50,13 @@ export const STEP: Record<string, string> = {
   intake: 'Intake: mask recall numbers, check for missing details',
   evidence: 'Evidence: recalls, investigations and complaints known on that date',
   judge: 'AI: compare the complaint with each recall',
-  verify: 'Verify: every quote, id and number checked',
+  verify: 'Check: every quote, id and number found in the records',
   decide: 'Decide: rules set the outcome and confidence',
 }
 
 export const STATUS: Record<string, string> = {
   new: 'New', suggested: 'To do', waiting: 'Waiting for owner', resolved: 'Resolved', escalated: 'Escalated',
+  monitoring: 'Recorded, watching',
 }
 
 export const ISSUE: Record<string, string> = {

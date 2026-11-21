@@ -15,7 +15,7 @@ export function EvidencePanel({ result }: { result: Result }) {
       </tbody></table>
       {similar.length > 0 && (
         <>
-          <h4>Earlier complaints the AI found describing the same failure (quotes verified)</h4>
+          <h4>Earlier complaints the AI found describing the same failure (quotes found word for word)</h4>
           {similar.map(s => <div key={s.odino} className="similar"><span className="mono">{s.odino}</span> “{s.quote}”</div>)}
         </>
       )}
