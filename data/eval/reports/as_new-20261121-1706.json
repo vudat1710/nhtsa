@@ -1,0 +1,10 @@
+{
+ "name": "as_new-20261121-1706",
+ "set": "as_new",
+ "split": "test",
+ "mode": "code",
+ "cases": 490,
+ "evidence_identical": 490,
+ "search_identical": 490,
+ "found_itself": 0
+}
