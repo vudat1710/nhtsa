@@ -14,7 +14,13 @@ export function DecisionCard({ result }: { result: Result }) {
         <h2>{o.label}{d.campno && <> · <span className="mono">{d.campno}</span></>}</h2>
         <span className="muted">{CONFIDENCE[d.confidence]}</span>
       </div>
-      <p className="action">{o.action}{d.escalate && d.outcome === 'known_recall' && ' Also escalate: see the flag below.'}</p>
+      <p className="action">
+        {d.flags.includes('not_checked')
+          ? 'Not checked by the AI: read the recalls listed below, or check it again with the AI.'
+          : o.action}
+        {d.escalate && d.outcome === 'known_recall' && ' Also escalate: see the flag below.'}
+        {d.escalate && d.flags.includes('not_checked') && ' Escalated: crash, fire or injury.'}
+      </p>
       {recall && <p className="recall-line">{recall.defect.split('. ').slice(-2).join('. ')}</p>}
       <h4>Why (rules, from checked citations)</h4>
       <ul className="reasons">{d.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>
@@ -23,7 +29,7 @@ export function DecisionCard({ result }: { result: Result }) {
       )}
       {result.judgment && (
         <>
-          <h4>AI summary</h4>
+          <h4>AI summary (its own words; only its quotes and numbers were checked)</h4>
           <p>{result.judgment.summary}</p>
           {result.judgment.questions.length > 0 && (
             <>
