@@ -113,6 +113,7 @@ file per evaluation:
 | `results/20261121-2211-abc-test-ai.jsonl.gz` | Every full result of the test run (prompt v3, run once on the current code): evidence, the AI's answers, checks, decisions |
 | `reports/20261121-2211-abc-test-ai.json` | Facts about that run: first answers that failed a check, repairs, fallbacks and why, time, tokens |
 | `reports/agreement-20261121-2211-abc-test-ai.json` | Agreement with the recalls owners named (set A), for the AI and the simple "newest recall on the same part" rule |
+| `labels/llm-judge-20261121-2211-abc-test-ai.jsonl.gz` + `reports/llm-judge-*.json` | LLM-as-judge, not human labels: the same model labelled sets A and B blind (recall, "none" or "unclear", with a reason), and the comparison with the system's answers |
 | `trajectory/20261121-2211-abc-test-ai.json` | The 20 workflow rules checked on that run, with failing examples (none) |
 | `reports/as_new-*.json` | No look-ahead: stored vs brand-new complaints |
 

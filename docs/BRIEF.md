@@ -40,8 +40,8 @@ compare the AI with what owners believed, not with the truth.
 |---|---|---|
 | Every quote and recall shown is real | Always | 459 of 459 AI answers |
 | Picks a different recall than the owner named | No target: a comparison | 6%, vs 18% for the "same part" shortcut |
-| Agrees with two analysts labelling blind | 95% or more (proposed) | Not measured yet |
-| Calls a new problem "known" (blind labels) | 2% or less (proposed) | Not measured yet |
+| Agrees with two analysts labelling blind | 95% or more (proposed) | Not yet; AI judge (same model): 94% |
+| Calls a new problem "known" (blind labels) | 2% or less (proposed) | Not yet; AI judge: 4% |
 
 After launch, also tracked: analyst overrides, time per complaint, and escalations confirmed by engineers.
 
@@ -50,6 +50,7 @@ After launch, also tracked: analyst overrides, time per complaint, and escalatio
 - An analyst reviews every suggestion; nothing is closed by the AI alone.
 - Public NHTSA data stands in for a car maker's own complaints, and car names follow NHTSA's spelling (in production,
   the VIN would fill them in).
-- No accuracy number yet: the only labels are owners' beliefs. Next: a sample labelled blind by two analysts.
+- No human-labelled accuracy yet: the AI judge is the same model, a second opinion only. Next: two analysts label a
+  sample blind.
 - A recall covers certain build dates, so replies say the car *may* be covered; only the VIN can confirm it.
 - No repair records: "complaints after the fix" can't tell a fix that fails from a car that was never repaired.

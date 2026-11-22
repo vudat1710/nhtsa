@@ -4,6 +4,11 @@ import type { EvalReport, RateStat } from '../api/types'
 
 type M = Record<string, Record<string, RateStat | number | null>>
 type Agreement = { a: Record<string, RateStat> }
+type Judged = {
+  judge_model: string; labelled: number
+  system_known: Record<string, RateStat>; judge_names_a_recall: Record<string, RateStat>
+  judge_says_none: Record<string, RateStat>; judge_vs_owner: RateStat
+}
 
 const ERROR_KIND: Record<string, string> = {
   content_filter: 'blocked by Azure’s content filter', unavailable: 'AI unavailable', refused: 'the AI refused',
@@ -31,6 +36,7 @@ export function EvalPage() {
   const ai = reports.find(r => r.split === 'test' && r.mode === 'ai')
   if (!ai) return <p className="muted">No AI evaluation run yet: <code>uv run python -m app.eval.run</code></p>
   const agreement = reports.find(r => r.set === 'agreement' && (r as unknown as { run: string }).run === ai.name) as unknown as Agreement | undefined
+  const judged = reports.find(r => r.set === 'llm_judge' && (r as unknown as { run: string }).run === ai.name) as unknown as Judged | undefined
   const asNew = reports.find(r => r.set === 'as_new') as unknown as Record<string, number> | undefined
   const am = ai.metrics as M
   const provenance = am.provenance as Record<string, RateStat> | undefined
@@ -61,6 +67,20 @@ export function EvalPage() {
               <tr><td>Asks for more detail instead of guessing</td><Share s={agreement.a.ai_asks_for_detail} /><td className="muted">never</td></tr>
             </tbody>
           </table>
+        </section>
+      )}
+
+      {judged && (
+        <section className="card">
+          <h3>Accuracy, roughly: the same AI model as a blind judge</h3>
+          <p className="small muted"><strong>LLM-as-judge, not human labels.</strong> The same model ({judged.judge_model}) labelled {judged.labelled} complaints without seeing the system’s answer or the owner’s recall, with a stricter standard: the recall must describe the same failure, not only the same symptoms. A second opinion that can share the system’s blind spots, not ground truth (app/eval/llm_judge.py).</p>
+          <table className="metrics"><tbody>
+            <tr><td>When the system says “known recall”, the judge names the same recall</td><Share s={judged.system_known.judge_agrees} /></tr>
+            <tr><td>When the judge says no recall fits, the system still said “known recall” (the costly mistake). In {judged.judge_says_none.system_said_known_owner_agreed.k} of {judged.judge_says_none.system_said_known_owner_agreed.n} with an owner, the owner had named that same recall</td><Share s={judged.judge_says_none.system_said_known} /></tr>
+            <tr><td>When the judge names a recall, the system found it</td><Share s={judged.judge_names_a_recall.system_found_it} /></tr>
+            <tr><td>…or asked for more detail instead</td><Share s={judged.judge_names_a_recall.system_asked_for_detail} /></tr>
+            <tr><td>The judge agrees with the recall the owner named (it is stricter than owners)</td><Share s={judged.judge_vs_owner} /></tr>
+          </tbody></table>
         </section>
       )}
 
@@ -100,8 +120,8 @@ export function EvalPage() {
       )}
 
       <section className="card">
-        <h3>Not measured yet: accuracy</h3>
-        <p className="small">The only labels are the recalls owners named, and owners are sometimes wrong; the data has no VINs or repair records. Next: two analysts label a sample without seeing the AI’s answer. In production, every time an analyst overrides a suggestion it is logged with a reason, and those become the labels.</p>
+        <h3>Not measured yet: accuracy with human labels</h3>
+        <p className="small">The only labels are the recalls owners named, and owners are sometimes wrong; the data has no VINs or repair records; the AI judge above is the same model. Next: two analysts label a sample without seeing the AI’s answer. In production, every time an analyst overrides a suggestion it is logged with a reason, and those become the labels.</p>
       </section>
     </>
   )

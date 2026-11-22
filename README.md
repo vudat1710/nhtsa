@@ -36,7 +36,7 @@ You need Python 3.12+, [uv](https://docs.astral.sh/uv/) and Node 20+.
 uv sync
 uv run python -m app.data.fetch          # downloads ~380 MB of NHTSA files -> data/raw (seconds to minutes)
 uv run python -m app.data.ingest         # builds data/nhtsa.db (~560 MB, about 1 minute)
-uv run pytest                            # 130 tests, no network, no AI model needed
+uv run pytest                            # 133 tests, no network, no AI model needed
 
 uv run uvicorn app.main:app --app-dir backend --port 8000
 cd frontend; npm install; npm run dev    # http://localhost:5173  (operations portal: /ops)
@@ -178,8 +178,10 @@ step calls the AI. The workspace layer turns a checked result into what the anal
 ## Testing: what is checked
 
 There is no answer key for "which recall is right". The only labels are the recalls owners name, owners are sometimes
-wrong, and the data has no VINs or repair records. So **no accuracy number is reported**. The testing is in two parts:
-how the **AI** does, compared with what owners believed; and **guardrails**, tests that must hold on every run.
+wrong, and the data has no VINs or repair records. So **no human-labelled accuracy number is reported**. The testing
+is in three parts: how the **AI** does, compared with what owners believed; a **rough accuracy check** with the same
+AI model as a blind judge (clearly an LLM-as-judge, not ground truth); and **guardrails**, tests that must hold on
+every run.
 
 **What it was tested on.** 471 test cases built from real complaints written by owners, frozen into test sets that
 cover the situations the product must handle ([docs/DATA_CARD.md](docs/DATA_CARD.md)):
@@ -188,8 +190,9 @@ cover the situations the product must handle ([docs/DATA_CARD.md](docs/DATA_CARD
 - 26 tricky cases: real complaints with one thing changed on purpose (no model year, a two-word text, a hidden
   instruction, a car with no recalls).
 
-Each complaint is replayed through the real product as if it had just arrived, and the results are checked by code.
-No AI grades the AI. (Prompt v3, run once on the current code: `data/eval/reports/20261121-2211-abc-test-ai.json`.)
+Each complaint is replayed through the real product as if it had just arrived, and the results are checked by code;
+only the rough accuracy check below uses an AI as the grader. (Prompt v3, run once on the current code:
+`data/eval/reports/20261121-2211-abc-test-ai.json`.)
 
 ### How the AI does (agreement with owners, not accuracy)
 
@@ -206,6 +209,23 @@ It disagrees with owners a third as often as the simple rule. The cost: on 30% o
 detail instead of guessing. The 145 complaints where no recall on the owner's part existed yet are not scored this
 way: the product compares each complaint with every recall on the car, so a recall filed under another part can
 rightly match.
+
+### Accuracy, roughly: the same AI model as a blind judge (LLM-as-judge, not human labels)
+
+The only deployed model (`gpt-6.1-sol`, the same one the product uses) labelled 443 of the 445 complaints above
+without seeing the system's answer or the owner's recall: which recall describes the same failure, "none", or
+"unclear" (`app/eval/llm_judge.py`; every label and its reason is stored in `data/eval/labels/`). Its standard is
+stricter than the product's: the same failure, not only the same symptoms.
+
+| | Result |
+|---|---|
+| When the system says "known recall", the judge names the same recall | **94%** (148 of 158) |
+| When the judge says no recall fits, the system still said "known recall" (the costly mistake) | **4%** (8 of 206); in 6 of the 7 with an owner, the owner had named that same recall |
+| When the judge names a recall, the system found it / asked for more detail instead | 80% (148 of 186) / 19% (35) |
+| The judge agrees with the recall the owner named | 55% (164 of 298): it is stricter than owners |
+
+Being the same model, the judge can share the system's blind spots, and it disagrees with owners almost half the time,
+so these numbers are a second opinion, not accuracy. Real accuracy still needs two analysts labelling blind.
 
 When the AI's answer can't be used: its first answer broke a check in **3 of 466** cases (all 3 corrected on the one
 retry), and it gave no answer in **7 of 466** (2 blocked by Azure's content filter, 5 Azure rate limits). Those 7 were
@@ -231,6 +251,8 @@ the AI picks the right recall needs labels we don't have yet (see the plan below
 
 **Repeat it yourself.** The full results of every run are committed (`data/eval/results/*.jsonl.gz`):
 - `uv run python -m app.eval.agreement` recomputes the comparison with owners and with the simple rule (no AI);
+- `uv run python -m app.eval.llm_judge --report` rebuilds the LLM-as-judge comparison from the stored labels (no AI;
+  without `--report` it labels every case again with the model);
 - `uv run python -m app.eval.trajectory --run <name>` re-checks the process rules, without the AI;
 - `uv run python -m app.eval.as_new` repeats the "stored complaint judged as a brand-new one" check (no AI, a few
   minutes);
@@ -266,9 +288,9 @@ the AI picks the right recall needs labels we don't have yet (see the plan below
 
 ## Limits
 
-- **No accuracy number yet.** The test set's "answer" is the recall the owner named. In the "no recall yet" set, the
-  later recall turned out to be the same failure in about 2 of 3 cases (hand check of the first test sets). The
-  current sets haven't been hand-checked yet.
+- **No human-labelled accuracy yet.** The test set's "answer" is the recall the owner named. In the "no recall yet"
+  set, the later recall turned out to be the same failure in about 2 of 3 cases (hand check of the first test sets).
+  The current sets haven't been hand-checked; the only independent check is the same AI model as a judge.
 - **Coverage needs the VIN.** A recall usually covers cars built between two dates (70% of vehicle recalls give
   them). The system finds recalls by model year, shows the build dates on the ticket, and the owner reply says the
   car *may* be covered and how to confirm.

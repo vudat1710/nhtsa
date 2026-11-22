@@ -1,0 +1,112 @@
+{
+ "name": "llm-judge-20261121-2211-abc-test-ai",
+ "set": "llm_judge",
+ "split": "test",
+ "mode": "judge",
+ "run": "20261121-2211-abc-test-ai",
+ "judge_model": "gpt-6.1-sol",
+ "judge_prompt": "j1",
+ "labelled": 443,
+ "not_labelled": 2,
+ "judge_labels": {
+  "a recall": 186,
+  "unclear": 51,
+  "none": 206
+ },
+ "system_known": {
+  "judge_agrees": {
+   "k": 148,
+   "n": 158,
+   "rate": 0.937,
+   "ci95": [
+    0.887,
+    0.965
+   ]
+  },
+  "judge_says_none": {
+   "k": 8,
+   "n": 158,
+   "rate": 0.051,
+   "ci95": [
+    0.026,
+    0.097
+   ]
+  },
+  "judge_unclear": {
+   "k": 0,
+   "n": 158,
+   "rate": 0.0,
+   "ci95": [
+    0.0,
+    0.024
+   ]
+  }
+ },
+ "judge_names_a_recall": {
+  "system_found_it": {
+   "k": 148,
+   "n": 186,
+   "rate": 0.796,
+   "ci95": [
+    0.732,
+    0.847
+   ]
+  },
+  "system_asked_for_detail": {
+   "k": 35,
+   "n": 186,
+   "rate": 0.188,
+   "ci95": [
+    0.139,
+    0.25
+   ]
+  },
+  "system_called_it_new_or_different": {
+   "k": 1,
+   "n": 186,
+   "rate": 0.005,
+   "ci95": [
+    0.001,
+    0.03
+   ]
+  }
+ },
+ "judge_says_none": {
+  "system_said_known": {
+   "k": 8,
+   "n": 206,
+   "rate": 0.039,
+   "ci95": [
+    0.02,
+    0.075
+   ]
+  },
+  "system_said_known_owner_agreed": {
+   "k": 6,
+   "n": 7,
+   "rate": 0.857,
+   "ci95": [
+    0.487,
+    0.974
+   ]
+  },
+  "system_escalated": {
+   "k": 174,
+   "n": 206,
+   "rate": 0.845,
+   "ci95": [
+    0.789,
+    0.888
+   ]
+  }
+ },
+ "judge_vs_owner": {
+  "k": 164,
+  "n": 298,
+  "rate": 0.55,
+  "ci95": [
+   0.494,
+   0.606
+  ]
+ }
+}
