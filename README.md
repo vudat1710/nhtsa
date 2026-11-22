@@ -41,8 +41,7 @@ cd frontend; npm install; npm run dev    # http://localhost:5173  (operations po
 
 **No Azure account? It still works.** On first start, the 19 inbox tickets open with their stored AI results
 (`data/inbox_results.jsonl.gz`), so you can see each suggestion and how it was reached. A new check without the AI
-is labelled "the AI is off": no recall is matched, the recalls on the same part are listed to read first, and follow-up
-questions are switched off.
+is labelled "the AI is off": no recall is matched, and the recalls on the same part are listed to read first.
 
 **With the AI:**
 1. Copy `.env.example` to `.env`.
@@ -82,13 +81,13 @@ drills (AI down, broken answer, answer cut off, AI refuses) and the test results
 
 **+ New complaint** in the inbox accepts a complaint that isn't in NHTSA's data, like one that just came in by phone or
 one a reviewer writes. It becomes a ticket dated **today** (shown as `typed #1`, `#2`, …) and gets exactly the same
-check, step-by-step trail, actions and follow-up questions. It is compared with every recall filed before today.
+check, step-by-step trail and actions. It is compared with every recall filed before today.
 
 The car's make, model and year are picked from NHTSA's own list (1,905 makes). Recalls are found by exact name, so a
 typed "Ioniq5" would find nothing and wrongly look like "no recall covers this". The system rejects names that aren't
 on the list. In a real deployment, the VIN would fill these in.
 
-### See how it got there, then ask about it
+### See how it got there
 
 - **The step-by-step trail.** Every ticket shows what the system did, in order:
   1. read the complaint;
@@ -100,18 +99,9 @@ on the list. In a real deployment, the VIN would fill these in.
 
   While a check runs, the same steps appear live. The trail is built by code from the stored run
   (`workspace/trail.py`), so it shows what really happened, not a story the AI tells afterwards.
-- **Ask about this case.** For example: "Why doesn't that recall cover this?" or "Have other owners reported the same
-  failure?". The assistant only sees this case, and can search earlier complaints (only ones that came before it).
-  - Every answer quotes its sources, and each quote is **checked word for word**.
-  - If the records don't have the answer (VIN, repair history), it says *"not in the records"* instead of guessing.
-  - It turns down unrelated requests.
-  - If the analyst adds a new fact ("it's actually a 2023"), it says the case should be **checked again** rather
-    than answering on old information.
-
-  Each answer shows **how it answered**: the searches it ran, the quotes it used and the check result.
-- *Why not show the AI's own reasoning?* We tried. The main AI step uses no reasoning at its tested settings, and the
-  assistant gave a reasoning summary for only 1 of 21 test questions. A trail built from what the system actually did
-  is always there and can be checked. The AI's own account of itself is neither.
+- *Why not show the AI's own reasoning?* The AI step uses no reasoning at its tested settings, so there is no
+  reasoning summary to show. A trail built from what the system actually did is always there and can be checked. The
+  AI's own account of itself is neither.
 
 ### Demo (real complaints, in the inbox)
 
@@ -165,16 +155,15 @@ product must handle ([docs/DATA_CARD.md](docs/DATA_CARD.md)):
 - 26 tricky cases.
 
 Each complaint is replayed through the real product as if it had just arrived, and the results are checked by code.
-No AI grades the AI. (Prompt v3, run once: `data/eval/reports/20261120-2209-abc-test-ai.json`.)
+No AI grades the AI. (Prompt v3, run once on the current code: `data/eval/reports/20261121-2211-abc-test-ai.json`.)
 
 | What we check | How | Result |
 |---|---|---|
-| **Every citation is real** | Every recall existed for that car on that date; every quote is in its source word for word; every number exists | Every AI answer passed (464 of 464). 2 more were blocked by Azure's content filter and were labelled "not checked by the AI" |
+| **Every citation is real** | Every recall existed for that car on that date; every quote is in its source word for word; every number exists | Every AI answer passed (459 of 459; 3 after one correction). 7 got no answer and were labelled "not checked by the AI": 2 blocked by Azure's content filter, 5 hit Azure's rate limit during the run |
 | **The process runs correctly** | 16 rules checked on every stored run: steps in order, one retry then fallback, nothing dated after the complaint, only real recalls, searches limited, the trail matches what ran (`app/eval/trajectory.py`; each rule is tested to fail on a deliberately broken run) | 16 of 16, on all 471 runs |
 | **Tricky cases work as designed** | Unknown year → ask, no AI. Too short → ask, never escalate. Hidden instructions never reach the answer. No recalls → nothing to compare | 21 of 21 |
 | **It never sees the future, or itself** | Each complaint's evidence is gathered twice: as stored, and as a brand-new complaint with no id (`app/eval/as_new.py`) | Identical for 490 of 490 (test sets + inbox); none ever found itself |
-| **Follow-up answers stick to the records** | 21 questions on the demo tickets (`app/eval/ask_eval.py`) | Quotes checked: 20 of 20 answers (1 more was blocked by Azure). Says "not in the records" when the data lacks it (repair history, crash data, VIN): 4 of 4. Turns down unrelated requests: 2 of 2. Asks for a re-check after a new fact: 1 of 1 |
-| **Cost and speed** | Measured | About 5,000 tokens; half finish within 10 s, 95% within 35 s |
+| **Cost and speed** | Measured | About 5,800 tokens; half finish within 12 s, 95% within 43 s |
 
 **What this proves, and what it doesn't.** The checks prove that every quote, recall and number the analyst sees is
 real, and that the designed process was followed. They do **not** prove the conclusion: whether the owner's words and
@@ -207,7 +196,7 @@ below). Why reading the text beats matching part names is shown on real cases (d
 - **Unknown year / unknown part / two-word complaint** → ask the owner / compare all recalls / ask the owner.
 - **A typed car name NHTSA doesn't use** ("Ioniq5") → rejected with a message. The form only offers NHTSA's names.
 - **The answer's format** → Azure is told the exact format and enforces it on every finished answer (strict
-  structured output), for the main AI step and the follow-up assistant. The cases that doesn't cover are handled in
+  structured output). The cases it doesn't cover are handled in
   code, each with its own label: the AI refuses (`refused`), the answer is cut off (`incomplete`), Azure blocks the
   request (`content_filter`), or the AI is down (`unavailable`). Each is labelled "not checked by the AI", with no retry. The
   content (quotes, recall numbers, numbers) is still checked separately.
@@ -215,10 +204,6 @@ below). Why reading the text beats matching part names is shown on real cases (d
   matched, the same-part recalls are listed to read, and a crash, fire or injury still escalates.
 - **Looking into the future** → every lookup stops at the complaint's date. A recall filed the same day doesn't count.
 - **Old recall texts in ALL CAPS** → shown in normal sentence case, without breaking abbreviations.
-- **A follow-up question the records can't answer** (VIN, was it repaired?) → "not in the records", no guess.
-- **A follow-up that changes the facts** ("it's a 2023, not a 2022") → flagged for a re-check, not answered on old
-  information.
-- **A follow-up blocked by Azure's content filter** → shown as blocked, not as an error or an empty answer.
 
 ## Limits
 
@@ -228,13 +213,25 @@ below). Why reading the text beats matching part names is shown on real cases (d
 - **Coverage needs the VIN.** A recall usually covers cars built between two dates (70% of vehicle recalls give
   them). The system finds recalls by model year, shows the build dates on the ticket, and the owner reply says the
   car *may* be covered and how to confirm.
+- **A replacement stated only by the newer recall is missed.** "This recall (expands and) replaces NHTSA recall
+  number 19V-350" isn't recognised yet. Of the 67 such pairs in NHTSA's recalls, 24 are still linked through the older
+  recall's own "replaced by" wording (as with 24V-204 → 24V-868); 43 are not. A complaint matching both recalls of
+  such a pair is shown with two matches, without "replaced", so the analyst must pick the newer one. The fix is one
+  more wording rule and a test.
+- **The quote check is literal.** A dropped negation is caught only when it is the word right before the quote ("Zero
+  airbags were deployed" → "airbags were deployed" is rejected; "not that the airbags were deployed" one word further
+  back is not). A number in the AI's summary passes if it appears anywhere in the evidence, not necessarily in the
+  right place. The fix stays in code: check the whole sentence around the quote.
+- **A severe complaint the AI calls only "possibly" a recall isn't escalated.** A crash, fire or injury escalates
+  when the AI is unavailable, but when the AI answers "partial" (too vague to tell) the ticket asks the owner without
+  escalating. 3 of the 471 test complaints (11479246, 11507897, 11517823). The fix is one rule and a test.
 - **"The dealer has no parts" complaints** describe no failure. Today they're escalated or sent back to the owner
   instead of being linked to the recall the owner named.
 - **Data shape:**
   - NHTSA's part categories overlap (`ENGINE` vs `ENGINE AND ENGINE COOLING`), so "same part" signals are weak.
   - Hotline write-ups (22% of complaints) are in the database but in no test set.
   - There are no repair records, so "complaints after the fix" can't tell a failed fix from an unrepaired car.
-- **Speed.** About 10 seconds per complaint with our current Azure quota.
+- **Speed.** About 12 seconds per complaint with our current Azure quota.
 
 ## What's next
 

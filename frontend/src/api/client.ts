@@ -1,5 +1,5 @@
 import type {
-  ActionId, EmergingIssue, EvalReport, InboxItem, Result, RunEvent, RunSummary, Ticket, TicketStatus, Turn,
+  ActionId, EmergingIssue, EvalReport, InboxItem, Result, RunEvent, RunSummary, Ticket, TicketStatus,
 } from './types'
 
 async function get<T>(path: string): Promise<T> {
@@ -35,7 +35,6 @@ export const workspace = {
   issues: () => get<EmergingIssue[]>('/issues'),
   issue: (id: number) => get<EmergingIssue>(`/issues/${id}`),
   check: (odino: number, onEvent: (e: RunEvent) => void) => streamEvents(`/api/tickets/${odino}/check`, onEvent),
-  ask: (odino: number, question: string) => post<Turn>(`/tickets/${odino}/ask`, { question }),
   vehicles: (make?: string, model?: string) => {
     const params = new URLSearchParams()
     if (make) params.set('make', make)

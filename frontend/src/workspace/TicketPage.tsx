@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { workspace } from '../api/client'
-import type { RunEvent, Ticket, Turn } from '../api/types'
+import type { RunEvent, Ticket } from '../api/types'
 import { STATUS, ticketName } from '../lib/labels'
 import { Chip } from '../shared/Badges'
 import { Quoted } from '../shared/Quoted'
 import { ActionPanel } from './ActionPanel'
-import { AskPanel } from './AskPanel'
 import { SuggestionView } from './SuggestionView'
 import { liveLine } from '../lib/liveTrail'
 import { TrailView } from './TrailView'
@@ -20,7 +19,7 @@ const HISTORY: Record<string, string> = {
 }
 const MESSAGES = ['reply_drafted', 'owner_request_drafted', 'replied_to_owner', 'asked_owner']
 
-/** One ticket: what it is (suggestion), how the agent got there (trail), what to do (actions), and follow-ups (ask). */
+/** One ticket: what it is (suggestion), how the agent got there (trail), and what to do (actions). */
 export function TicketPage() {
   const odino = Number(useParams().odino)
   const [t, setT] = useState<{ odino: number; ticket: Ticket } | null>(null)
@@ -49,7 +48,6 @@ export function TicketPage() {
   const s = ticket.suggestion
   const done = ['resolved', 'escalated', 'waiting', 'monitoring'].includes(ticket.status.status)
   const marks = s ? s.why.flatMap(w => w.quotes.map(q => ({ quote: q.owner, label: 'owner' }))) : []
-  const asked = (turn: Turn) => setT({ odino, ticket: { ...ticket, questions: [...ticket.questions, turn] } })
 
   return (
     <>
@@ -101,7 +99,6 @@ export function TicketPage() {
               ))}
             </section>
           )}
-          {s && !live && <AskPanel odino={odino} s={s} turns={ticket.questions} onAsked={asked} />}
           {ticket.demo?.next && done && (
             <details className="card hindsight">
               <summary>What happened next (hindsight, not known when the complaint arrived)</summary>

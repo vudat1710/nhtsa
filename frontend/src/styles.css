@@ -131,11 +131,6 @@ table.quotes td { padding: 6px 8px; background: #fafafa; border: 1px solid var(-
 .trail-card summary { cursor: pointer; font-weight: 600; }
 .trail-card summary .link { margin-left: 10px; font-weight: 400; }
 .live-trail h3 { display: flex; gap: 10px; align-items: center; color: var(--info); }
-.ask .turn { border-top: 1px solid var(--line); padding: 8px 0; }
-.ask .question { font-weight: 600; margin: 0 0 4px; }
-.ask .answer p { margin: 4px 0; }
-.citations { margin: 4px 0; padding-left: 18px; font-size: 13.5px; }
-.chip-button { background: #eef0f3; color: #374151; border-radius: 14px; padding: 4px 10px; font-size: 12.5px; }
 .chip-button:hover { background: #e3e6eb; }
 .grow { flex: 1; }
 .how-answered { margin-top: 6px; font-size: 13.5px; } .how-answered summary { cursor: pointer; color: var(--info); }

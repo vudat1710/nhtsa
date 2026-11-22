@@ -1,5 +1,5 @@
 {
- "name": "20261120-2209-abc-test-ai",
+ "name": "20261121-2211-abc-test-ai",
  "set": "a,b,c",
  "split": "test",
  "mode": "ai",
@@ -9,48 +9,48 @@
   "cases": 471,
   "provenance": {
    "first_answer_failed_verification": {
-    "k": 0,
+    "k": 3,
     "n": 466,
-    "rate": 0.0,
+    "rate": 0.006,
     "ci95": [
-     0.0,
-     0.008
+     0.002,
+     0.019
     ]
    },
    "repaired": {
-    "k": 0,
+    "k": 3,
     "n": 466,
-    "rate": 0.0,
+    "rate": 0.006,
     "ci95": [
-     0.0,
-     0.008
+     0.002,
+     0.019
     ]
    },
    "fallback": {
-    "k": 2,
+    "k": 7,
     "n": 466,
-    "rate": 0.004,
+    "rate": 0.015,
     "ci95": [
-     0.001,
-     0.016
+     0.007,
+     0.031
     ]
    },
    "model_errors": {
-    "k": 2,
+    "k": 7,
     "n": 466,
-    "rate": 0.004,
+    "rate": 0.015,
     "ci95": [
-     0.001,
-     0.016
+     0.007,
+     0.031
     ]
    }
   },
   "operations": {
-   "latency_ms_p50": 10385,
-   "latency_ms_p95": 35365,
-   "input_tokens_per_case": 4684,
-   "output_tokens_per_case": 296,
-   "tool_calls_per_case": 0.51
+   "latency_ms_p50": 11503,
+   "latency_ms_p95": 43249,
+   "input_tokens_per_case": 5524,
+   "output_tokens_per_case": 285,
+   "tool_calls_per_case": 0.58
   }
  }
 }

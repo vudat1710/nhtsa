@@ -206,19 +206,6 @@ def test_other_year_recall_counts_only_if_it_shares_failure_words():
                                     {"toyota", "tacoma"})
 
 
-def test_ask_about_a_checked_ticket(client):
-    assert client.post("/api/tickets/3/ask", json={"question": "Why this recall?"}).status_code == 409
-    check(client)
-    client.turns.append(json.dumps({"answer": "The records hold no repair history.", "citations": [],
-                                    "scope": "not_in_records"}))
-    turn = client.post("/api/tickets/3/ask", json={"question": "Was it repaired?"}).json()
-    assert turn["verified"] and turn["answer"]["scope"] == "not_in_records"
-    t = client.get("/api/tickets/3").json()
-    assert [q["question"] for q in t["questions"]] == ["Was it repaired?"]
-    assert [s["kind"] for s in t["trail"]][0] == "read"
-    assert client.post("/api/tickets/3/ask", json={"question": "x"}).status_code == 422
-
-
 def test_ops_drill_never_changes_what_the_analyst_sees(client):
     check(client)
     done = events(client.post("/api/ops/drill/3", params={"fault": "llm_down"}))[-1]
@@ -237,12 +224,11 @@ def test_fallback_tells_the_analyst_to_check(client):
     assert all(not (a["id"] == "link_close" and a["primary"]) for a in s["actions"])
 
 
-def test_without_a_model_checks_use_the_rules_and_questions_are_off(client, monkeypatch):
+def test_without_a_model_checks_use_the_rules(client, monkeypatch):
     monkeypatch.setattr(deps, "llm", lambda: None)
     assert events(client.post("/api/tickets/3/check"))[-1]["type"] == "done"
     s = client.get("/api/tickets/3").json()["suggestion"]
     assert "The AI is off" in s["check_note"] and "recheck" not in [a["id"] for a in s["actions"]]
-    assert client.post("/api/tickets/3/ask", json={"question": "Was it repaired?"}).status_code == 503
     assert client.get("/api/ops/health").json()["model"] is None
     # nothing is suggested (no AI, no crash/fire/injury): the inbox shows no action instead of failing
     item = next(i for i in client.get("/api/inbox").json() if i["odino"] == 3)
@@ -268,9 +254,7 @@ def test_a_typed_complaint_is_a_ticket_like_any_other(client):
     t = check(client, odino=-1)
     assert t["complaint"]["received"] == date.today().isoformat()
     assert t["suggestion"]["headline"].startswith("Matches recall 24V-868")
-    client.turns.append(json.dumps({"answer": "The records hold no repair history.", "citations": [],
-                                    "scope": "not_in_records"}))
-    assert client.post("/api/tickets/-1/ask", json={"question": "Was it repaired?"}).json()["verified"]
+    assert [s["kind"] for s in t["trail"]][0] == "read"
     st = act(client, odino=-1, action="new_issue", issue_title="ICCU again", issue_kind="new_defect",
              reason="fix not holding").json()
     assert client.get(f"/api/issues/{st['issue_id']}").json()["complaint_details"][0]["odino"] == -1

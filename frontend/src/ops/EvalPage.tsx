@@ -14,8 +14,7 @@ export function EvalPage() {
   const [reports, setReports] = useState<EvalReport[] | null>(null)
   useEffect(() => { ops.evals().then(setReports) }, [])
   if (!reports) return <p className="muted">Loading…</p>
-  const ai = reports.find(r => r.split === 'test' && r.set !== 'ask' && r.mode === 'ai')
-  const asked = reports.find(r => r.set === 'ask')?.metrics as Record<string, RateStat | number> | undefined
+  const ai = reports.find(r => r.split === 'test' && r.mode === 'ai')
   const asNew = reports.find(r => r.set === 'as_new') as unknown as Record<string, number> | undefined
   if (!ai) return <p className="muted">No AI evaluation run yet: <code>uv run python -m app.eval.run</code></p>
   const am = ai.metrics as M
@@ -71,20 +70,6 @@ export function EvalPage() {
             <tr><td>Identical evidence</td><Count k={asNew.evidence_identical} n={asNew.cases} /></tr>
             <tr><td>Identical search results with and without excluding its own id</td><Count k={asNew.search_identical} n={asNew.cases} /></tr>
             <tr><td>Complaints whose search found themselves</td><td><strong>{asNew.found_itself}</strong></td></tr>
-          </tbody></table>
-        </section>
-      )}
-
-      {asked && (
-        <section className="card">
-          <h3>Follow-up questions keep to the records</h3>
-          <p className="small muted">“Ask about this case” on the demo tickets (data/eval/ask_questions.json).</p>
-          <table className="metrics"><tbody>
-            {typeof asked.verified_when_not_blocked === 'object' && <tr><td>Answers with every quote found word for word</td><Count k={asked.verified_when_not_blocked.k} n={asked.verified_when_not_blocked.n} /></tr>}
-            {typeof asked.says_not_in_records_when_the_data_lacks_it === 'object' && <tr><td>Says “not in the records” for what the data lacks (repair history, crash data, VIN)</td><Count k={asked.says_not_in_records_when_the_data_lacks_it.k} n={asked.says_not_in_records_when_the_data_lacks_it.n} /></tr>}
-            {typeof asked.declines_requests_not_about_the_case === 'object' && <tr><td>Declines requests that are not about the case</td><Count k={asked.declines_requests_not_about_the_case.k} n={asked.declines_requests_not_about_the_case.n} /></tr>}
-            {typeof asked.suggests_recheck_when_a_fact_changes === 'object' && <tr><td>Suggests a re-check when the analyst gives a new fact (a different model year)</td><Count k={asked.suggests_recheck_when_a_fact_changes.k} n={asked.suggests_recheck_when_a_fact_changes.n} /></tr>}
-            <tr><td>Blocked by the provider’s safety filter (shown as blocked)</td><td><strong>{String(asked.blocked_by_provider)}</strong></td></tr>
           </tbody></table>
         </section>
       )}

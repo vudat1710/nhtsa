@@ -9,7 +9,6 @@ from pydantic import BaseModel, Field
 
 from app.api import deps
 from app.api.streaming import stream
-from app.ask.service import Turn, ask
 from app.config import ROOT
 from app.data import queries
 from app.models import Complaint
@@ -178,30 +177,8 @@ def ticket(odino: int) -> dict:
         suggested = None
         steps = []
     history = [action.model_dump() for action in tickets.history(odino)]
-    questions = [json.loads(turn) for turn in tickets.questions(odino)]
     return {"complaint": complaint.model_dump(), "status": status, "history": history, "suggestion": suggested,
-            "demo": demo, "trail": steps, "questions": questions}
-
-
-class Question(BaseModel):
-    question: str = Field(min_length=3, max_length=1000)
-
-
-@router.post("/tickets/{odino}/ask")
-async def ask_about(odino: int, q: Question) -> dict:
-    """A follow-up question about this checked complaint, answered with verified citations (app/ask)."""
-    result = deps.store().latest(LABEL).get(odino)
-    if result is None:
-        raise HTTPException(409, "check this ticket first")
-    llm = deps.llm()
-    if llm is None:
-        raise HTTPException(503, "no model configured (NHTSA_AZURE_ENDPOINT), so follow-up questions are off")
-    tickets = deps.store().tickets
-    earlier_turns = [Turn.model_validate_json(body) for body in tickets.questions(odino)]
-    history = earlier_turns[-6:]
-    turn = await ask(deps.con(), llm, result, history, q.question.strip(), related_for(result))
-    tickets.add_question(odino, turn.model_dump_json())
-    return turn.model_dump()
+            "demo": demo, "trail": steps}
 
 
 @router.post("/tickets/{odino}/check")

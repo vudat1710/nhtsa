@@ -1,6 +1,6 @@
 """What the analyst does with a ticket (data/app.db, next to the runs): ticket status, emerging issues, an action log,
-follow-up questions, and complaints typed in by an analyst. Kept apart from the AI runs: runs are the audit record of
-the system, tickets are the work of people.
+and complaints typed in by an analyst. Kept apart from the AI runs: runs are the audit record of the system, tickets
+are the work of people.
 
 Status, action log and emerging issues are written together inside `transaction()`: all of an action, or none of it."""
 import sqlite3
@@ -26,7 +26,6 @@ CREATE TABLE IF NOT EXISTS issue_complaints (issue_id INTEGER, odino INTEGER, ad
   PRIMARY KEY (issue_id, odino));
 CREATE TABLE IF NOT EXISTS actions (id INTEGER PRIMARY KEY AUTOINCREMENT, odino INTEGER, action TEXT, detail TEXT,
   result_id TEXT, by TEXT, at TEXT);
-CREATE TABLE IF NOT EXISTS questions (id INTEGER PRIMARY KEY AUTOINCREMENT, odino INTEGER, body TEXT, at TEXT);
 CREATE TABLE IF NOT EXISTS typed_complaints (id INTEGER PRIMARY KEY AUTOINCREMENT, body TEXT, at TEXT);
 """
 
@@ -104,16 +103,6 @@ class Tickets:
             fields = {name: row[name] for name in Action.model_fields}  # leaves out the table's own id column
             history.append(Action(**fields))
         return history
-
-    # ---------- follow-up questions (ask/service.py Turn, stored as JSON) ----------
-
-    def add_question(self, odino: int, turn_json: str) -> None:
-        self.con.execute("INSERT INTO questions (odino, body, at) VALUES (?, ?, ?)", (odino, turn_json, now()))
-        self.con.commit()
-
-    def questions(self, odino: int) -> list[str]:
-        rows = self.con.execute("SELECT body FROM questions WHERE odino = ? ORDER BY id", (odino,))
-        return [row[0] for row in rows]
 
     # ---------- complaints typed in by an analyst ----------
     # Their ticket number is negative (-1, -2, ...), so it can never collide with an NHTSA complaint id (ODINO).

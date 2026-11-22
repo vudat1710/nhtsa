@@ -35,9 +35,9 @@ A work queue that suggests **the next action** for each complaint. It is not a c
    - escalate with a stated reason;
    - or ask the owner for details.
 
-The analyst can also see each step the system took, ask follow-up questions that are answered only from this case,
-and enter a brand-new complaint. Every action is saved against the suggestion the analyst actually saw (if the
-ticket was checked again meanwhile, the action is refused), all at once or not at all.
+The analyst can also see each step the system took and enter a brand-new complaint. Every action is saved against the
+suggestion the analyst actually saw (if the ticket was checked again meanwhile, the action is refused), all at once or
+not at all.
 
 **Why this way:** the expensive decision is made by rules the team can read, not by the AI, and every claim can be
 checked in seconds.
@@ -52,7 +52,7 @@ not yet measured.
 
 | | What we measure | Goal | Result |
 |---|---|---|---|
-| **Proven now** | Every quote, recall and number in an answer is real (not that the conclusion is right) | Always, or "not checked by the AI" with no recall matched | Every AI answer passed (464 of 464); 2 blocked by Azure's filter were labelled "not checked by the AI" |
+| **Proven now** | Every quote, recall and number in an answer is real (not that the conclusion is right) | Always, or "not checked by the AI" with no recall matched | Every AI answer passed (459 of 459); 7 with no answer (2 blocked by Azure's filter, 5 rate-limited) were labelled "not checked by the AI" |
 | | The process runs correctly (right order, nothing from the future, trail matches what ran) | Every run | 16 of 16 rules held on all 471 runs |
 | | Tricky cases (no model year, two-word complaint, hidden instructions, no recalls) | All handled as designed | 21 of 21 |
 | **Before launch** | Two analysts label a sample blind: how often they agree with "known recall"; how often a new problem is wrongly called "known" | Agreed with the quality team (proposed: at least 95%; at most 2%) | Not measured yet |

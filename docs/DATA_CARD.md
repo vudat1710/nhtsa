@@ -102,15 +102,14 @@ have not been. So the sets are used as **realistic inputs**, and only what code 
 ## Evaluation results
 
 Reported in the README (one table): every claim real, the workflow's rules, stress-case behaviour (set C, against our
-specification), no look-ahead, follow-up guardrails, cost. `data/eval/` holds one file per evaluation:
+specification), no look-ahead, cost. `data/eval/` holds one file per evaluation:
 
 | File | What it is |
 |---|---|
-| `results/20261120-2209-abc-test-ai.jsonl.gz` | Every full result of the v3 test run (prompt v3, run once): evidence, the AI's answers, checks, decisions |
-| `reports/20261120-2209-abc-test-ai.json` | Facts about that run: first answers that failed a check, repairs, fallbacks, time, tokens |
-| `trajectory/20261120-2209-abc-test-ai.json` | The 20 workflow rules checked on that run, with failing examples (none) |
+| `results/20261121-2211-abc-test-ai.jsonl.gz` | Every full result of the test run (prompt v3, run once on the current code): evidence, the AI's answers, checks, decisions |
+| `reports/20261121-2211-abc-test-ai.json` | Facts about that run: first answers that failed a check, repairs, fallbacks, time, tokens |
+| `trajectory/20261121-2211-abc-test-ai.json` | The 20 workflow rules checked on that run, with failing examples (none) |
 | `reports/as_new-*.json` | No look-ahead: stored vs brand-new complaints |
-| `results/ask-*.jsonl` + `reports/ask-*.json` | Every follow-up answer, and the guardrail checks on them |
 
 Every report can be rebuilt from its results without the model. Prompt changes were made on the dev split only (v1 to
 v2: the negation rule; v2 to v3: "symptoms, not causes").

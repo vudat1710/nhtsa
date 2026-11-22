@@ -1,7 +1,7 @@
 {
- "name": "20261120-2209-abc-test-ai",
+ "name": "20261121-2211-abc-test-ai",
  "redecided": true,
- "decisions_changed": 2,
+ "decisions_changed": 0,
  "runs": 471,
  "checks": {
   "path.steps": {
@@ -79,8 +79,8 @@
   "evidence.candidates": {
    "severity": "invariant",
    "question": "The agent only judged candidate recalls",
-   "k": 464,
-   "n": 464,
+   "k": 459,
+   "n": 459,
    "rate": 1.0,
    "ci95": [
     0.992,
@@ -91,8 +91,8 @@
   "evidence.quotes": {
    "severity": "invariant",
    "question": "Every quote is in its source word for word",
-   "k": 464,
-   "n": 464,
+   "k": 459,
+   "n": 459,
    "rate": 1.0,
    "ci95": [
     0.992,
@@ -115,11 +115,11 @@
   "tools.as_of": {
    "severity": "invariant",
    "question": "Search returned only earlier complaints on the same vehicle",
-   "k": 213,
-   "n": 213,
+   "k": 228,
+   "n": 228,
    "rate": 1.0,
    "ci95": [
-    0.982,
+    0.983,
     1.0
    ],
    "examples": []
@@ -127,11 +127,11 @@
   "tools.cited_from_search": {
    "severity": "invariant",
    "question": "Similar complaints cited come from the agent's own searches",
-   "k": 174,
-   "n": 174,
+   "k": 187,
+   "n": 187,
    "rate": 1.0,
    "ci95": [
-    0.978,
+    0.98,
     1.0
    ],
    "examples": []
@@ -139,8 +139,8 @@
   "decision.candidate": {
    "severity": "invariant",
    "question": "The matched recall is a candidate",
-   "k": 259,
-   "n": 259,
+   "k": 258,
+   "n": 258,
    "rate": 1.0,
    "ci95": [
     0.985,
@@ -151,11 +151,11 @@
   "decision.known_backed": {
    "severity": "invariant",
    "question": "'Covered by a recall' is backed by a 'same' check",
-   "k": 177,
-   "n": 177,
+   "k": 164,
+   "n": 164,
    "rate": 1.0,
    "ci95": [
-    0.979,
+    0.977,
     1.0
    ],
    "examples": []

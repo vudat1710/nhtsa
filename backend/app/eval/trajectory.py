@@ -39,7 +39,7 @@ from app.store.results import Store
 from app.workspace.trail import trail
 
 OUT = EVAL / "trajectory"
-DEFAULT_RUN = "20261120-2209-abc-test-ai"
+DEFAULT_RUN = "20261121-2211-abc-test-ai"
 RULES_PATH = ["intake", "evidence", "decide"]
 AI_PATH = ["intake", "evidence", "judge", "verify", "decide"]
 REPAIRED_PATH = ["intake", "evidence", "judge", "verify", "judge", "verify", "decide"]

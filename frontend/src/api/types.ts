@@ -123,18 +123,10 @@ export interface Ticket {
   suggestion: Suggestion | null
   demo: DemoCase | null
   trail: TrailStep[]
-  questions: Turn[]
 }
 export interface TrailStep {
   kind: 'read' | 'look' | 'search' | 'compare' | 'check' | 'decide'
   title: string; lines: string[]; quotes: QuotePair[]; status: 'ok' | 'warn' | 'info'
-}
-export interface Citation { kind: 'complaint' | 'recall' | 'earlier_complaint'; id: string; quote: string }
-export interface Turn {
-  question: string
-  answer: null | { answer: string; citations: Citation[]; scope: 'answered' | 'not_in_records' | 'out_of_scope'; recheck: boolean }
-  verified: boolean; issues: string[]; searches: { query: string; results: number[] }[]
-  blocked?: boolean; error: string | null; result_id: string; at: string
 }
 export interface InboxItem {
   odino: number; vehicle: string; received: string; snippet: string; severity: string[]; status: TicketStatus
