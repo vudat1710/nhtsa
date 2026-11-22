@@ -19,7 +19,7 @@ export const CONFIDENCE: Record<Confidence, string> = {
 }
 
 export const SOURCE: Record<Decision['source'], { label: string; note: string }> = {
-  ai_verified: { label: 'AI, citations checked', note: 'Every quote and number was found in the source records. Whether they describe the same failure is the AI’s judgment.' },
+  ai_verified: { label: 'AI, citations checked', note: 'Every quote, and every number in the AI’s summary, was found in the source records. Whether they describe the same failure is the AI’s judgment.' },
   ai_repaired: { label: 'AI, citations checked after one correction', note: 'The first answer failed a check; the AI corrected it and the correction passed.' },
   fallback: { label: 'Not checked by the AI', note: 'The AI failed or its answer failed the checks twice: nothing was compared, a person must look.' },
   rules: { label: 'AI off', note: 'Run without the AI: nothing was compared, a person must look.' },
@@ -50,7 +50,7 @@ export const STEP: Record<string, string> = {
   intake: 'Intake: mask recall numbers, check for missing details',
   evidence: 'Evidence: recalls, investigations and complaints known on that date',
   judge: 'AI: compare the complaint with each recall',
-  verify: 'Check: every quote, id and number found in the records',
+  verify: 'Check: every quote, recall id and summary number found in the records',
   decide: 'Decide: rules set the outcome and confidence',
 }
 

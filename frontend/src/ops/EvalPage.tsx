@@ -3,7 +3,7 @@ import { ops } from '../api/client'
 import type { EvalReport, RateStat } from '../api/types'
 
 type M = Record<string, Record<string, RateStat | number | null>>
-type Agreement = { a: Record<string, RateStat>; b: Record<string, RateStat> }
+type Agreement = { a: Record<string, RateStat> }
 
 const ERROR_KIND: Record<string, string> = {
   content_filter: 'blocked by Azure’s content filter', unavailable: 'AI unavailable', refused: 'the AI refused',
@@ -46,7 +46,7 @@ export function EvalPage() {
     <>
       <div className="page-head">
         <h1>How the AI is evaluated</h1>
-        <p className="muted">{String(ai.metrics.cases)} real complaints written by car owners, each replayed as of the day it arrived. Model {ai.model || '–'} · prompt {ai.prompt} · run {ai.name}.</p>
+        <p className="muted">{String(ai.metrics.cases)} test cases built from real complaints written by car owners, each replayed as of the day it arrived. Model {ai.model || '–'} · prompt {ai.prompt} · run {ai.name}.</p>
       </div>
 
       {agreement && (
@@ -61,18 +61,13 @@ export function EvalPage() {
               <tr><td>Asks for more detail instead of guessing</td><Share s={agreement.a.ai_asks_for_detail} /><td className="muted">never</td></tr>
             </tbody>
           </table>
-          <p className="small muted">In {agreement.b.ai_says_known_recall.n} complaints no recall existed yet for that problem (one was filed later):</p>
-          <table className="metrics"><tbody>
-            <tr><td>Wrongly says “known recall”</td><Share s={agreement.b.ai_says_known_recall} /></tr>
-            <tr><td>Escalates as a possible new problem</td><Share s={agreement.b.ai_escalates} /></tr>
-          </tbody></table>
         </section>
       )}
 
       {provenance && (
         <section className="card">
           <h3>When the AI’s answer can’t be used</h3>
-          <p className="small muted">Every quote, recall and number is checked before anything is shown. A failed check gets one correction. With no usable answer, the ticket says “not checked by the AI” and no recall is matched.</p>
+          <p className="small muted">Every quote and recall, and every number in the AI’s summary, is checked before anything is shown. A failed check gets one correction. With no usable answer, the ticket says “not checked by the AI” and no recall is matched.</p>
           <table className="metrics"><tbody>
             <tr><td>First answer broke a check (then corrected: {(am.provenance.repaired as RateStat).k})</td><Share s={provenance.first_answer_failed_verification} /></tr>
             <tr><td>No answer from the AI{Object.keys(errorKinds).length > 0 && <>: {Object.entries(errorKinds).map(([kind, count]) => `${count} ${ERROR_KIND[kind] ?? kind}`).join(', ')}</>}</td><Share s={provenance.model_errors} /></tr>
@@ -83,7 +78,7 @@ export function EvalPage() {
       {rules.length > 0 && (
         <section className="card">
           <h3>Guardrails: held on every run</h3>
-          <p className="small">{rulesHeld} of {rules.length} workflow rules held on all {String(ai.metrics.cases)} runs; {scenariosHeld} of {scenarios.length} stress behaviours held on their {stressCases} cases{asNew && <>; {asNew.evidence_identical} of {asNew.cases} complaints got the same evidence stored or brand-new (no look-ahead)</>}.</p>
+          <p className="small">{rulesHeld} of {rules.length} workflow rules held on every run they apply to ({String(ai.metrics.cases)} runs); {scenariosHeld} of {scenarios.length} stress behaviours held on their {stressCases} cases{asNew && <>; {asNew.evidence_identical} of {asNew.cases} complaints got the same evidence stored or brand-new, and none found itself</>}.</p>
           <p className="small muted">These are tests, run on the real AI outputs (app/eval/trajectory.py, app/eval/as_new.py). They should always hold: a failure would be a bug. Each rule is tested to fail on a deliberately broken run.</p>
           <details className="audit">
             <summary>All {rules.length + scenarios.length} checks</summary>

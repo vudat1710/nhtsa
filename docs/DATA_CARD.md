@@ -97,8 +97,10 @@ complaint.
 are sometimes wrong, and nothing in the data (no VINs, no repair records) can settle which recall is right. Set B's "no
 recall yet" is a fact about dates, but a recall filed under another component can still fit. The first (v1) sets were
 hand-checked (A: 14 of 15 sampled were fair matching tests; B: the later recall was the same failure in ~13 of 20); the
-v3 sets have not been. So the labels are used only to compare the AI with the simple "newest recall on the same part"
-rule on the same complaints (`app/eval/agreement.py`), reported as agreement with owners.
+v3 sets have not been. So set A's labels are used only to compare the AI with the simple "newest recall on the same
+part" rule on the same complaints (`app/eval/agreement.py`), reported as agreement with owners. Set B's are not scored:
+its "no recall yet" covers only the owner's part, while the product compares each complaint with every recall on the
+car, so a "known recall" answer there is not necessarily wrong.
 
 ## Evaluation results
 
@@ -110,7 +112,7 @@ file per evaluation:
 |---|---|
 | `results/20261121-2211-abc-test-ai.jsonl.gz` | Every full result of the test run (prompt v3, run once on the current code): evidence, the AI's answers, checks, decisions |
 | `reports/20261121-2211-abc-test-ai.json` | Facts about that run: first answers that failed a check, repairs, fallbacks and why, time, tokens |
-| `reports/agreement-20261121-2211-abc-test-ai.json` | Agreement with the owners' recalls (set A) and "known recall" claims when none existed (set B), for the AI and the simple rule |
+| `reports/agreement-20261121-2211-abc-test-ai.json` | Agreement with the recalls owners named (set A), for the AI and the simple "newest recall on the same part" rule |
 | `trajectory/20261121-2211-abc-test-ai.json` | The 20 workflow rules checked on that run, with failing examples (none) |
 | `reports/as_new-*.json` | No look-ahead: stored vs brand-new complaints |
 
@@ -136,8 +138,9 @@ verified, and the workflow rules held on every run.
 
 - **Selection bias in A.** Labels exist only where the owner already knew their recall. Masking removes the number but
   every text still says "recall". Complaints from owners who don't know about a recall have no labels.
-- **B's "would have caught it early" is noisy** (~65% the same failure on the v1 hand check). B is reliable for "must
-  not claim a known recall"; lead time is reported only as an indicative number.
+- **B's labels are not scored.** The later recall was the same failure in only ~65% of the v1 hand check, and "no
+  recall yet" covers only the owner's part (a recall filed under another part can fit). B is used as realistic input
+  for the guardrail checks; lead time is reported only as an indicative number.
 - **No repair records and no VINs.** We cannot tell whether a car was repaired under a recall ("complaint after the
   remedy" means the fix may not hold, *or* the car was not repaired), nor whether its build date is inside a recall.
 - **History window.** Complaints from 2020 only (similar-complaint counts start then); recalls from 1966.

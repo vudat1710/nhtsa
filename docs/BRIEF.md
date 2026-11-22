@@ -23,8 +23,8 @@ A work queue that suggests the next action for each complaint. Not a chatbot.
 1. **Code finds the evidence:** the recalls on that exact car on the day the complaint arrived, and earlier similar
    complaints.
 2. **The AI compares** the complaint with each recall and quotes both.
-3. **Code checks every quote, recall and number** against the records. If the AI fails, the ticket says "not checked
-   by the AI" and matches no recall.
+3. **Code checks every quote and recall** against the records. If the AI fails, the ticket says "not checked by the AI"
+   and matches no recall.
 4. **Fixed rules decide, and the analyst confirms in one click:** link the recall with a drafted reply to the owner,
    escalate to engineering, or ask the owner. Each action is saved against what the analyst saw.
 
@@ -33,14 +33,13 @@ checked in seconds.
 
 ## Success criteria
 
-Tested on 471 real owner complaints, each replayed as if new. With no answer key yet, today's numbers compare the AI
-with what owners believed, not with the truth.
+Tested on 471 cases from real owner complaints, each replayed as if new. With no answer key yet, today's numbers
+compare the AI with what owners believed, not with the truth.
 
 | What we measure | Target | Today |
 |---|---|---|
-| Every quote, recall and number shown is real | Always | 459 of 459 AI answers |
-| Picks a different recall than the owner named | A comparison | 6%, vs 18% for the "same part" shortcut |
-| Says "known recall" when none existed yet | A comparison | 3% |
+| Every quote and recall shown is real | Always | 459 of 459 AI answers |
+| Picks a different recall than the owner named | No target: a comparison | 6%, vs 18% for the "same part" shortcut |
 | Agrees with two analysts labelling blind | 95% or more (proposed) | Not measured yet |
 | Calls a new problem "known" (blind labels) | 2% or less (proposed) | Not measured yet |
 

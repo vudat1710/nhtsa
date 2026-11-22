@@ -36,7 +36,7 @@ You need Python 3.12+, [uv](https://docs.astral.sh/uv/) and Node 20+.
 uv sync
 uv run python -m app.data.fetch          # downloads ~380 MB of NHTSA files -> data/raw (seconds to minutes)
 uv run python -m app.data.ingest         # builds data/nhtsa.db (~560 MB, about 1 minute)
-uv run pytest                            # 131 tests, no network, no AI model needed
+uv run pytest                            # 130 tests, no network, no AI model needed
 
 uv run uvicorn app.main:app --app-dir backend --port 8000
 cd frontend; npm install; npm run dev    # http://localhost:5173  (operations portal: /ops)
@@ -181,11 +181,12 @@ There is no answer key for "which recall is right". The only labels are the reca
 wrong, and the data has no VINs or repair records. So **no accuracy number is reported**. The testing is in two parts:
 how the **AI** does, compared with what owners believed; and **guardrails**, tests that must hold on every run.
 
-**What it was tested on.** 471 real complaints written by owners, frozen into test sets that cover the situations the
-product must handle ([docs/DATA_CARD.md](docs/DATA_CARD.md)):
+**What it was tested on.** 471 test cases built from real complaints written by owners, frozen into test sets that
+cover the situations the product must handle ([docs/DATA_CARD.md](docs/DATA_CARD.md)):
 - 300 where the owner named a recall (the number is hidden from the system);
 - 145 where no recall existed yet for that part (one was filed later);
-- 26 tricky cases.
+- 26 tricky cases: real complaints with one thing changed on purpose (no model year, a two-word text, a hidden
+  instruction, a car with no recalls).
 
 Each complaint is replayed through the real product as if it had just arrived, and the results are checked by code.
 No AI grades the AI. (Prompt v3, run once on the current code: `data/eval/reports/20261121-2211-abc-test-ai.json`.)
@@ -201,13 +202,10 @@ complaints (`app/eval/agreement.py`):
 | When it names one, it is the owner's | 89% (137 of 154) | 68% (117 of 172) |
 | Asks for more detail instead of guessing | 30% (90) | never |
 
-| 145 complaints where no recall existed yet | AI |
-|---|---|
-| Wrongly says "known recall" | 3% (4) |
-| Escalates as a possible new problem | 91% (132) |
-
 It disagrees with owners a third as often as the simple rule. The cost: on 30% of those complaints it asks for more
-detail instead of guessing.
+detail instead of guessing. The 145 complaints where no recall on the owner's part existed yet are not scored this
+way: the product compares each complaint with every recall on the car, so a recall filed under another part can
+rightly match.
 
 When the AI's answer can't be used: its first answer broke a check in **3 of 466** cases (all 3 corrected on the one
 retry), and it gave no answer in **7 of 466** (2 blocked by Azure's content filter, 5 Azure rate limits). Those 7 were
@@ -218,22 +216,24 @@ within 43 s.
 
 | What must always hold | How | Result |
 |---|---|---|
-| **Every citation shown is real** | Every recall existed for that car on that date; every quote is in its source word for word; every number exists | 459 of 459 AI answers |
-| **The process runs as designed** | 16 rules on every stored run: steps in order, one retry then fallback, nothing dated after the complaint, only real recalls, searches limited, the trail matches what ran (`app/eval/trajectory.py`; each rule is tested to fail on a deliberately broken run) | 16 of 16, on all 471 runs |
-| **Tricky cases work as designed** | Unknown year → ask, no AI. Too short → ask, never escalate. Hidden instructions never reach the answer. No recalls → nothing to compare | 21 of 21 |
-| **It never sees the future, or itself** | Each complaint's evidence is gathered twice: as stored, and as a brand-new complaint with no id (`app/eval/as_new.py`) | Identical for 490 of 490 (test sets + inbox); none ever found itself |
+| **Every citation shown is real** | Every recall existed for that car on that date; every quote is in its source word for word; every number in the AI's summary appears in the records | 459 of 459 AI answers |
+| **The process runs as designed** | 16 rules: steps in order, one retry then fallback, nothing dated after the complaint, only real recalls, searches limited, the trail matches what ran (`app/eval/trajectory.py`; each rule is tested to fail on a deliberately broken run) | 16 of 16, on every one of the 471 runs each rule applies to |
+| **Tricky cases work as designed** | Unknown year → ask, no AI. Too short → ask, never escalate. A hidden instruction changes nothing: the same decision as without it (6 of 6). No recalls → nothing to compare | 21 of 21 |
+| **A stored complaint is judged as a brand-new one** | Each complaint's evidence is gathered twice: as stored, and as a brand-new complaint with no id (`app/eval/as_new.py`) | Identical for 490 of 490 (test sets + inbox); none ever found itself |
 
-**What this proves, and what it doesn't.** The guardrails prove that every quote, recall and number the analyst sees is
-real, and that the designed process was followed. They do **not** prove the conclusion: whether the owner's words and
-the recall's words describe the same failure is the AI's judgment. Code can't check meaning, so the ticket says so
-("the AI judged it the same problem; please confirm"), the AI's summary is labelled as its own words, and the analyst
-confirms before anything is closed. The agreement numbers compare that judgment with owners' beliefs; whether the AI
-picks the right recall needs labels we don't have yet (see the plan below).
+**What this proves, and what it doesn't.** The guardrails prove that every quote and recall the analyst sees, and every
+number in the AI's summary, is real, and that the designed process was followed. (The AI's one-line reason per recall
+is shown as its own words; numbers in it are not checked.) They do **not** prove the conclusion: whether the owner's
+words and the recall's words describe the same failure is the AI's judgment. Code can't check meaning, so the ticket
+says so ("the AI judged it the same problem; please confirm"), the AI's summary is labelled as its own words, and the
+analyst confirms before anything is closed. The agreement numbers compare that judgment with owners' beliefs; whether
+the AI picks the right recall needs labels we don't have yet (see the plan below).
 
 **Repeat it yourself.** The full results of every run are committed (`data/eval/results/*.jsonl.gz`):
 - `uv run python -m app.eval.agreement` recomputes the comparison with owners and with the simple rule (no AI);
 - `uv run python -m app.eval.trajectory --run <name>` re-checks the process rules, without the AI;
-- `uv run python -m app.eval.as_new` repeats the "never sees the future" check (no AI, a few minutes);
+- `uv run python -m app.eval.as_new` repeats the "stored complaint judged as a brand-new one" check (no AI, a few
+  minutes);
 - `uv run python -m app.eval.run` runs everything again (needs the AI); `--report <name>` rebuilds a stored run's
   report without the AI;
 - the test sets rebuild identically (`app.eval.build_sets`).
@@ -258,9 +258,9 @@ picks the right recall needs labels we don't have yet (see the plan below).
   structured output). The cases it doesn't cover are handled in
   code, each with its own label: the AI refuses (`refused`), the answer is cut off (`incomplete`), Azure blocks the
   request (`content_filter`), or the AI is down (`unavailable`). Each is labelled "not checked by the AI", with no retry. The
-  content (quotes, recall numbers, numbers) is still checked separately.
-- **A broken answer, made-up recall or made-up number** → one retry, then "not checked by the AI": no recall is
-  matched, the same-part recalls are listed to read, and a crash, fire or injury still escalates.
+  content (quotes, recall numbers, the numbers in the AI's summary) is still checked separately.
+- **A broken answer, made-up recall or made-up number in the summary** → one retry, then "not checked by the AI": no
+  recall is matched, the same-part recalls are listed to read, and a crash, fire or injury still escalates.
 - **Looking into the future** → every lookup stops at the complaint's date. A recall filed the same day doesn't count.
 - **Old recall texts in ALL CAPS** → shown in normal sentence case, without breaking abbreviations.
 

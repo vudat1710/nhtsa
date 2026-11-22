@@ -111,7 +111,8 @@ def trail(result: Result) -> list[Step]:
                 quote_count = 2 * len(judgment.checks) + len(judgment.similar)
             steps.append(Step(kind="check", status="ok", title="Double-checked against the records",
                               lines=[f"{quote_count} quote(s) found word for word in their sources; every recall "
-                                     "cited is one that covered this vehicle; no number was invented."]))
+                                     "cited is one that covered this vehicle; every number in the AI's summary appears "
+                                     "in the records."]))
     if decision.source == "fallback":
         steps.append(Step(kind="check", status="warn", title="Not checked by the AI",
                           lines=["The AI's answer could not be used, so nothing was compared: a person must look."]))
