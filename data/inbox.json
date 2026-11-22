@@ -1,0 +1,20 @@
+{
+ "note": "The inbox's slice of real, recent owner complaints, pinned to the ones the stored inbox results (inbox_results.jsonl.gz) were made for: the newest owner complaints in NHTSA's files of 2026-11-21. Pinned, so every copy of the data, whatever day it was downloaded, shows the same inbox.",
+ "recent": [
+  11778797,
+  11778796,
+  11778794,
+  11778793,
+  11778792,
+  11778791,
+  11778790,
+  11778789,
+  11778788,
+  11778785,
+  11778784,
+  11778783,
+  11778782,
+  11778781,
+  11778779
+ ]
+}

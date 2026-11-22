@@ -235,6 +235,12 @@ def test_without_a_model_checks_use_the_rules(client, monkeypatch):
     assert item["suggestion"]["action"] is None
 
 
+def test_the_inbox_is_pinned_to_the_complaints_the_stored_results_were_made_for(client, monkeypatch):
+    # 999999 is not in this copy of the data (skipped); 3 is also a demo ticket (listed once, as the demo)
+    monkeypatch.setattr(workspace, "pinned_recent", lambda: [4, 999999, 3])
+    assert [item["odino"] for item in client.get("/api/inbox").json()] == [3, 4]
+
+
 NEW = {"make": "HYUNDAI", "model": "IONIQ 5", "year": "2024", "component": "ELECTRICAL SYSTEM",
        "text": "Stop Vehicle Immediately came on and the car lost drive power. The ICCU failed again after the recall "
                "repair last month.", "injured": 0}

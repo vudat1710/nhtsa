@@ -24,15 +24,22 @@ def demo_cases() -> list[dict]:
     return json.loads((ROOT / "data" / "eval" / "demo.json").read_text(encoding="utf-8"))["cases"]
 
 
-def inbox_ids(limit: int = 15) -> list[int]:
-    """Complaints typed in by an analyst (newest first), then the demo complaints, then a slice of real, recent owner
-    complaints (a normal morning's inbox)."""
+def pinned_recent() -> list[int]:
+    """A normal morning's inbox: real, recent owner complaints, pinned (data/inbox.json) to the ones the stored inbox
+    results were made for. 'The newest in the database' would change with every download of NHTSA's files, and the
+    stored results would no longer match the inbox."""
+    return json.loads((ROOT / "data" / "inbox.json").read_text(encoding="utf-8"))["recent"]
+
+
+def inbox_ids() -> list[int]:
+    """Complaints typed in by an analyst (newest first), then the demo complaints, then the pinned recent ones that
+    this copy of the data has."""
     typed = deps.store().tickets.typed_ids()
     demo = [case["odino"] for case in demo_cases()]
-    rows = deps.con().execute(
-        """SELECT odino FROM complaints WHERE source = 'owner' AND year != '9999' AND length(text) > 200
-           ORDER BY received DESC, odino DESC LIMIT ?""", (limit,)).fetchall()
-    recent = [row[0] for row in rows]
+    pinned = pinned_recent()
+    marks = ",".join("?" * len(pinned))
+    present = {row[0] for row in deps.con().execute(f"SELECT odino FROM complaints WHERE odino IN ({marks})", pinned)}
+    recent = [odino for odino in pinned if odino in present]
     # dict.fromkeys drops a recent complaint that is also a demo one, keeping the order.
     return list(dict.fromkeys(typed + demo + recent))
 

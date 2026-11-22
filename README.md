@@ -31,16 +31,17 @@ You need Python 3.12+, [uv](https://docs.astral.sh/uv/) and Node 20+.
 
 ```powershell
 uv sync
-uv run python -m app.data.fetch          # downloads ~380 MB of NHTSA files -> data/raw
-uv run python -m app.data.ingest         # builds data/nhtsa.db (~550 MB, about 1 minute)
-uv run pytest                            # 126 tests, no network, no AI model needed
+uv run python -m app.data.fetch          # downloads ~380 MB of NHTSA files -> data/raw (seconds to minutes)
+uv run python -m app.data.ingest         # builds data/nhtsa.db (~560 MB, about 1 minute)
+uv run pytest                            # 125 tests, no network, no AI model needed
 
 uv run uvicorn app.main:app --app-dir backend --port 8000
 cd frontend; npm install; npm run dev    # http://localhost:5173  (operations portal: /ops)
 ```
 
 **No Azure account? It still works.** On first start, the 19 inbox tickets open with their stored AI results
-(`data/inbox_results.jsonl.gz`), so you can see each suggestion and how it was reached. A new check without the AI
+(`data/inbox_results.jsonl.gz`), so you can see each suggestion and how it was reached. The inbox is pinned to those 19
+complaints (`data/inbox.json`), so it is the same whatever day you download NHTSA's files. A new check without the AI
 is labelled "the AI is off": no recall is matched, and the recalls on the same part are listed to read first.
 
 **With the AI:**
