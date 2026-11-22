@@ -1,17 +1,73 @@
 # Recall Match
 
-**A tool for the quality analyst at a car maker.** An owner files a safety complaint. Is it:
-
-- a **known recall**? Reply to the owner and close it.
-- the **same part failing in a different way**, or a **possible new safety problem**? Send it to engineering.
-- **too vague**? Ask the owner for details.
-
-Recall Match suggests the next step, drafts the message, and shows why. Every quote it shows is checked word for word
-against the original records.
+**A tool for the quality analyst at a car maker.** An owner files a safety complaint. Is it a **known recall** (reply
+to the owner), a **possible new safety problem** (send it to engineering), or **too vague** (ask the owner)? Recall
+Match suggests the next step, drafts the message, and shows why: every quote it shows is checked word for word against
+the original records, and fixed rules, not the AI, make the final call.
 
 Built on public NHTSA data (owner complaints, recalls and defect investigations), Microsoft Agent Framework and Azure
-OpenAI. One-page product brief: [docs/BRIEF.md](docs/BRIEF.md) · the data and how it's used:
-[docs/DATA_CARD.md](docs/DATA_CARD.md).
+OpenAI (or OpenAI). Runs without an AI model too, using stored results. One-page product brief:
+[docs/BRIEF.md](docs/BRIEF.md)
+
+## The key user journey
+
+1. **Open the inbox.** 19 real complaints, the four demo cases (D1–D4) first.
+2. **Open a ticket.** D1: a 2024 Hyundai Ioniq 5 showed "Power System Failure" and would not accelerate. The system
+   checks it against the recalls that existed for that exact car on that day; with the AI on, each step shows as it
+   goes.
+3. **See the suggestion and why.** *"Matches recall 24V-868"*, with the owner's words next to the recall's words
+   (both checked word for word), the older recall it replaced (24V-204), and 75 complaints that arrived after the fix.
+4. **Act in one click.** *"Link to recall 24V-868 and reply to the owner + flag the remedy to engineering."* The reply
+   is built from the recall's own text, not written by the AI. The action is saved against the suggestion that was on
+   screen.
+5. **Escalations collect** on the Emerging issues page for engineers. Operators see every AI run, failure drills and
+   the test results at `/ops`.
+
+The same journey on harder cases: **D2** same part, opposite failure (air bags that did *not* open) → escalate;
+**D3** no recall yet → possible new problem, with earlier owners quoted; **D4** a one-line complaint ("Backup camara
+is not working") → ask the owner, and the rules overrule the AI. If the AI fails, the ticket says "not checked by the
+AI" and matches nothing.
+
+## Run it
+
+You need Python 3.12+, [uv](https://docs.astral.sh/uv/) and Node 20+.
+
+```powershell
+uv sync
+uv run python -m app.data.fetch          # downloads ~380 MB of NHTSA files -> data/raw (seconds to minutes)
+uv run python -m app.data.ingest         # builds data/nhtsa.db (~560 MB, about 1 minute)
+uv run pytest                            # 131 tests, no network, no AI model needed
+
+uv run uvicorn app.main:app --app-dir backend --port 8000
+cd frontend; npm install; npm run dev    # http://localhost:5173  (operations portal: /ops)
+```
+
+**No Azure account? It still works.** On first start, the 19 inbox tickets open with their stored AI results
+(`data/inbox_results.jsonl.gz`), so you can follow the whole journey above. The inbox is pinned to those 19
+complaints (`data/inbox.json`), so it is the same whatever day you download NHTSA's files. A new check without the AI
+is labelled "the AI is off": no recall is matched, and the recalls on the same part are listed to read first.
+
+**With the AI** (to check tickets live): copy `.env.example` to `.env` and fill in one option.
+
+| Option | Set in `.env` | Sign-in |
+|---|---|---|
+| Azure OpenAI / Azure AI Foundry | `NHTSA_AZURE_ENDPOINT` (`https://<resource>.services.ai.azure.com/openai/v1` or `https://<resource>.openai.azure.com/`), `NHTSA_DEPLOYMENT` | `az login` (your account needs the **Cognitive Services OpenAI User** role on the resource), or `NHTSA_AZURE_API_KEY` |
+| OpenAI | `NHTSA_OPENAI_API_KEY`, `NHTSA_OPENAI_MODEL` | the key |
+
+The model must support tool calling and strict structured output (JSON schema). Tested with `gpt-6.1-sol` on Azure,
+with both endpoint forms, signed in with `az login` and with a key. The OpenAI option is checked up to the provider
+(requests reach `api.openai.com` and a wrong key is rejected and labelled), not with a real OpenAI key. Keys stay in
+`.env`, which git ignores. If the model fails or a key is wrong, tickets say "not checked by the AI" and match nothing.
+
+---
+
+# Details
+
+[Why this problem](#why-this-problem) · [What the analyst sees and does](#what-the-analyst-sees-and-does) ·
+[How it works](#how-it-works) · [Testing](#testing-what-is-checked) ·
+[Tricky situations](#tricky-situations-it-handles-each-has-a-test-or-a-test-case) · [Limits](#limits) ·
+[What's next](#whats-next) · [Data and license](#data-and-license) · the data and how it's used:
+[docs/DATA_CARD.md](docs/DATA_CARD.md)
 
 ## Why this problem
 
@@ -24,30 +80,6 @@ might be a new problem. Both mistakes are expensive:
 The quick way, "same car, same part, so it's that recall", misses the details. It can't tell *"the air bag opened when
 it shouldn't"* from *"the air bag did not open"* (demo D2). Owners also often pick a different part category than the
 recall uses: 49% of the time when they name a recall.
-
-## Run it
-
-You need Python 3.12+, [uv](https://docs.astral.sh/uv/) and Node 20+.
-
-```powershell
-uv sync
-uv run python -m app.data.fetch          # downloads ~380 MB of NHTSA files -> data/raw (seconds to minutes)
-uv run python -m app.data.ingest         # builds data/nhtsa.db (~560 MB, about 1 minute)
-uv run pytest                            # 125 tests, no network, no AI model needed
-
-uv run uvicorn app.main:app --app-dir backend --port 8000
-cd frontend; npm install; npm run dev    # http://localhost:5173  (operations portal: /ops)
-```
-
-**No Azure account? It still works.** On first start, the 19 inbox tickets open with their stored AI results
-(`data/inbox_results.jsonl.gz`), so you can see each suggestion and how it was reached. The inbox is pinned to those 19
-complaints (`data/inbox.json`), so it is the same whatever day you download NHTSA's files. A new check without the AI
-is labelled "the AI is off": no recall is matched, and the recalls on the same part are listed to read first.
-
-**With the AI:**
-1. Copy `.env.example` to `.env`.
-2. Set `NHTSA_AZURE_ENDPOINT` and `NHTSA_DEPLOYMENT`.
-3. Run `az login` (sign-in with Entra ID, no keys).
 
 ## What the analyst sees and does
 
