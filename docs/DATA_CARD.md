@@ -93,21 +93,24 @@ cited recall is filed under a different top-level component than the owner chose
 the broad one while recalls are filed under the specific one. B's later recall came a median of 132 days after the
 complaint.
 
-**Why the sets' labels are not used as results.** Set A's label is the recall the owner cited: owners are sometimes
-wrong, and nothing in the data (no VINs, no repair records) can settle which recall is right. Set B's "no recall yet"
-is a fact about dates, but a recall filed under another component can still fit. The first (v1) sets were hand-checked
-(A: 14 of 15 sampled were fair matching tests; B: the later recall was the same failure in ~13 of 20); the v3 sets
-have not been. So the sets are used as **realistic inputs**, and only what code checks objectively is reported.
+**Why the sets' labels are shown as agreement, never as accuracy.** Set A's label is the recall the owner cited: owners
+are sometimes wrong, and nothing in the data (no VINs, no repair records) can settle which recall is right. Set B's "no
+recall yet" is a fact about dates, but a recall filed under another component can still fit. The first (v1) sets were
+hand-checked (A: 14 of 15 sampled were fair matching tests; B: the later recall was the same failure in ~13 of 20); the
+v3 sets have not been. So the labels are used only to compare the AI with the simple "newest recall on the same part"
+rule on the same complaints (`app/eval/agreement.py`), reported as agreement with owners.
 
 ## Evaluation results
 
-Reported in the README (one table): every claim real, the workflow's rules, stress-case behaviour (set C, against our
-specification), no look-ahead, cost. `data/eval/` holds one file per evaluation:
+Reported in the README: how the AI compares with owners and with the simple rule; when its answer can't be used;
+guardrails (every claim real, the workflow's rules, stress-case behaviour, no look-ahead); cost. `data/eval/` holds one
+file per evaluation:
 
 | File | What it is |
 |---|---|
 | `results/20261121-2211-abc-test-ai.jsonl.gz` | Every full result of the test run (prompt v3, run once on the current code): evidence, the AI's answers, checks, decisions |
-| `reports/20261121-2211-abc-test-ai.json` | Facts about that run: first answers that failed a check, repairs, fallbacks, time, tokens |
+| `reports/20261121-2211-abc-test-ai.json` | Facts about that run: first answers that failed a check, repairs, fallbacks and why, time, tokens |
+| `reports/agreement-20261121-2211-abc-test-ai.json` | Agreement with the owners' recalls (set A) and "known recall" claims when none existed (set B), for the AI and the simple rule |
 | `trajectory/20261121-2211-abc-test-ai.json` | The 20 workflow rules checked on that run, with failing examples (none) |
 | `reports/as_new-*.json` | No look-ahead: stored vs brand-new complaints |
 

@@ -45,13 +45,15 @@ checked in seconds.
 ## How we'll know it works
 
 There is no answer key yet for "which recall is right": the only labels are the recalls owners name, and owners are
-sometimes wrong. So this brief only reports what can be proven by checking. Accuracy is a goal to meet before launch,
-not yet measured.
+sometimes wrong. So this brief reports what can be proven by checking, and compares the AI with owners' own beliefs
+(agreement, not accuracy). Accuracy is a goal to meet before launch, not yet measured.
 
 **Tested on** 471 real owner complaints, each replayed as if it had just arrived.
 
 | | What we measure | Goal | Result |
 |---|---|---|---|
+| **Compared now** | Picks a different recall than the owner named, vs the "newest recall on the same part" rule | No target (a comparison) | 6% vs 18%; asks for more detail instead on 30% |
+| | Says "known recall" when no recall existed yet | No target (a comparison) | 3% (4 of 145) |
 | **Proven now** | Every quote, recall and number in an answer is real (not that the conclusion is right) | Always, or "not checked by the AI" with no recall matched | Every AI answer passed (459 of 459); 7 with no answer (2 blocked by Azure's filter, 5 rate-limited) were labelled "not checked by the AI" |
 | | The process runs correctly (right order, nothing from the future, trail matches what ran) | Every run | 16 of 16 rules held on all 471 runs |
 | | Tricky cases (no model year, two-word complaint, hidden instructions, no recalls) | All handled as designed | 21 of 21 |

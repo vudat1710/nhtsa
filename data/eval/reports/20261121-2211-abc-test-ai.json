@@ -43,6 +43,10 @@
      0.007,
      0.031
     ]
+   },
+   "model_error_kinds": {
+    "error": 5,
+    "content_filter": 2
    }
   },
   "operations": {

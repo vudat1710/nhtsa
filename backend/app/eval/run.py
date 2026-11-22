@@ -5,14 +5,16 @@
 
 Each run stores every full result in data/eval/results/<name>.jsonl.gz (evidence, judgments, attempts, tool calls,
 decision) and a report in data/eval/reports/<name>.json: how many first answers failed a check, repairs, fallbacks,
-model errors, time and tokens. The sets' labels are not scored (there is no ground truth for which recall is right;
-see docs/DATA_CARD.md); the workflow's rules are checked on the stored results by trajectory.py.
+model errors, time and tokens. The sets' labels are not scored as accuracy (there is no ground truth for which recall is
+right; see docs/DATA_CARD.md): agreement with the owners' own recall is in agreement.py, and the workflow's rules are
+checked on the stored results by trajectory.py.
 """
 import argparse
 import asyncio
 import gzip
 import json
 import statistics
+from collections import Counter
 from datetime import datetime
 from math import sqrt
 
@@ -61,6 +63,9 @@ def metrics(results: list[Result]) -> dict:
             "repaired": rate(ai_runs, lambda r: r.decision.source == "ai_repaired"),
             "fallback": rate(ai_runs, lambda r: r.decision.source == "fallback"),
             "model_errors": rate(ai_runs, lambda r: bool(r.attempts[0].error)),
+            # "content_filter: …", "error: Error code: 429 …": the kind is the label before the first colon
+            "model_error_kinds": dict(Counter(r.attempts[0].error.split(":")[0] for r in ai_runs
+                                              if r.attempts[0].error)),
         },
         "operations": {
             "latency_ms_p50": latencies[len(latencies) // 2],
