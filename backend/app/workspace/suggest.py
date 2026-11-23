@@ -49,10 +49,6 @@ class RecallCard(BaseModel):
 
 class Pattern(BaseModel):
     sentence: str
-    total: int
-    before_recall: int | None
-    after_recall: int | None
-    last_12_months: int
     crash: int
     fire: int
     injury: int
@@ -160,8 +156,6 @@ def pattern_of(result: Result, recall: RecallItem | None, comp: str) -> Pattern 
     if not stats.total:
         return None
 
-    before = None
-    after = None
     if recall and recall.same_component and decision.outcome == "known_recall":
         # Same part as the recall: split the earlier complaints into before and after it was filed.
         after = recall.complaints_since
@@ -175,8 +169,7 @@ def pattern_of(result: Result, recall: RecallItem | None, comp: str) -> Pattern 
     else:
         sentence = (f"{stats.total} earlier complaints on this model year about the {part(comp)}, "
                     f"{stats.last_12_months} in the 12 months before this one.")
-    return Pattern(sentence=sentence, total=stats.total, before_recall=before, after_recall=after,
-                   last_12_months=stats.last_12_months, crash=stats.crash, fire=stats.fire, injury=stats.injury)
+    return Pattern(sentence=sentence, crash=stats.crash, fire=stats.fire, injury=stats.injury)
 
 
 PATTERN_MIN = 3        # similar complaints on this model year in 12 months before an unmatched complaint is escalated
@@ -445,24 +438,22 @@ def suggest(result: Result, tickets: Tickets, related: list[dict] = (), can_rech
 
     else:
         # needs_info (also reached by a known_recall whose recall is missing from the evidence): ask the owner.
-        probable = recall
         headline = "Not enough detail to tell"
-        if probable:
-            headline += f": possibly recall {display_campno(probable.campno)}"
+        if recall:
+            headline += f": possibly recall {display_campno(recall.campno)}"
         if "unknown_year" in result.intake.flags:
             why.append(Why(text="The model year is missing, so we can't tell which recalls cover this vehicle."))
         else:
             why.append(Why(text="The owner's description is too short or too general to match it to a recall."))
-        if probable:
-            why.append(Why(text=f"It may be recall {display_campno(probable.campno)}:",
-                           quotes=pairs(checks_for(result, probable.campno))))
-            card = recall_card(probable, complaint, [])
+        if recall:
+            why.append(Why(text=f"It may be recall {display_campno(recall.campno)}:",
+                           quotes=pairs(checks_for(result, recall.campno))))
         actions.append(ActionOption(id="request_info", primary=True, label="Ask the owner for details",
                                     message=owner_info_request(complaint, questions)))
-        if probable:
-            actions.append(ActionOption(id="link_close", campno=probable.campno,
-                                        label=f"Link to recall {display_campno(probable.campno)} anyway",
-                                        message=owner_recall_reply(complaint, probable, False)))
+        if recall:
+            actions.append(ActionOption(id="link_close", campno=recall.campno,
+                                        label=f"Link to recall {display_campno(recall.campno)} anyway",
+                                        message=owner_recall_reply(complaint, recall, False)))
 
     # Always on offer, below the suggested action.
     if decision.outcome != "needs_info":

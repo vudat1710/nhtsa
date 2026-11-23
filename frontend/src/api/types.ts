@@ -101,8 +101,7 @@ export interface RecallCard {
   remedy: string; units: number | null; replaced: string[]
 }
 export interface Pattern {
-  sentence: string; total: number; before_recall: number | null; after_recall: number | null
-  last_12_months: number; crash: number; fire: number; injury: number
+  sentence: string; crash: number; fire: number; injury: number
 }
 export interface ActionOption {
   id: ActionId; label: string; primary: boolean; campno: string | null; issue_id: number | null
