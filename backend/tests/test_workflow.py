@@ -182,3 +182,33 @@ def test_a_cut_candidate_list_never_reads_as_no_recall_covers_this(con, iccu_com
     assert s.headline.startswith(f"No match among the {shown} of {shown + 21} recalls reviewed")
     assert any(w.text.startswith("21 more recalls on this vehicle were not reviewed") for w in s.why)
     assert not any("No recall covers this" in w.text for w in s.why)
+
+
+def test_every_recall_that_fits_is_shown_and_can_be_linked(con, iccu_complaint, tmp_path):
+    """Review: with two fitting recalls the ticket asked the analyst to "confirm which one" but showed only the first,
+    and offered no way to link the other."""
+    from app.pipeline.decide import decide
+
+    check = json.loads(GOOD)["checks"][0]
+    other_recall = check | {"campno": "24V204000", "recall_quote": "may become damaged and stop charging"}
+    both = json.dumps({"checks": [other_recall, check],
+                       "proposed": "known_recall", "summary": "Matches the ICCU recalls."})
+    r, _, _ = go(con, iccu_complaint, [both])
+    tickets = Store(tmp_path / "app.db").tickets
+
+    # 24V-204 was replaced by 24V-868: one recall applies, the "replaced by" line explains the other
+    s = suggest(r, tickets)
+    assert not any("also fits" in w.text for w in s.why)
+    assert [(a.campno, a.primary) for a in s.actions if a.id == "link_close"] == [("24V868000", True)]
+
+    # Two recalls that both fit: both shown with quotes, both can be linked, the AI's best fit (listed first) first
+    evidence = r.evidence.model_copy(deep=True)
+    for recall in evidence.recalls:
+        recall.replaced_by = None
+    d = decide(r.complaint, r.intake, evidence, r.judgment, "ai_verified")
+    s = suggest(r.model_copy(update={"evidence": evidence, "decision": d}), tickets)
+    assert d.campno == "24V204000"
+    other = [w for w in s.why if w.text.startswith("Recall 24V-868 (") and "also fits" in w.text]
+    assert len(other) == 1 and other[0].quotes[0].recall == "stop charging the 12-volt battery"
+    assert [(a.campno, a.primary) for a in s.actions if a.id == "link_close"] == [("24V204000", True),
+                                                                                  ("24V868000", False)]

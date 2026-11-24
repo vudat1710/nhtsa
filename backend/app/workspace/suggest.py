@@ -249,6 +249,20 @@ def escalation_reasons(result: Result, related: list[dict]) -> list[str]:
     return reasons
 
 
+def also_fitting(result: Result, matched: RecallItem) -> list[RecallItem]:
+    """Other recalls the AI also judged the same failure, in the AI's order (its best fit first, as the rules pick).
+    A recall replaced by another fitting one is left out: the "replaced by" line already explains it."""
+    if not result.judgment:
+        return []
+    same_ids = [check.campno for check in result.judgment.checks if check.verdict == "same"]
+    others = []
+    for campno in dict.fromkeys(same_ids):
+        recall = result.evidence.recall(campno)
+        if recall and campno != matched.campno and recall.replaced_by not in same_ids:
+            others.append(recall)
+    return others
+
+
 def recalls_to_check(result: Result) -> list[RecallItem]:
     """Without a checked AI answer: the same-component recalls no other candidate replaced, newest first (at most 3).
     Read first, never a match."""
@@ -338,6 +352,11 @@ def suggest(result: Result, tickets: Tickets, related: list[dict] = (), can_rech
                             "can happen. The quotes below were found word for word; please confirm they mean the "
                             "same failure.",
                        quotes=pairs(checks_for(result, recall.campno, "same"))))
+        others = also_fitting(result, recall)
+        for other in others:
+            why.append(Why(text=f"Recall {display_campno(other.campno)} ({covers(other, complaint)}) also fits: the AI "
+                                "judged it the same problem too. Check which one applies to this car before linking.",
+                           quotes=pairs(checks_for(result, other.campno, "same"))))
         if replaced:
             why.append(Why(text=f"Recall {', '.join(card.replaced)} was replaced by {display}: use {display}'s "
                                 "remedy."))
@@ -358,6 +377,11 @@ def suggest(result: Result, tickets: Tickets, related: list[dict] = (), can_rech
             link.issue_comp = comp
             link.label += " + flag the remedy to engineering"
         actions.append(link)
+        for other in others:
+            actions.append(ActionOption(id="link_close", campno=other.campno,
+                                        label=f"Link to recall {display_campno(other.campno)} instead and reply to the "
+                                              "owner",
+                                        message=owner_recall_reply(complaint, other, False)))
         actions.append(issue_option(tickets, "new_defect", complaint, comp, None, primary=False))
 
     elif decision.outcome in ("related_different", "possible_new"):

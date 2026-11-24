@@ -19,7 +19,9 @@ def decide(complaint: Complaint, intake: Intake, evidence: Evidence, judgment: J
 
     reasons: list[str] = []
 
-    # Group the AI's checks by verdict. A 'same' recall replaced by another 'same' recall drops out: the newer applies.
+    # Group the AI's checks by verdict, in the AI's order: it lists its best fit first (in the evaluation, ordering by
+    # evidence instead picked a recall other than the owner's in 3 cases where the AI's first was the owner's).
+    # A 'same' recall replaced by another 'same' recall drops out: the newer applies.
     same = [check for check in judgment.checks if check.verdict == "same"]
     same_ids = {check.campno for check in same}
     replaced = [check for check in same if evidence.recall(check.campno).replaced_by in same_ids]
@@ -41,9 +43,10 @@ def decide(complaint: Complaint, intake: Intake, evidence: Evidence, judgment: J
         escalate = False
         reasons.append(f"The AI judged the complaint the same failure as recall {best.campno} (its quotes were found "
                        "word for word).")
-        if len(same) > 1:
+        fitting = {check.campno for check in same}
+        if len(fitting) > 1:
             confidence = "medium"
-            reasons.append(f"{len(same)} recalls fit; the analyst should confirm which one.")
+            reasons.append(f"{len(fitting)} recalls fit; the analyst should confirm which one.")
         if not best.same_component:
             confidence = "medium"
             reasons.append("The recall is filed under a different component than the owner chose.")

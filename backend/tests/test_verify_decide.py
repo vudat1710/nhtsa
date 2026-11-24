@@ -88,6 +88,17 @@ def test_two_recalls_that_fit_lower_confidence(case):
     assert decide(c, it, ev, judgment(SAME_868, SAME_204), "ai_verified").confidence == "medium"
 
 
+def test_when_several_fit_the_ais_best_fit_is_picked_and_each_recall_counts_once(case):
+    c, it, ev = case
+    ev.recalls[1].replaced_by = None
+    for order in [(SAME_868, SAME_204), (SAME_204, SAME_868)]:
+        d = decide(c, it, ev, judgment(*order), "ai_verified")
+        assert d.campno == order[0].campno                      # the AI lists its best fit first
+        assert "2 recalls fit; the analyst should confirm which one." in d.reasons
+    # the same recall checked twice is one recall, not two
+    assert decide(c, it, ev, judgment(SAME_868, SAME_868), "ai_verified").confidence == "high"
+
+
 def test_partial_or_short_text_asks_for_info(case):
     partial = SAME_868.model_copy(update={"verdict": "partial"})
     d = decide(*case, judgment(partial, proposed="needs_info", questions=["When did it happen?"]), "ai_verified")
